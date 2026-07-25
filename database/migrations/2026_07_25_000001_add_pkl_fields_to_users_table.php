@@ -16,8 +16,12 @@ return new class extends Migration
                 ->nullable()
                 ->after('id')
                 ->constrained('roles')
+                ->cascadeOnUpdate()
                 ->nullOnDelete();
 
+            $table->boolean('must_change_password')->default(false)->after('password');
+            $table->timestamp('last_login_at')->nullable()->after('remember_token');
+            $table->string('last_login_ip', 45)->nullable()->after('last_login_at');
             $table->softDeletes();
         });
     }
@@ -29,7 +33,13 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropForeign(['role_id']);
-            $table->dropColumn(['role_id', 'deleted_at']);
+            $table->dropColumn([
+                'role_id',
+                'must_change_password',
+                'last_login_at',
+                'last_login_ip',
+                'deleted_at',
+            ]);
         });
     }
 };

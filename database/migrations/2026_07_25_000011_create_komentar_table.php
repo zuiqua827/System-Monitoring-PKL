@@ -13,7 +13,11 @@ return new class extends Migration
     {
         Schema::create('komentar', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('aktivitas_id')->index()->constrained('aktivitas')->cascadeOnDelete();
+            $table->foreignId('aktivitas_id')
+                ->index()
+                ->constrained('aktivitas')
+                ->cascadeOnUpdate()
+                ->cascadeOnDelete();
             $table->text('isi');
             $table->boolean('is_internal')->default(false);
             $table->timestamps();

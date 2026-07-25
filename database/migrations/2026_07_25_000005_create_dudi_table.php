@@ -13,11 +13,12 @@ return new class extends Migration
     {
         Schema::create('dudi', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->unique()->constrained()->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('nama_perusahaan');
             $table->string('penanggung_jawab')->nullable();
-            $table->string('email')->nullable()->unique();
+            $table->string('email_perusahaan')->nullable()->unique();
             $table->string('no_telepon', 20)->nullable();
+            $table->string('logo')->nullable();
             $table->string('website')->nullable();
             $table->string('bidang_usaha')->nullable();
             $table->text('alamat')->nullable();

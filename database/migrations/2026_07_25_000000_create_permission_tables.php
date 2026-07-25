@@ -57,6 +57,7 @@ return new class extends Migration
             $table->foreign($pivotPermission)
                 ->references('id')
                 ->on($tableNames['permissions'])
+                ->cascadeOnUpdate()
                 ->cascadeOnDelete();
 
             if ($teams) {
@@ -83,6 +84,7 @@ return new class extends Migration
             $table->foreign($pivotRole)
                 ->references('id')
                 ->on($tableNames['roles'])
+                ->cascadeOnUpdate()
                 ->cascadeOnDelete();
 
             if ($teams) {
@@ -107,11 +109,13 @@ return new class extends Migration
             $table->foreign($pivotPermission)
                 ->references('id')
                 ->on($tableNames['permissions'])
+                ->cascadeOnUpdate()
                 ->cascadeOnDelete();
 
             $table->foreign($pivotRole)
                 ->references('id')
                 ->on($tableNames['roles'])
+                ->cascadeOnUpdate()
                 ->cascadeOnDelete();
 
             $table->primary([$pivotPermission, $pivotRole], 'role_has_permissions_permission_id_role_id_primary');

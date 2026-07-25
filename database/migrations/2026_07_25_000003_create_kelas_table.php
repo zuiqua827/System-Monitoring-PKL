@@ -13,7 +13,11 @@ return new class extends Migration
     {
         Schema::create('kelas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('jurusan_id')->index()->constrained('jurusan')->restrictOnDelete();
+            $table->foreignId('jurusan_id')
+                ->index()
+                ->constrained('jurusan')
+                ->cascadeOnUpdate()
+                ->restrictOnDelete();
             $table->string('nama', 100);
             $table->unsignedTinyInteger('tingkat');
             $table->string('tahun_ajaran', 9);

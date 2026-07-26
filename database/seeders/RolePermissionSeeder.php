@@ -19,6 +19,7 @@ class RolePermissionSeeder extends Seeder
         'Guru' => [
             'dashboard.view',
             'dashboard.kpi',
+            'jurusan.view',
             'siswa.view',
             'absensi.view',
             'aktivitas.view',

@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureUserHasPermission;
+use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\ForceChangePassword;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,7 +15,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'role' => EnsureUserHasRole::class,
+            'permission' => EnsureUserHasPermission::class,
+            'force.change.password' => ForceChangePassword::class,
+        ]);
+
+        // Append ForceChangePassword middleware to the 'web' group
+        // so it runs on every authenticated web request
+        $middleware->appendToGroup('web', [
+            ForceChangePassword::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

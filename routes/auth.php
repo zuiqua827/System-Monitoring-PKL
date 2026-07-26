@@ -4,18 +4,27 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\ForceChangePasswordController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes
+|--------------------------------------------------------------------------
+|
+| Public registration is disabled. User accounts are created by Super Admin.
+| Siswa login with NIS as username and tanggal_lahir as initial password.
+|
+*/
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+Route::middleware('guest')->group(function () {
+    // Registration disabled — accounts are created by Super Admin
+    // Route::get('register', ...);
+    // Route::post('register', ...);
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
@@ -36,6 +45,13 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    // Force change password (for first-login Siswa)
+    Route::get('force-change-password', [ForceChangePasswordController::class, 'show'])
+        ->name('force-change-password');
+
+    Route::post('force-change-password', [ForceChangePasswordController::class, 'update'])
+        ->name('force-change-password.update');
+
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 

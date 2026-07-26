@@ -62,11 +62,37 @@ class UserAuthenticationService extends Service implements UserAuthenticationSer
         $this->users->updatePassword($user, Hash::make($password));
     }
 
+    /**
+     * Force change password for first-login users.
+     * Updates password and clears the must_change_password flag.
+     */
+    public function forceChangePassword(User $user, string $newPassword): void
+    {
+        $this->transaction(function () use ($user, $newPassword): void {
+            $this->users->updatePassword($user, Hash::make($newPassword));
+
+            $this->users->update($user, [
+                'must_change_password' => false,
+            ]);
+        });
+    }
+
     public function confirmPassword(User $user, string $password): bool
     {
         return Auth::guard('web')->validate([
             'email' => $user->email,
             'password' => $password,
+        ]);
+    }
+
+    /**
+     * Record login metadata (last_login_at and last_login_ip).
+     */
+    public function recordLoginMetadata(User $user, ?string $ipAddress): void
+    {
+        $this->users->update($user, [
+            'last_login_at' => now(),
+            'last_login_ip' => $ipAddress,
         ]);
     }
 }

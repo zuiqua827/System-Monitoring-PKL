@@ -80,8 +80,8 @@ class Siswa extends Model
         return $this->belongsTo(Kelas::class, 'class_id');
     }
 
-    public function penempatan(): HasMany
+public function penempatan(): HasMany
     {
-        return $this->hasMany(PenempatanPKL::class);
+        return $this->hasMany(PenempatanPKL::class, 'siswa_id');
     }
 }

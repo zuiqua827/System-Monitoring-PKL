@@ -15,11 +15,10 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $nama
  * @property string $tahun_ajaran
- * @property string $semester
  * @property Carbon $tanggal_mulai
  * @property Carbon $tanggal_selesai
  * @property string $status
- * @property string|null $deskripsi
+ * @property string|null $keterangan
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -38,11 +37,10 @@ class PeriodePKL extends Model
     protected $fillable = [
         'nama',
         'tahun_ajaran',
-        'semester',
         'tanggal_mulai',
         'tanggal_selesai',
         'status',
-        'deskripsi',
+        'keterangan',
     ];
 
     /**
@@ -64,6 +62,6 @@ class PeriodePKL extends Model
 
     public function penempatan(): HasMany
     {
-        return $this->hasMany(PenempatanPKL::class);
+        return $this->hasMany(PenempatanPKL::class, 'periode_pkl_id');
     }
 }

@@ -34,13 +34,12 @@ class PeriodePKLRepository extends EloquentRepository implements PeriodePKLRepos
             $query->where(function ($q) use ($keyword): void {
                 $q->where('nama', 'like', "%{$keyword}%")
                   ->orWhere('tahun_ajaran', 'like', "%{$keyword}%")
-                  ->orWhere('semester', 'like', "%{$keyword}%")
                   ->orWhere('status', 'like', "%{$keyword}%")
-                  ->orWhere('deskripsi', 'like', "%{$keyword}%");
+                  ->orWhere('keterangan', 'like', "%{$keyword}%");
             });
         }
 
-        $allowedSorts = ['nama', 'tahun_ajaran', 'semester', 'tanggal_mulai', 'tanggal_selesai', 'status', 'created_at'];
+        $allowedSorts = ['nama', 'tahun_ajaran', 'tanggal_mulai', 'tanggal_selesai', 'status', 'created_at'];
         $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'nama';
         $sortDirection = in_array($sortDirection, ['asc', 'desc'], true) ? $sortDirection : 'asc';
 

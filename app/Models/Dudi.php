@@ -23,6 +23,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $website
  * @property string|null $bidang_usaha
  * @property string|null $alamat
+ * @property string|null $kecamatan
+ * @property string|null $kabupaten
+ * @property string|null $provinsi
+ * @property float|null $latitude
+ * @property float|null $longitude
+ * @property bool $status_aktif
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -49,6 +55,12 @@ class Dudi extends Model
         'website',
         'bidang_usaha',
         'alamat',
+        'kecamatan',
+        'kabupaten',
+        'provinsi',
+        'latitude',
+        'longitude',
+        'status_aktif',
     ];
 
     /**
@@ -63,6 +75,9 @@ class Dudi extends Model
     {
         return [
             'user_id' => 'integer',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
+            'status_aktif' => 'boolean',
             'deleted_at' => 'datetime',
         ];
     }
@@ -72,8 +87,8 @@ class Dudi extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function penempatan(): HasMany
+public function penempatan(): HasMany
     {
-        return $this->hasMany(PenempatanPKL::class);
+        return $this->hasMany(PenempatanPKL::class, 'dudi_id');
     }
 }

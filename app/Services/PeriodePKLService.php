@@ -52,22 +52,44 @@ class PeriodePKLService extends Service implements PeriodePKLServiceInterface
 
     /**
      * {@inheritDoc}
+     *
+     * Business Rules:
+     * 1. Validate that there is no other active period if status is "Aktif"
+     * 2. All within a single database transaction
      */
     public function store(array $data): PeriodePKL
     {
         /** @var PeriodePKL $periodePkl */
-        $periodePkl = $this->transaction(fn (): Model => $this->periodePklRepository->create($data));
+        $periodePkl = $this->transaction(function () use ($data): Model {
+            // Check for duplicate active period
+            if ($data['status'] === 'Aktif') {
+                $this->ensureNoActivePeriod();
+            }
+
+            return $this->periodePklRepository->create($data);
+        });
 
         return $periodePkl;
     }
 
     /**
      * {@inheritDoc}
+     *
+     * Business Rules:
+     * 1. Validate that there is no other active period if status is "Aktif"
+     * 2. All within a single database transaction
      */
     public function update(PeriodePKL $periodePkl, array $data): PeriodePKL
     {
         /** @var PeriodePKL $updated */
-        $updated = $this->transaction(fn (): Model => $this->periodePklRepository->update($periodePkl, $data));
+        $updated = $this->transaction(function () use ($periodePkl, $data): Model {
+            // Check for duplicate active period (exclude current record)
+            if ($data['status'] === 'Aktif') {
+                $this->ensureNoActivePeriod($periodePkl->id);
+            }
+
+            return $this->periodePklRepository->update($periodePkl, $data);
+        });
 
         return $updated;
     }
@@ -94,5 +116,26 @@ class PeriodePKLService extends Service implements PeriodePKLServiceInterface
     public function forceDelete(PeriodePKL $periodePkl): bool
     {
         return $this->periodePklRepository->forceDelete($periodePkl);
+    }
+
+    /**
+     * Ensure no other active period exists.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function ensureNoActivePeriod(?int $excludeId = null): void
+    {
+        $query = PeriodePKL::where('status', 'Aktif');
+
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        if ($query->exists()) {
+            throw new \InvalidArgumentException(
+                'Tidak dapat mengaktifkan lebih dari satu periode PKL dalam waktu yang sama. ' .
+                'Nonaktifkan periode aktif terlebih dahulu.'
+            );
+        }
     }
 }

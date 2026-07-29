@@ -29,12 +29,11 @@ class StorePeriodePKLRequest extends FormRequest
     {
         return [
             'nama' => ['required', 'string', 'max:255', 'unique:periode_pkl,nama'],
-            'tahun_ajaran' => ['required', 'string', 'max:9'],
-            'semester' => ['required', 'string', 'in:ganjil,genap'],
+            'tahun_ajaran' => ['required', 'string', 'max:9', 'regex:/^\d{4}\/\d{4}$/'],
             'tanggal_mulai' => ['required', 'date'],
-            'tanggal_selesai' => ['required', 'date', 'after:tanggal_mulai'],
-            'status' => ['required', 'string', 'in:draft,aktif,selesai'],
-            'deskripsi' => ['nullable', 'string'],
+            'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
+            'status' => ['required', 'string', 'in:Persiapan,Aktif,Selesai,Ditutup'],
+            'keterangan' => ['nullable', 'string'],
         ];
     }
 
@@ -48,11 +47,23 @@ class StorePeriodePKLRequest extends FormRequest
         return [
             'nama' => 'Nama Periode',
             'tahun_ajaran' => 'Tahun Ajaran',
-            'semester' => 'Semester',
             'tanggal_mulai' => 'Tanggal Mulai',
             'tanggal_selesai' => 'Tanggal Selesai',
             'status' => 'Status',
-            'deskripsi' => 'Deskripsi',
+            'keterangan' => 'Keterangan',
+        ];
+    }
+
+    /**
+     * Get the validation messages that apply to the request.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'tahun_ajaran.regex' => 'Format Tahun Ajaran harus seperti 2026/2027.',
+            'tanggal_selesai.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal mulai.',
         ];
     }
 }

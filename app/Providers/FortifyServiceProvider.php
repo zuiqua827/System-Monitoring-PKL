@@ -15,10 +15,13 @@ class FortifyServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
+     *
+     * Disable Fortify's auto-registered routes since the project uses
+     * custom authentication routes defined in routes/auth.php.
      */
     public function register(): void
     {
-        //
+        Fortify::ignoreRoutes();
     }
 
     /**

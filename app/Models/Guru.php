@@ -69,7 +69,7 @@ class Guru extends Model
 
     public function penempatan(): HasMany
     {
-        return $this->hasMany(PenempatanPKL::class);
+        return $this->hasMany(PenempatanPKL::class, 'guru_id');
     }
 
     public function komentar(): HasMany

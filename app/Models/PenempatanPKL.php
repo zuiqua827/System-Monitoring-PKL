@@ -30,7 +30,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
- * @property-read PeriodePKL $periode
+ * @property-read PeriodePKL $periodePKL
  * @property-read Guru $guru
  * @property-read Dudi $dudi
  * @property-read Siswa $siswa
@@ -90,9 +90,9 @@ class PenempatanPKL extends Model
         ];
     }
 
-    public function periode(): BelongsTo
+    public function periodePKL(): BelongsTo
     {
-        return $this->belongsTo(PeriodePKL::class, 'periode_pkl_id');
+        return $this->belongsTo(PeriodePKL::class, 'periode_pkl_id', 'id');
     }
 
     public function guru(): BelongsTo
@@ -120,23 +120,23 @@ class PenempatanPKL extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function absensi(): HasMany
+public function absensi(): HasMany
     {
-        return $this->hasMany(Absensi::class);
+        return $this->hasMany(Absensi::class, 'penempatan_pkl_id', 'id');
     }
 
     public function aktivitas(): HasMany
     {
-        return $this->hasMany(Aktivitas::class);
+        return $this->hasMany(Aktivitas::class, 'penempatan_pkl_id');
     }
 
     public function penilaian(): HasOne
     {
-        return $this->hasOne(Penilaian::class);
+        return $this->hasOne(Penilaian::class, 'penempatan_pkl_id');
     }
 
     public function laporan(): HasOne
     {
-        return $this->hasOne(Laporan::class);
+        return $this->hasOne(Laporan::class, 'penempatan_pkl_id');
     }
 }

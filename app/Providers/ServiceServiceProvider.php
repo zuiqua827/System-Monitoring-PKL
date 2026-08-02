@@ -5,21 +5,27 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Services\Interfaces\AbsensiServiceInterface;
+use App\Services\Interfaces\AktivitasServiceInterface;
+use App\Services\Interfaces\DashboardServiceInterface;
 use App\Services\Interfaces\DudiServiceInterface;
 use App\Services\Interfaces\GuruServiceInterface;
 use App\Services\Interfaces\JurusanServiceInterface;
 use App\Services\Interfaces\KelasServiceInterface;
 use App\Services\Interfaces\PenempatanPKLServiceInterface;
+use App\Services\Interfaces\PenilaianServiceInterface;
 use App\Services\Interfaces\PeriodePKLServiceInterface;
 use App\Services\Interfaces\SiswaServiceInterface;
 use App\Services\Interfaces\UserAuthenticationServiceInterface;
 use App\Services\Interfaces\UserProfileServiceInterface;
 use App\Services\AbsensiService;
+use App\Services\AktivitasService;
+use App\Services\DashboardService;
 use App\Services\DudiService;
 use App\Services\GuruService;
 use App\Services\JurusanService;
 use App\Services\KelasService;
 use App\Services\PenempatanPKLService;
+use App\Services\PenilaianService;
 use App\Services\PeriodePKLService;
 use App\Services\SiswaService;
 use App\Services\UserAuthenticationService;
@@ -33,11 +39,14 @@ class ServiceServiceProvider extends ServiceProvider
      */
     private array $services = [
         AbsensiServiceInterface::class => AbsensiService::class,
+        AktivitasServiceInterface::class => AktivitasService::class,
+        DashboardServiceInterface::class => DashboardService::class,
         DudiServiceInterface::class => DudiService::class,
         GuruServiceInterface::class => GuruService::class,
         JurusanServiceInterface::class => JurusanService::class,
         KelasServiceInterface::class => KelasService::class,
         PenempatanPKLServiceInterface::class => PenempatanPKLService::class,
+        PenilaianServiceInterface::class => PenilaianService::class,
         PeriodePKLServiceInterface::class => PeriodePKLService::class,
         SiswaServiceInterface::class => SiswaService::class,
         UserAuthenticationServiceInterface::class => UserAuthenticationService::class,
@@ -51,3 +60,4 @@ class ServiceServiceProvider extends ServiceProvider
         }
     }
 }
+

@@ -57,11 +57,13 @@ class Kelas extends Model
         ];
     }
 
+    /** @return BelongsTo<Jurusan, $this> */
     public function jurusan(): BelongsTo
     {
         return $this->belongsTo(Jurusan::class);
     }
 
+    /** @return HasMany<Siswa, $this> */
     public function siswa(): HasMany
     {
         return $this->hasMany(Siswa::class, 'class_id');

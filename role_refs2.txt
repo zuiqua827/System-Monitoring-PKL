@@ -1,0 +1,41 @@
+﻿C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:11: * Determines the appropriate redirect URL based on user role.
+C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:13: * Each role has a dedicated dashboard route.
+C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:14: * Falls back to generic dashboard if role is unknown.
+C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:29: * Get the dashboard URL for the given user based on their role.
+C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:55: * Get the primary role name for a user.
+C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:59: /** @var \Spatie\Permission\Models\Role|null $role */
+C:\laragon\www\system_monitoring_pkl\app\Helpers\RoleRedirectHelper.php:62: return $role?->name;
+C:\laragon\www\system_monitoring_pkl\app\Http\Controllers\Auth\AuthenticatedSessionController.php:23: * 3. Redirect based on role (Super Admin, Guru, DUDI, Siswa)
+C:\laragon\www\system_monitoring_pkl\app\Http\Controllers\Auth\AuthenticatedSessionController.php:58: // Redirect based on user role
+C:\laragon\www\system_monitoring_pkl\app\Http\Controllers\Auth\ForceChangePasswordController.php:24: * - User is redirected to their role-based dashboard
+C:\laragon\www\system_monitoring_pkl\app\Models\User.php:21: use Spatie\Permission\Models\Role;
+C:\laragon\www\system_monitoring_pkl\app\Models\User.php:41: * @property-read Role|null $role
+C:\laragon\www\system_monitoring_pkl\app\Models\User.php:95: /** @return BelongsTo<Role, $this> */
+C:\laragon\www\system_monitoring_pkl\app\Models\User.php:96: public function role(): BelongsTo
+C:\laragon\www\system_monitoring_pkl\app\Policies\DudiPolicy.php:14: * No manual role checks — all authorization goes through permissions.
+C:\laragon\www\system_monitoring_pkl\app\Policies\GuruPolicy.php:14: * No manual role checks — all authorization goes through permissions.
+C:\laragon\www\system_monitoring_pkl\app\Policies\JurusanPolicy.php:14: * No manual role checks — all authorization goes through permissions.
+C:\laragon\www\system_monitoring_pkl\app\Policies\KelasPolicy.php:14: * No manual role checks — all authorization goes through permissions.
+C:\laragon\www\system_monitoring_pkl\app\Policies\PeriodePKLPolicy.php:14: * No manual role checks — all authorization goes through permissions.
+C:\laragon\www\system_monitoring_pkl\app\Policies\SiswaPolicy.php:14: * No manual role checks — all authorization goes through permissions.
+C:\laragon\www\system_monitoring_pkl\app\Services\Interfaces\DudiServiceInterface.php:35: * Creates a User with role "DUDI", then creates the Dudi record.
+C:\laragon\www\system_monitoring_pkl\app\Services\Interfaces\GuruServiceInterface.php:35: * Creates a User with role "Guru", then creates the Guru record.
+C:\laragon\www\system_monitoring_pkl\app\Services\Interfaces\SiswaServiceInterface.php:35: * Creates a User with role "Siswa", then creates the Siswa record.
+C:\laragon\www\system_monitoring_pkl\app\Services\DudiService.php:64: * 1. Create User account with role "DUDI"
+C:\laragon\www\system_monitoring_pkl\app\Services\DudiService.php:83: // 2. Assign DUDI role via Spatie
+C:\laragon\www\system_monitoring_pkl\app\Services\GuruService.php:64: * 1. Create User account with role "Guru"
+C:\laragon\www\system_monitoring_pkl\app\Services\GuruService.php:83: // 2. Assign Guru role via Spatie
+C:\laragon\www\system_monitoring_pkl\app\Services\SiswaService.php:64: * 1. Create User account with role "Siswa"
+C:\laragon\www\system_monitoring_pkl\app\Services\SiswaService.php:83: // 2. Assign Siswa role via Spatie
+C:\laragon\www\system_monitoring_pkl\routes\web.php:33: | - Authenticated: role-based dashboard redirect
+C:\laragon\www\system_monitoring_pkl\resources\views\layouts\guest.blade.php:44: <p class="text-xs text-slate-400">Role Pengguna</p>
+C:\laragon\www\system_monitoring_pkl\resources\views\pages\auth\login.blade.php:22: <p class="text-sm font-semibold text-slate-200">Dashboard Role</p>
+C:\laragon\www\system_monitoring_pkl\resources\views\pages\auth\login.blade.php:53: x-on:click="role = '{{ $tab }}'"
+C:\laragon\www\system_monitoring_pkl\resources\views\pages\auth\login.blade.php:54: :class="role === '{{ $tab }}' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'"
+C:\laragon\www\system_monitoring_pkl\resources\views\pages\settings\two-factor\⚡recovery-codes.blade.php:116: role="list"
+C:\laragon\www\system_monitoring_pkl\resources\views\pages\settings\two-factor\⚡recovery-codes.blade.php:121: role="listitem"
+C:\laragon\www\system_monitoring_pkl\database\seeders\RoleAndPermissionSeeder.php:9: use Spatie\Permission\Models\Role;
+C:\laragon\www\system_monitoring_pkl\database\seeders\RolePermissionSeeder.php:10: use Spatie\Permission\Models\Role;
+C:\laragon\www\system_monitoring_pkl\database\seeders\RoleSeeder.php:9: use Spatie\Permission\Models\Role;
+C:\laragon\www\system_monitoring_pkl\database\seeders\RoleSeeder.php:20: 'name' => $role->value,
+C:\laragon\www\system_monitoring_pkl\database\seeders\SuperAdminSeeder.php:11: use Spatie\Permission\Models\Role;

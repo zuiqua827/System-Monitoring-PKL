@@ -55,11 +55,13 @@ class Komentar extends Model
         ];
     }
 
+    /** @return BelongsTo<Aktivitas, $this> */
     public function aktivitas(): BelongsTo
     {
         return $this->belongsTo(Aktivitas::class);
     }
 
+    /** @return BelongsTo<Guru, $this> */
     public function guru(): BelongsTo
     {
         return $this->belongsTo(Guru::class, 'guru_id');

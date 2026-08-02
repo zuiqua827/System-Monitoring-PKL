@@ -72,11 +72,13 @@ class Laporan extends Model
         ];
     }
 
+    /** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatan(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function validatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'validated_by');

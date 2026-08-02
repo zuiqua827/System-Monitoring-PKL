@@ -15,6 +15,11 @@ use App\Models\User;
  * - Super Admin: CRUD penuh
  * - Guru: Lihat absensi siswa bimbingan, validasi absensi
  * - Siswa: Check In, Check Out, lihat absensi sendiri
+ *
+ * NOTE: checkIn() and checkOut() are defined in PenempatanPKLPolicy,
+ * because Siswa\AbsensiController::checkIn() and ::checkOut()
+ * call `authorize('checkIn', $penempatanAktif)` where $penempatanAktif
+ * is a PenempatanPKL model, causing Laravel to resolve PenempatanPKLPolicy.
  */
 class AbsensiPolicy
 {
@@ -53,7 +58,7 @@ class AbsensiPolicy
         if ($user->hasRole('Guru')) {
             $guru = $user->guru;
             if ($guru !== null) {
-                return $absensi->penempatanPKL?->guru_id === $guru->id;
+                return $absensi->penempatanPKL->guru_id === $guru->id;
             }
         }
 
@@ -61,7 +66,7 @@ class AbsensiPolicy
         if ($user->hasRole('Siswa')) {
             $siswa = $user->siswa;
             if ($siswa !== null) {
-                return $absensi->penempatanPKL?->siswa_id === $siswa->id;
+                return $absensi->penempatanPKL->siswa_id === $siswa->id;
             }
         }
 
@@ -109,33 +114,6 @@ class AbsensiPolicy
     }
 
     /**
-     * Check In ability for Siswa.
-     */
-    public function checkIn(User $user, PenempatanPKL $penempatanPkl): bool
-    {
-        if ($user->hasRole('Super Admin')) {
-            return true;
-        }
-
-        if ($user->hasRole('Siswa')) {
-            $siswa = $user->siswa;
-            if ($siswa !== null) {
-                return $penempatanPkl->siswa_id === $siswa->id;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Check Out ability for Siswa.
-     */
-    public function checkOut(User $user, PenempatanPKL $penempatanPkl): bool
-    {
-        return $this->checkIn($user, $penempatanPkl);
-    }
-
-    /**
      * Verify/validate absensi ability for Guru.
      */
     public function verify(User $user, Absensi $absensi): bool
@@ -147,11 +125,10 @@ class AbsensiPolicy
         if ($user->hasRole('Guru') && $user->hasPermissionTo('absensi.verify')) {
             $guru = $user->guru;
             if ($guru !== null) {
-                return $absensi->penempatanPKL?->guru_id === $guru->id;
+                return $absensi->penempatanPKL->guru_id === $guru->id;
             }
         }
 
         return false;
     }
 }
-

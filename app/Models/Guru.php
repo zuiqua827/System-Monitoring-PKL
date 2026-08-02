@@ -62,16 +62,19 @@ class Guru extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return HasMany<PenempatanPKL, $this> */
     public function penempatan(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'guru_id');
     }
 
+    /** @return HasMany<Komentar, $this> */
     public function komentar(): HasMany
     {
         return $this->hasMany(Komentar::class, 'guru_id');

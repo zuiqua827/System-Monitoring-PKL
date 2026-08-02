@@ -82,4 +82,38 @@ class PenempatanPKLPolicy
     {
         return $user->hasPermissionTo('penempatan.forceDelete');
     }
+
+    /**
+     * Check In ability for Siswa on their active PenempatanPKL.
+     *
+     * This ability is defined here (not on AbsensiPolicy) because
+     * the authorize() call in Siswa\AbsensiController passes a
+     * PenempatanPKL model instance as the second argument, which
+     * causes Laravel to resolve PenempatanPKLPolicy, not AbsensiPolicy.
+     */
+    public function checkIn(User $user, PenempatanPKL $penempatanPkl): bool
+    {
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('Siswa')) {
+            $siswa = $user->siswa;
+            if ($siswa !== null) {
+                return $penempatanPkl->siswa_id === $siswa->id;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check Out ability for Siswa on their active PenempatanPKL.
+     *
+     * Delegates to checkIn since ownership check is identical.
+     */
+    public function checkOut(User $user, PenempatanPKL $penempatanPkl): bool
+    {
+        return $this->checkIn($user, $penempatanPkl);
+    }
 }

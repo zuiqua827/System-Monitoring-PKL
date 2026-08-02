@@ -28,7 +28,8 @@ class UpdatePeriodePKLRequest extends FormRequest
      */
     public function rules(): array
     {
-        $periodePklId = $this->route('periode_pkl')?->id ?? $this->route('periode_pkl');
+        $periodePkl = $this->route('periode_pkl');
+        $periodePklId = $periodePkl instanceof \App\Models\PeriodePKL ? $periodePkl->id : $periodePkl;
 
         return [
             'nama' => ['required', 'string', 'max:255', Rule::unique('periode_pkl', 'nama')->ignore($periodePklId)],

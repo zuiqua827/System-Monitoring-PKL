@@ -1,0 +1,84 @@
+﻿=== ROLE ARCHITECTURE VERIFICATION ===
+
+--- 1. Calling User::role('Guru') ---
+ERROR: Error
+MESSAGE: Non-static method App\Models\User::role() cannot be called statically
+
+--- 2. Method existence on User model ---
+scopeRole (Spatie query scope): EXISTS
+role (instance method): EXISTS
+roles (relation): EXISTS
+hasRole: EXISTS
+assignRole: EXISTS
+
+--- 3. HasRoles trait methods ---
+  trait method: bootHasRoles
+  trait method: getRoleClass
+  trait method: roles
+  trait method: scopeRole
+  trait method: scopeWithoutRole
+  trait method: assignRole
+  trait method: removeRole
+  trait method: syncRoles
+  trait method: hasRole
+  trait method: hasAnyRole
+  trait method: hasAllRoles
+  trait method: hasExactRoles
+  trait method: getRoleNames
+  trait method: getPermissionsViaRoles
+
+--- 4. Database check ---
+Roles table count: 4
+  - Super Admin (id=2, guard=web)
+  - Guru (id=3, guard=web)
+  - DUDI (id=4, guard=web)
+  - Siswa (id=5, guard=web)
+Users table count: 41
+  - #2 Super Administrator (admin@monitoringpkl.test) roles=[Super Admin] role_id=2
+  - #3 Jaclyn Buckridge (weimann.dedrick@example.com) roles=[] role_id=
+  - #4 Jackson Langworth MD (mbode@example.org) roles=[] role_id=
+  - #5 Ally Barrows (alicia.walker@example.com) roles=[] role_id=
+  - #6 Miss Megane Hirthe (cassin.jessika@example.org) roles=[] role_id=
+  - #7 Briana Schimmel (smante@example.org) roles=[] role_id=
+  - #8 Ondricka, Hermann and Heaney (kmarquardt@example.com) roles=[] role_id=
+  - #9 Yundt, Hansen and Rosenbaum (rempel.mary@example.org) roles=[] role_id=
+  - #10 Harber and Sons (billie.kessler@example.net) roles=[] role_id=
+  - #11 Strosin-Schoen (novella16@example.net) roles=[] role_id=
+  - #12 Wisozk-Larkin (lucas05@example.net) roles=[] role_id=
+  - #13 Kendrick Welch (11872054@siswa.monitoringpkl.test) roles=[] role_id=
+  - #14 Ocie Powlowski (05006798@siswa.monitoringpkl.test) roles=[] role_id=
+  - #15 Angela Jakubowski Jr. (14112111@siswa.monitoringpkl.test) roles=[] role_id=
+  - #16 Efren Gutkowski (54260047@siswa.monitoringpkl.test) roles=[] role_id=
+  - #17 Joanie Mueller (50826109@siswa.monitoringpkl.test) roles=[] role_id=
+  - #18 Elsa Nikolaus (69699881@siswa.monitoringpkl.test) roles=[] role_id=
+  - #19 Felicity Koelpin V (46665135@siswa.monitoringpkl.test) roles=[] role_id=
+  - #20 Mollie Ritchie II (94598187@siswa.monitoringpkl.test) roles=[] role_id=
+  - #21 Prof. Miguel Carroll IV (46618816@siswa.monitoringpkl.test) roles=[] role_id=
+  - #22 Luisa Schoen (50006243@siswa.monitoringpkl.test) roles=[] role_id=
+  - #23 Immanuel Kling IV (mosciski.chadrick@example.org) roles=[] role_id=
+  - #24 Bins, O'Kon and Flatley (goldner.alessandra@example.net) roles=[] role_id=
+  - #25 Maribel Jaskolski (08692315@siswa.monitoringpkl.test) roles=[] role_id=
+  - #26 Tina Runolfsson V (webster.casper@example.net) roles=[] role_id=
+  - #27 Bill Torphy (yquigley@example.net) roles=[] role_id=
+  - #28 Gerlach-Kautzer (michale.dubuque@example.com) roles=[] role_id=
+  - #29 Nathaniel Balistreri (51247770@siswa.monitoringpkl.test) roles=[] role_id=
+  - #30 Mr. Stephen Langosh (johnson.madyson@example.com) roles=[] role_id=
+  - #31 Miss Marcella Hodkiewicz II (dejuan14@example.com) roles=[] role_id=
+  - #32 Boyle-Crist (jennyfer97@example.org) roles=[] role_id=
+  - #33 Rosario Green (82887144@siswa.monitoringpkl.test) roles=[] role_id=
+  - #34 Marielle Feil (ulices.runolfsson@example.org) roles=[] role_id=
+  - #35 Florencio Morissette (qmann@example.net) roles=[] role_id=
+  - #36 Kiehn-Satterfield (gwen58@example.org) roles=[] role_id=
+  - #37 Dr. Lorenzo McClure IV (25839260@siswa.monitoringpkl.test) roles=[] role_id=
+  - #38 Richmond Terry (marcellus.wolff@example.org) roles=[] role_id=
+  - #39 Miss Maggie Hickle (kuhlman.shanon@example.org) roles=[] role_id=
+  - #40 Graham-Stehr (greyson.cole@example.net) roles=[] role_id=
+  - #41 Mrs. Polly Kreiger (98154356@siswa.monitoringpkl.test) roles=[] role_id=
+  - #42 Dr. Asia Kautzer (streich.nellie@example.com) roles=[] role_id=
+
+--- 5. model_has_roles pivot ---
+  - role_id=2 model_type=App\Models\User model_id=2
+
+--- 6. Correct Spatie usage patterns ---
+User::role('Guru')->count() (if works): FAILED: Non-static method App\Models\User::role() cannot be called statically
+whereHas('roles', name=Guru): 0

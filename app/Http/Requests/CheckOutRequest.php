@@ -4,52 +4,56 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-/**
- * Validation rules for Check Out (Siswa).
- */
 class CheckOutRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'jam_pulang' => ['nullable', 'date_format:H:i:s'],
+            'foto_pulang' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
+            'foto_base64' => ['nullable', 'string'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'lokasi_pulang' => ['nullable', 'string', 'max:500'],
-            'foto_pulang' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
-            'latitude_keluar' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude_keluar' => ['nullable', 'numeric', 'between:-180,180'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'foto_pulang' => 'Foto Pulang',
+            'foto_base64' => 'Foto Kamera',
+            'latitude' => 'Latitude',
+            'longitude' => 'Longitude',
+            'accuracy' => 'Akurasi GPS',
+            'lokasi_pulang' => 'Lokasi Pulang',
         ];
     }
 
     /**
-     * Get custom attributes for validator errors.
-     *
-     * @return array<string, string>
+     * @param string|null $key
+     * @param mixed $default
+     * @return array<string, mixed>
      */
-    public function attributes(): array
+    public function validated($key = null, $default = null): array
     {
-        return [
-            'jam_pulang' => 'Jam Pulang',
-            'lokasi_pulang' => 'Lokasi Pulang',
-            'foto_pulang' => 'Foto Pulang',
-            'latitude_keluar' => 'Latitude Keluar',
-            'longitude_keluar' => 'Longitude Keluar',
-        ];
+        $data = parent::validated();
+
+        // If base64 photo is provided, remove foto_pulang (file upload) validation
+        if (!empty($data['foto_base64'])) {
+            $data['foto_pulang'] = null;
+        }
+
+        return $data;
     }
 }
-

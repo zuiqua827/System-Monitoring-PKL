@@ -25,7 +25,7 @@ class DudiFactory extends Factory
         $company = fake()->company();
 
         return [
-            'user_id' => User::factory()->state([
+            'user_id' => User::factory()->withRole('DUDI')->state([
                 'name' => $company,
             ]),
             'nama_perusahaan' => $company,

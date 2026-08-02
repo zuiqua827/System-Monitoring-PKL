@@ -1,24 +1,20 @@
-@php
-    /**
-     * @var \App\Models\Absensi|null $absensi
-     */
-@endphp
+@extends('layouts.app')
 
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Tambah Absensi') }}
-        </h2>
-    </x-slot>
+@section('title', 'Tambah Absensi')
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            @include('admin.absensi._form', [
-                'absensi' => null,
-                'route' => route('admin.absensi.store'),
-                'method' => 'POST',
-            ])
+@section('content')
+<div class="px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-3xl">
+        <div class="mb-8">
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Absensi</p>
+            <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Tambah Absensi</h1>
+            <p class="mt-2 text-sm text-slate-500">Tambahkan data absensi harian siswa</p>
         </div>
+        @include('admin.absensi._form', [
+            'absensi' => null,
+            'route' => route('admin.absensi.store'),
+            'method' => 'POST',
+        ])
     </div>
-</x-app-layout>
-
+</div>
+@endsection

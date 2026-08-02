@@ -32,7 +32,9 @@ class NewPasswordController extends Controller
      */
     public function store(ResetPasswordRequest $request): RedirectResponse
     {
-        $status = $this->authenticationService->resetPassword($request->validated());
+        /** @var array{email: string, password: string, password_confirmation: string, token: string} $validated */
+        $validated = $request->validated();
+        $status = $this->authenticationService->resetPassword($validated);
 
         return $status === Password::PASSWORD_RESET
                     ? redirect()->route('login')->with('status', __($status))

@@ -1,100 +1,298 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
-    <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
-                    </a>
+@auth
+    @php
+        $user = auth()->user();
+        $roleName = $user->roles->first()?->name ?? 'User';
+        $dashboardRoute = \App\Helpers\RoleRedirectHelper::getDashboardRouteName($user);
+        $initial = strtoupper(substr($user->name ?? 'U', 0, 1));
+
+        $adminSections = [
+            [
+                'label' => 'Utama',
+                'items' => [
+                    ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'active' => ['admin.dashboard'], 'icon' => 'dashboard'],
+                    ['label' => 'Kelola Guru', 'route' => 'admin.guru.index', 'active' => ['admin.guru.*'], 'icon' => 'teacher'],
+                    ['label' => 'Kelola Siswa', 'route' => 'admin.siswa.index', 'active' => ['admin.siswa.*'], 'icon' => 'students'],
+                    ['label' => 'Kelola DUDI', 'route' => 'admin.dudi.index', 'active' => ['admin.dudi.*'], 'icon' => 'building'],
+                ],
+            ],
+            [
+                'label' => 'Akademik',
+                'items' => [
+                    ['label' => 'Jurusan', 'route' => 'admin.jurusan.index', 'active' => ['admin.jurusan.*'], 'icon' => 'academic'],
+                    ['label' => 'Kelas', 'route' => 'admin.kelas.index', 'active' => ['admin.kelas.*'], 'icon' => 'classes'],
+                    ['label' => 'Periode PKL', 'route' => 'admin.periode-pkl.index', 'active' => ['admin.periode-pkl.*'], 'icon' => 'calendar'],
+                    ['label' => 'Penempatan PKL', 'route' => 'admin.penempatan-pkl.index', 'active' => ['admin.penempatan-pkl.*'], 'icon' => 'placement'],
+                ],
+            ],
+            [
+                'label' => 'Monitoring',
+                'items' => [
+                    ['label' => 'Absensi', 'route' => 'admin.absensi.index', 'active' => ['admin.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Aktivitas', 'route' => 'admin.aktivitas.index', 'active' => ['admin.aktivitas.*'], 'icon' => 'activity'],
+                    ['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                ],
+            ],
+        ];
+
+        $guruSections = [
+            [
+                'label' => 'Utama',
+                'items' => [
+                    ['label' => 'Dashboard', 'route' => 'guru.dashboard', 'active' => ['guru.dashboard'], 'icon' => 'dashboard'],
+                    ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
+                    ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                ],
+            ],
+        ];
+
+        $siswaSections = [
+            [
+                'label' => 'Utama',
+                'items' => [
+                    ['label' => 'Dashboard', 'route' => 'siswa.dashboard', 'active' => ['siswa.dashboard'], 'icon' => 'dashboard'],
+                    ['label' => 'Absensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Aktivitas', 'route' => 'siswa.aktivitas.index', 'active' => ['siswa.aktivitas.*'], 'icon' => 'activity'],
+                    ['label' => 'Penilaian', 'route' => 'siswa.penilaian.index', 'active' => ['siswa.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                ],
+            ],
+        ];
+
+        $dudiSections = [
+            [
+                'label' => 'Utama',
+                'items' => [
+                    ['label' => 'Dashboard', 'route' => 'dudi.dashboard', 'active' => ['dudi.dashboard'], 'icon' => 'dashboard'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                ],
+            ],
+        ];
+
+        $sections = match ($roleName) {
+            'Super Admin' => $adminSections,
+            'Guru' => $guruSections,
+            'Siswa' => $siswaSections,
+            'DUDI' => $dudiSections,
+            default => [[
+                'label' => 'Utama',
+                'items' => [
+                    ['label' => 'Dashboard', 'route' => $dashboardRoute, 'active' => ['dashboard'], 'icon' => 'dashboard'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                ],
+            ]],
+        };
+    @endphp
+
+    <div x-data="{ sidebarOpen: false, profileOpen: false }" @keydown.escape.window="sidebarOpen = false">
+        {{-- Mobile overlay --}}
+        <div
+            x-show="sidebarOpen"
+            x-transition.opacity
+            class="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm lg:hidden"
+            @click="sidebarOpen = false"
+        ></div>
+
+        {{-- Sidebar --}}
+        <aside
+            class="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-slate-950 transition-transform duration-200 ease-in-out lg:translate-x-0"
+            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+        >
+            {{-- Logo --}}
+            <div class="flex h-[72px] shrink-0 items-center gap-3 border-b border-white/10 px-6">
+                <a href="{{ route($dashboardRoute) }}" class="flex items-center gap-3">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-extrabold text-white shadow-lg shadow-blue-950/40">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="block text-sm font-bold tracking-wide text-white">SIPKL</span>
+                        <span class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Monitoring Console</span>
+                    </span>
+                </a>
+            </div>
+
+            {{-- Nav links --}}
+            <div class="flex-1 space-y-7 overflow-y-auto px-4 py-6">
+                @foreach ($sections as $section)
+                    <div>
+                        <p class="px-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ $section['label'] }}</p>
+                        <div class="mt-3 space-y-1">
+                            @foreach ($section['items'] as $item)
+                                @php
+                                    $isActive = request()->routeIs(...(array) $item['active']);
+                                    $href = \Illuminate\Support\Facades\Route::has($item['route']) ? route($item['route']) : '#';
+                                @endphp
+                                <a
+                                    href="{{ $href }}"
+                                    class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 {{ $isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/40' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}"
+                                    @click="sidebarOpen = false"
+                                >
+                                    <svg class="h-5 w-5 shrink-0 {{ $isActive ? 'text-white' : 'text-slate-500 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                        @switch($item['icon'])
+                                            @case('dashboard')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                                                @break
+                                            @case('teacher')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14.5c3.2 0 5.8-1.35 5.8-3V6.7L12 9.5 6.2 6.7v4.8c0 1.65 2.6 3 5.8 3Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5.5 12 2l8 3.5-8 3.5L4 5.5Zm4 11.8c-1.9.6-3 1.55-3 2.7h14c0-1.15-1.1-2.1-3-2.7" />
+                                                @break
+                                            @case('students')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 19c0-2.2-1.8-4-4-4s-4 1.8-4 4M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6.5 6.5c0-1.5-.8-2.75-2-3.45M5.5 18.5c0-1.5.8-2.75 2-3.45" />
+                                                @break
+                                            @case('building')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 21h16M6 21V5.8C6 4.8 6.8 4 7.8 4h8.4c1 0 1.8.8 1.8 1.8V21M9 8h1.5M13.5 8H15M9 12h1.5M13.5 12H15M9 16h1.5M13.5 16H15" />
+                                                @break
+                                            @case('academic')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7.5 12 4l8 3.5-8 3.5L4 7.5Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.5 10v5.2c0 1.55 2.45 2.8 5.5 2.8s5.5-1.25 5.5-2.8V10" />
+                                                @break
+                                            @case('classes')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 6h14M5 12h14M5 18h14" />
+                                                @break
+                                            @case('calendar')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4.5 9.5h15M6.5 5h11A2.5 2.5 0 0 1 20 7.5v10A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-10A2.5 2.5 0 0 1 6.5 5Z" />
+                                                @break
+                                            @case('placement')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s6-4.55 6-10a6 6 0 0 0-12 0c0 5.45 6 10 6 10Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                                                @break
+                                            @case('attendance')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V4m8 3V4M5.5 9.5h13M7 20h10a2.5 2.5 0 0 0 2.5-2.5v-10A2.5 2.5 0 0 0 17 5H7a2.5 2.5 0 0 0-2.5 2.5v10A2.5 2.5 0 0 0 7 20Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m9 15 2 2 4-5" />
+                                                @break
+                                            @case('activity')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 6h9M8 12h9M8 18h5M5 6h.01M5 12h.01M5 18h.01" />
+                                                @break
+                                            @case('grade')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v13l-3.75-2-3.75 2-3.75-2-3.75 2V7A2.5 2.5 0 0 1 7 4.5Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 9.5h7M8.5 13h5" />
+                                                @break
+                                            @case('profile')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
+                                                @break
+                                            @default
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5 12 5l7.5 6.5M6.5 10.5V20h11v-9.5M10 20v-5h4v5" />
+                                        @endswitch
+                                    </svg>
+                                    <span>{{ $item['label'] }}</span>
+
+                                    @if ($isActive)
+                                        <span class="absolute right-3 h-1.5 w-1.5 rounded-full bg-white"></span>
+                                    @endif
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- User footer --}}
+            <div class="shrink-0 border-t border-white/10 p-4">
+                <div class="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-white">{{ $initial }}</div>
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-white">{{ $user->name }}</p>
+                        <p class="truncate text-xs text-slate-500">{{ $roleName }}</p>
+                    </div>
                 </div>
-
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
-                </div>
-            </div>
-
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div>{{ Auth::user()->name }}</div>
-
-                            <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </button>
-                    </x-slot>
-
-                    <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
-
-                        <!-- Authentication -->
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-
-                            <x-dropdown-link :href="route('logout')"
-                                    onclick="event.preventDefault();
-                                                this.closest('form').submit();">
-                                {{ __('Log Out') }}
-                            </x-dropdown-link>
-                        </form>
-                    </x-slot>
-                </x-dropdown>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-        </div>
-
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
-            </div>
-
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
-
-                <!-- Authentication -->
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-
-                    <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
+                    <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                        </svg>
+                        Log Out
+                    </button>
                 </form>
             </div>
-        </div>
+        </aside>
+
+        {{-- Header --}}
+        <header class="fixed inset-x-0 top-0 z-30 flex h-[72px] items-center gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-lg lg:left-[280px] sm:px-6">
+            <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 lg:hidden" @click="sidebarOpen = true">
+                <span class="sr-only">Buka menu</span>
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+            </button>
+
+            <div class="min-w-0 flex-1">
+                <p class="truncate text-base font-bold text-slate-900">{{ $__pageTitle ?? '' }}</p>
+            </div>
+
+            <div class="hidden flex-1 items-center justify-center lg:flex">
+                <div class="relative w-full max-w-md">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3 text-slate-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </span>
+                    <input
+                        type="search"
+                        placeholder="Cari siswa atau jurnal..."
+                        class="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 ps-10 pe-4 text-sm text-slate-700 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div class="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm md:flex">
+                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V4m8 3V4M5.5 9.5h13M7 20h10a2.5 2.5 0 0 0 2.5-2.5v-10A2.5 2.5 0 0 0 17 5H7a2.5 2.5 0 0 0-2.5 2.5v10A2.5 2.5 0 0 0 7 20Z" />
+                    </svg>
+                    {{ now()->format('d M Y') }}
+                </div>
+
+                <button type="button" class="relative hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 md:flex" aria-label="Notifications">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0h6z" />
+                    </svg>
+                    <span class="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white"></span>
+                </button>
+
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                    <button type="button" @click="open = !open" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm transition hover:border-slate-300 sm:px-3">
+                        <span class="hidden text-right sm:block">
+                            <span class="block text-sm font-semibold leading-tight text-slate-900">{{ $user->name }}</span>
+                            <span class="block text-xs leading-tight text-slate-500">{{ $roleName }}</span>
+                        </span>
+                        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-white">{{ $initial }}</span>
+                        <svg class="hidden h-4 w-4 text-slate-400 sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak x-transition
+                        class="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                        <div class="border-b border-slate-100 p-4">
+                            <p class="truncate text-sm font-bold text-slate-900">{{ $user->name }}</p>
+                            <p class="truncate text-xs text-slate-500">{{ $user->email }}</p>
+                        </div>
+                        <div class="flex flex-col p-2">
+                            <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                                <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" />
+                                </svg>
+                                Profil
+                            </a>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                                    </svg>
+                                    Keluar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</header>
     </div>
-</nav>
+@endauth
+

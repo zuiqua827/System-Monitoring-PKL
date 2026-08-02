@@ -29,7 +29,7 @@ class SiswaFactory extends Factory
         $tanggalLahir = fake()->dateTimeBetween('-19 years', '-15 years');
 
         return [
-            'user_id' => User::factory()->state([
+            'user_id' => User::factory()->withRole('Siswa')->state([
                 'name' => $name,
                 'email' => $nis.'@siswa.monitoringpkl.test',
                 'password' => Hash::make($tanggalLahir->format('Ymd')),

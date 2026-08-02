@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\AbsensiStatus;
 use Database\Factories\AbsensiFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,8 +16,8 @@ use Illuminate\Support\Carbon;
  * @property int $penempatan_pkl_id
  * @property Carbon $tanggal
  * @property string $status
- * @property string|null $jam_masuk
- * @property string|null $jam_keluar
+ * @property Carbon|null $jam_masuk
+ * @property Carbon|null $jam_keluar
  * @property string|null $device
  * @property string|null $browser
  * @property string|null $ip_address
@@ -28,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $longitude_keluar
  * @property int|null $radius
  * @property string|null $jarak
+ * @property float|null $accuracy
  * @property bool $lokasi_valid
  * @property string|null $foto_masuk
  * @property string|null $foto_pulang
@@ -65,6 +65,7 @@ class Absensi extends Model
         'longitude_keluar',
         'radius',
         'jarak',
+        'accuracy',
         'lokasi_valid',
         'foto_masuk',
         'foto_pulang',
@@ -86,55 +87,31 @@ class Absensi extends Model
         return [
             'penempatan_pkl_id' => 'integer',
             'tanggal' => 'date',
+            'jam_masuk' => 'datetime:H:i:s',
+            'jam_keluar' => 'datetime:H:i:s',
             'latitude_masuk' => 'decimal:7',
             'longitude_masuk' => 'decimal:7',
             'latitude_keluar' => 'decimal:7',
             'longitude_keluar' => 'decimal:7',
             'radius' => 'integer',
             'jarak' => 'decimal:2',
+            'accuracy' => 'decimal:2',
             'lokasi_valid' => 'boolean',
             'deleted_at' => 'datetime',
         ];
     }
 
-    /**
-     * Get the penempatan PKL that owns this absensi.
-     * Explicit foreign key: penempatan_pkl_id
-     */
+    /** @return BelongsTo<PenempatanPKL, $this> */
+    /** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatanPKL(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
 
-    /**
-     * Alias for backward compatibility.
-     */
+    /** @return BelongsTo<PenempatanPKL, $this> */
+    /** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatan(): BelongsTo
     {
-        return $this->penempatanPKL();
-    }
-
-    /**
-     * Check if the absensi status is 'terlambat'.
-     */
-    public function isTerlambat(): bool
-    {
-        return $this->status === AbsensiStatus::TERLAMBAT->value;
-    }
-
-    /**
-     * Check if the absensi has been checked out.
-     */
-    public function hasCheckedOut(): bool
-    {
-        return $this->jam_keluar !== null;
-    }
-
-    /**
-     * Check if the absensi has been checked in.
-     */
-    public function hasCheckedIn(): bool
-    {
-        return $this->jam_masuk !== null;
+        return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
 }

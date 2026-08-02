@@ -82,12 +82,14 @@ class Dudi extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-public function penempatan(): HasMany
+/** @return HasMany<PenempatanPKL, $this> */
+    public function penempatan(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'dudi_id');
     }

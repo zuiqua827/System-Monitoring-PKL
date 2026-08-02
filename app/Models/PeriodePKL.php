@@ -60,6 +60,7 @@ class PeriodePKL extends Model
         ];
     }
 
+    /** @return HasMany<PenempatanPKL, $this> */
     public function penempatan(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'periode_pkl_id');

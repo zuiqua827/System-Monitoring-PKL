@@ -30,7 +30,9 @@ class RegisteredUserController extends Controller
      */
     public function store(RegisterUserRequest $request): RedirectResponse
     {
-        $this->authenticationService->register($request->validated());
+        /** @var array{name: string, email: string, password: string} $validated */
+        $validated = $request->validated();
+        $this->authenticationService->register($validated);
 
         return redirect(route('dashboard', absolute: false));
     }

@@ -70,17 +70,20 @@ class Siswa extends Model
         ];
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<Kelas, $this> */
     public function kelas(): BelongsTo
     {
         return $this->belongsTo(Kelas::class, 'class_id');
     }
 
-public function penempatan(): HasMany
+/** @return HasMany<PenempatanPKL, $this> */
+    public function penempatan(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'siswa_id');
     }

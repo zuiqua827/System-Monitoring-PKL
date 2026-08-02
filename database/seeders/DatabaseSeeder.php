@@ -19,8 +19,15 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             RolePermissionSeeder::class,
             SuperAdminSeeder::class,
+            SettingSeeder::class,
             JurusanSeeder::class,
             KelasSeeder::class,
+            GuruSeeder::class,
+            DudiSeeder::class,
+            SiswaSeeder::class,
+            PeriodePKLSeeder::class,
+            PenempatanPKLSeeder::class,
+            BackfillUserRolesSeeder::class,
         ]);
     }
 }

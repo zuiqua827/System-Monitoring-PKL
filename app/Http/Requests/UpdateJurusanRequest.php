@@ -28,7 +28,8 @@ class UpdateJurusanRequest extends FormRequest
      */
     public function rules(): array
     {
-        $jurusanId = $this->route('jurusan')?->id ?? $this->route('jurusan');
+        $jurusan = $this->route('jurusan');
+        $jurusanId = $jurusan instanceof \App\Models\Jurusan ? $jurusan->id : $jurusan;
 
         return [
             'kode' => ['required', 'string', 'max:20', Rule::unique('jurusan', 'kode')->ignore($jurusanId)],

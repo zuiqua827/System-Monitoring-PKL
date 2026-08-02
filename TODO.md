@@ -1,107 +1,167 @@
-# Modul Absensi PKL - Completion Report
+# Project Redesign Status
 
-## Status: ✅ COMPLETED
+## ✅ Completed: Batch 1 - Foundation (Layout + Components)
 
-### Files Created (17 files)
+### Layout
+- [x] `layouts/app.blade.php` - Main app layout with sidebar offset (`lg:pl-[280px]`, `pt-[72px]`), Inter font, bg-background
+- [x] `layouts/guest.blade.php` - Guest layout for login/register pages
+- [x] `layouts/navigation.blade.php` - Includes sidebar + header (INLINE, not separate partials)
 
-**1. Enum**
+### Sidebar (`layouts/navigation.blade.php`)
+- [x] Dark theme (slate-950)
+- [x] 280px width
+- [x] Gradient logo (blue-500 to blue-700)
+- [x] Section headers (Utama, Akademik, Monitoring)
+- [x] Active state with blue-600 bg + white text
+- [x] Hover state with white/5 bg
+- [x] User card at bottom
+- [x] Logout button
+- [x] Mobile responsive with overlay
 
-- ✅ `app/Enums/AbsensiStatus.php` — Enum with Hadir, Terlambat, Izin, Sakit, Alpha + color/label helpers
+### Header (`layouts/navigation.blade.php`)
+- [x] Fixed top with backdrop-blur-lg
+- [x] Search bar (hidden on mobile)
+- [x] Date display with calendar icon
+- [x] Notification bell with red dot
+- [x] Profile dropdown with avatar, name, role
+- [x] Logout in dropdown
 
-**2. Migration**
+### Blade Components
+- [x] `primary-button.blade.php` - Blue-600 modern button
+- [x] `secondary-button.blade.php` - White border button
+- [x] `danger-button.blade.php` - Red-600 danger button
+- [x] `text-input.blade.php` - Styled input
+- [x] `input-label.blade.php` - Styled label
+- [x] `input-error.blade.php` - Red error messages
+- [x] `auth-session-status.blade.php` - Emerald status alert
+- [x] `modal.blade.php` - Modal with AlpineJS
+- [x] `dropdown.blade.php` - Dropdown component
+- [x] `nav-link.blade.php` - Navigation link
 
-- ✅ `database/migrations/2026_07_26_000001_add_foto_and_checkin_checkout_to_absensi.php` — Adds foto_masuk, foto_pulang, lokasi_masuk, lokasi_pulang, adds 'terlambat' to enum
+### Tailwind Config
+- [x] `tailwind.config.js` - Inter font family (already configured)
 
-**3. Repository Layer**
+### CSS
+- [x] `resources/css/app.css` - Inter font import, bg-background, shadow-card
+- [x] Background gradient: `linear-gradient(180deg, #f8fbff 0%, #f7f9fc 100%)`
 
-- ✅ `app/Repositories/Interfaces/AbsensiRepositoryInterface.php`
-- ✅ `app/Repositories/AbsensiRepository.php` — Full search/filter with eager loading (penempatanPKL, siswa, guru, dudi, periodePKL)
+## ✅ Completed: Batch 2 - Dashboard Views (ALL 4 roles converted)
 
-**4. Service Layer**
+### Super Admin Dashboard
+- [x] `admin/dashboard/index.blade.php` - Full dashboard with stats, charts, monitoring
 
-- ✅ `app/Services/Interfaces/AbsensiServiceInterface.php`
-- ✅ `app/Services/AbsensiService.php` — CRUD + CheckIn/CheckOut + validateAbsensi + business logic
+### Guru Dashboard
+- [x] `guru/dashboard/index.blade.php` - Stats cards, Chart.js charts
 
-**5. Form Requests**
+### Siswa Dashboard
+- [x] `siswa/dashboard/index.blade.php` - Status cards, progress PKL, DUDI info
 
-- ✅ `app/Http/Requests/StoreAbsensiRequest.php` — CRUD create validation
-- ✅ `app/Http/Requests/UpdateAbsensiRequest.php` — CRUD update validation
-- ✅ `app/Http/Requests/CheckInRequest.php` — Check In validation with photo upload
-- ✅ `app/Http/Requests/CheckOutRequest.php` — Check Out validation with photo upload
+### DUDI Dashboard
+- [x] `dudi/dashboard/index.blade.php` - Stats cards, Chart.js charts
 
-**6. Policy**
+## ✅ Completed: Batch 3 - CRUD Index Views (ALL converted)
 
-- ✅ `app/Policies/AbsensiPolicy.php` — Super Admin (full), Guru (view bimbingan + verify), Siswa (check in/out + own view)
+### Super Admin
+- [x] `admin/siswa/index.blade.php` - Siswa table with search, sort, pagination
+- [x] `admin/guru/index.blade.php` - Guru table
+- [x] `admin/dudi/index.blade.php` - DUDI table
+- [x] `admin/jurusan/index.blade.php` - Jurusan table
+- [x] `admin/kelas/index.blade.php` - Kelas table
+- [x] `admin/periode-pkl/index.blade.php` - Periode PKL table
+- [x] `admin/penempatan-pkl/index.blade.php` - Penempatan PKL table
+- [x] `admin/absensi/index.blade.php` - Absensi table with filters
+- [x] `admin/aktivitas/index.blade.php` - Aktivitas table with filters
+- [x] `admin/penilaian/index.blade.php` - Penilaian table with filters
 
-**7. Controllers**
+### Guru
+- [x] `guru/absensi/index.blade.php` - Absensi siswa bimbingan
+- [x] `guru/aktivitas/index.blade.php` - Aktivitas siswa bimbingan
+- [x] `guru/penilaian/index.blade.php` - Penilaian siswa bimbingan
 
-- ✅ `app/Http/Controllers/Admin/AbsensiController.php` — Full CRUD + restore/forceDelete
-- ✅ `app/Http/Controllers/Siswa/AbsensiController.php` — Check In, Check Out, own absensi history
-- ✅ `app/Http/Controllers/Guru/AbsensiController.php` — View bimbingan absensi, verify
+### Siswa
+- [x] `siswa/absensi/index.blade.php` - Absensi Saya (with camera, GPS, check-in/out)
+- [x] `siswa/aktivitas/index.blade.php` - Aktivitas Harian PKL
+- [x] `siswa/penilaian/index.blade.php` - Penilaian Saya
 
-**8. Blade Views (7 files)**
+## ✅ Completed: Batch 4 - Show/Detail Views (ALL converted)
 
-- ✅ `resources/views/admin/absensi/index.blade.php` — Search, filter (tanggal, status, periode), sort, pagination
-- ✅ `resources/views/admin/absensi/create.blade.php`
-- ✅ `resources/views/admin/absensi/edit.blade.php`
-- ✅ `resources/views/admin/absensi/show.blade.php`
-- ✅ `resources/views/admin/absensi/_form.blade.php`
-- ✅ `resources/views/siswa/absensi/index.blade.php` — Check In/Out buttons + history
-- ✅ `resources/views/siswa/absensi/show.blade.php`
-- ✅ `resources/views/guru/absensi/index.blade.php` — Filter + table + pagination
-- ✅ `resources/views/guru/absensi/show.blade.php` — Detail + verify form
+### Super Admin
+- [x] `admin/siswa/show.blade.php`
+- [x] `admin/guru/show.blade.php`
+- [x] `admin/dudi/show.blade.php`
+- [x] `admin/jurusan/show.blade.php`
+- [x] `admin/kelas/show.blade.php`
+- [x] `admin/periode-pkl/show.blade.php`
+- [x] `admin/penempatan-pkl/show.blade.php`
+- [x] `admin/absensi/show.blade.php`
+- [x] `admin/aktivitas/show.blade.php`
+- [x] `admin/penilaian/show.blade.php`
 
-### Files Updated (4 files)
+### Guru
+- [x] `guru/absensi/show.blade.php`
+- [x] `guru/aktivitas/show.blade.php`
+- [x] `guru/penilaian/show.blade.php`
 
-**1. Models**
+### Siswa
+- [x] `siswa/absensi/show.blade.php`
+- [x] `siswa/aktivitas/show.blade.php`
+- [x] `siswa/penilaian/show.blade.php`
 
-- ✅ `app/Models/Absensi.php` — Added `penempatanPKL()` relationship (explicit FK), added foto_masuk/foto_pulang/lokasi_masuk/lokasi_pulang to fillable, removed time casting, added helper methods
-- ✅ `app/Models/PenempatanPKL.php` — Updated `absensi()` to include explicit local key `'id'`
+## ✅ Completed: Batch 5 - Form Views (ALL converted)
 
-**2. Providers**
+### _form partials
+- [x] `admin/siswa/_form.blade.php`
+- [x] `admin/guru/_form.blade.php`
+- [x] `admin/dudi/_form.blade.php`
+- [x] `admin/jurusan/_form.blade.php`
+- [x] `admin/kelas/_form.blade.php`
+- [x] `admin/periode-pkl/_form.blade.php`
+- [x] `admin/penempatan-pkl/_form.blade.php`
+- [x] `admin/absensi/_form.blade.php`
+- [x] `admin/aktivitas/_form.blade.php`
+- [x] `admin/penilaian/_form.blade.php`
+- [x] `guru/penilaian/_form.blade.php`
 
-- ✅ `app/Providers/RepositoryServiceProvider.php` — Registered `AbsensiRepositoryInterface` → `AbsensiRepository`
-- ✅ `app/Providers/ServiceServiceProvider.php` — Registered `AbsensiServiceInterface` → `AbsensiService`
+### Create/Edit views
+- [x] `admin/siswa/create.blade.php` + `edit.blade.php`
+- [x] `admin/guru/create.blade.php` + `edit.blade.php`
+- [x] `admin/dudi/create.blade.php` + `edit.blade.php`
+- [x] `admin/jurusan/create.blade.php` + `edit.blade.php`
+- [x] `admin/kelas/create.blade.php` + `edit.blade.php`
+- [x] `admin/periode-pkl/create.blade.php` + `edit.blade.php`
+- [x] `admin/penempatan-pkl/create.blade.php` + `edit.blade.php`
+- [x] `admin/absensi/create.blade.php` + `edit.blade.php`
+- [x] `admin/aktivitas/create.blade.php` + `edit.blade.php`
+- [x] `admin/penilaian/create.blade.php` + `edit.blade.php`
+- [x] `guru/penilaian/create.blade.php` + `edit.blade.php`
+- [x] `siswa/aktivitas/create.blade.php` + `edit.blade.php`
 
-**3. Routes**
+## ✅ Completed: Batch 6 - Auth Pages
 
-- ✅ `routes/web.php` — Added admin.absensi resource, guru.absensi (index/show/verify), siswa.absensi (index/check-in/check-out/show)
+- [x] `auth/login.blade.php` - Modern login with role selection
+- [x] `auth/register.blade.php`
+- [x] `auth/forgot-password.blade.php`
+- [x] `auth/reset-password.blade.php`
+- [x] `auth/confirm-password.blade.php`
+- [x] `auth/verify-email.blade.php`
+- [x] `auth/force-change-password.blade.php`
 
-### Bug Fixes Applied
+## ✅ Completed: Batch 7 - Profile Pages
 
-| #   | Bug                                                | Fix                                                                                                  |
-| --- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 1   | Status enum missing 'terlambat'                    | Added migration to update ENUM                                                                       |
-| 2   | Missing foto_masuk/foto_pulang columns             | Added via migration                                                                                  |
-| 3   | Missing lokasi_masuk/lokasi_pulang columns         | Added via migration                                                                                  |
-| 4   | Absensi model time casting issue                   | Changed jam_masuk/jam_keluar from Carbon cast to plain string since they are TIME type, not DATETIME |
-| 5   | Missing `penempatanPKL` relationship               | Added with explicit FK `'penempatan_pkl_id'` and local key `'id'`                                    |
-| 6   | PenempatanPKL absensi() missing explicit local key | Added `'id'` as second parameter                                                                     |
+- [x] `profile/edit.blade.php`
+- [x] `profile/partials/update-profile-information-form.blade.php`
+- [x] `profile/partials/update-password-form.blade.php`
+- [x] `profile/partials/delete-user-form.blade.php`
 
-### Feature Testing Checklist
+## ✅ Completed: Batch 8 - Final Cleanup
 
-✅ CRUD Index — Search, filter, sort, pagination
-✅ CRUD Create — Form validation with FormRequest
-✅ CRUD Store — Try-catch with flash messages
-✅ CRUD Show — Eager loaded relationships displayed
-✅ CRUD Edit — Pre-filled form with existing data
-✅ CRUD Update — FormRequest validation + flash messages
-✅ CRUD Delete (Soft Delete) — ✅
-✅ CRUD Restore — ✅
-✅ CRUD Force Delete — ✅
-✅ Check In — One per day, auto status detection, photo upload
-✅ Check Out — Requires prior check in, prevents double check out
-✅ Business Validation — No double check-in, no check-out before check-in, no double check-out
-✅ Search — By siswa, guru, dudi
-✅ Filter — By tanggal, status, periode
-✅ Eager Loading — penempatanPKL, siswa, guru, dudi, periodePKL (no N+1)
-✅ Authorization — Super Admin (full), Guru (bimbingan only), Siswa (own only)
-✅ Error Handling — Try-catch, flash messages, validation errors
-✅ PSR-12 / Strict Types / Type Hint / Return Type / PHPDoc
+- [x] `dashboard.blade.php` - Default starter page converted
+- [x] `siswa/absensi/index.blade.php` - Last remaining x-app-layout view converted
 
-### Integration Readiness
+## 📊 Summary
 
-✅ Dashboard — Compatible with existing dashboard layout
-✅ Monitoring — Absensi data accessible via admin/guru/siswa routes
-✅ Penilaian — PenempatanPKL has proper absensi() relationship
-✅ Laporan — Absensi can be queried via PenempatanPKL model
+- **Total views converted**: ~100+ Blade files
+- **x-app-layout usage**: **NONE remaining** (only `layouts/app.blade.php` itself which defines it)
+- **Flux usage**: Only in unused `pages/` directory (starter kit auth pages, not routed)
+- **All views now use**: `@extends('layouts.app')` with the new design system
+- **Design system**: Inter font, rounded-2xl cards, slate color palette, blue-600 primary, gradient accents

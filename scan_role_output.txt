@@ -1,0 +1,51 @@
+﻿=== SCAN: role relation/column references (excluding vendor/storage/node_modules) ===
+
+47 total matches
+
+app\Helpers\RoleRedirectHelper.php         60     Spatie plural ->roles | $role = $user->roles->first();
+app\Helpers\RoleRedirectHelper.php         60     ARROW ->role (singular, any) | $role = $user->roles->first();
+app\Models\User.php                        26     role_id column | * @property int|null $role_id
+app\Models\User.php                        57     role_id column | 'role_id',
+app\Models\User.php                        85     role_id column | 'role_id' => 'integer',
+config\permission.php                      95     role_id column | 'role_pivot_key' => null, // default 'role_id',
+database\factories\UserFactory.php         30     role_id column | 'role_id' => null,
+database\migrations\2026_07_25_000000_create_permission_tables.php 17     role_id column | $pivotRole = $columnNames['role_pivot_key'] ?? 'role_id';
+database\migrations\2026_07_25_000000_create_permission_tables.php 121    role_id column | $table->primary([$pivotPermission, $pivotRole], 'role_has_permissions_permission_id_role_id_primary');
+database\migrations\2026_07_25_000001_add_pkl_fields_to_users_table.php 15     role_id column | $table->foreignId('role_id')
+database\migrations\2026_07_25_000001_add_pkl_fields_to_users_table.php 35     role_id column | $table->dropForeign(['role_id']);
+database\migrations\2026_07_25_000001_add_pkl_fields_to_users_table.php 37     role_id column | 'role_id',
+database\seeders\SuperAdminSeeder.php      35     role_id column | 'role_id' => $role->id,
+resources\views\layouts\app\header.blade.php 4      Spatie plural ->roles | $roleName = $user->roles->first()?->name ?? 'User';
+resources\views\layouts\app\header.blade.php 4      ARROW ->role (singular, any) | $roleName = $user->roles->first()?->name ?? 'User';
+resources\views\layouts\app\sidebar.blade.php 4      Spatie plural ->roles | $roleName = $user->roles->first()?->name ?? 'User';
+resources\views\layouts\app\sidebar.blade.php 4      ARROW ->role (singular, any) | $roleName = $user->roles->first()?->name ?? 'User';
+resources\views\layouts\navigation.blade.php 4      Spatie plural ->roles | $roleName = $user->roles->first()?->name ?? 'User';
+resources\views\layouts\navigation.blade.php 4      ARROW ->role (singular, any) | $roleName = $user->roles->first()?->name ?? 'User';
+scan_role_refs.php                         5      ARROW ->role (singular, any) | 'arrow_role'   => '->role\b(?!s)',
+scan_role_refs.php                         6      role_id column | 'role_id'      => 'role_id',
+scan_role_refs.php                         7      ARROW ->role (singular, any) | 'static_role(' => '::role\(|->role\(',
+scan_role_refs.php                         8      Spatie plural ->roles | 'roles_plural' => '->roles\b',
+scan_role_refs.php                         8      ARROW ->role (singular, any) | 'roles_plural' => '->roles\b',
+scan_role_refs2.php                        3      ARROW ->role (singular, any) | // Scan all PHP files for references to the singular ->role relation,
+scan_role_refs2.php                        4      STATIC call ::role( | // ->roles (Spatie), ::role( static calls, and role_id column.
+scan_role_refs2.php                        4      Spatie plural ->roles | // ->roles (Spatie), ::role( static calls, and role_id column.
+scan_role_refs2.php                        4      ARROW ->role (singular, any) | // ->roles (Spatie), ::role( static calls, and role_id column.
+scan_role_refs2.php                        4      role_id column | // ->roles (Spatie), ::role( static calls, and role_id column.
+scan_role_refs2.php                        23     INSTANCE relation call ->role( | '->role('          => 'INSTANCE relation call ->role(',
+scan_role_refs2.php                        23     ARROW ->role (singular, any) | '->role('          => 'INSTANCE relation call ->role(',
+scan_role_refs2.php                        24     STATIC call ::role( | '::role('          => 'STATIC call ::role(',
+scan_role_refs2.php                        25     Spatie plural ->roles | '->roles'          => 'Spatie plural ->roles',
+scan_role_refs2.php                        25     ARROW ->role (singular, any) | '->roles'          => 'Spatie plural ->roles',
+scan_role_refs2.php                        26     ARROW ->role (singular, any) | '->role'           => 'ARROW ->role (singular, any)',
+scan_role_refs2.php                        27     role_id column | 'role_id'          => 'role_id column',
+scan_role_refs2.php                        28     primaryRole (already renamed?) | 'primaryRole'      => 'primaryRole (already renamed?)',
+verify_role_bug.php                        16     STATIC call ::role( | echo "--- 1. Calling User::role('Guru') ---\n";
+verify_role_bug.php                        18     STATIC call ::role( | $result = User::role('Guru')->get();
+verify_role_bug.php                        54     Spatie plural ->roles | $roleNames = $user->roles->pluck('name')->implode(', ');
+verify_role_bug.php                        54     ARROW ->role (singular, any) | $roleNames = $user->roles->pluck('name')->implode(', ');
+verify_role_bug.php                        55     ARROW ->role (singular, any) | echo "  - #{$user->id} {$user->name} ({$user->email}) roles=[{$roleNames}] role_id={$user->role_id}\n";
+verify_role_bug.php                        55     role_id column | echo "  - #{$user->id} {$user->name} ({$user->email}) roles=[{$roleNames}] role_id={$user->role_id}\n";
+verify_role_bug.php                        63     ARROW ->role (singular, any) | echo "  - role_id={$row->role_id} model_type={$row->model_type} model_id={$row->model_id}\n";
+verify_role_bug.php                        63     role_id column | echo "  - role_id={$row->role_id} model_type={$row->model_type} model_id={$row->model_id}\n";
+verify_role_bug.php                        69     STATIC call ::role( | echo "User::role('Guru')->count() (if works): ";
+verify_role_bug.php                        71     STATIC call ::role( | echo User::role('Guru')->count()."\n";

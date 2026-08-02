@@ -44,7 +44,7 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
                       $gq->where('nama', 'like', "%{$keyword}%");
                   })
                   ->orWhereHas('dudi', function ($dq) use ($keyword): void {
-                      $dq->where('nama', 'like', "%{$keyword}%");
+                      $dq->where('nama_perusahaan', 'like', "%{$keyword}%");
                   })
                   ->orWhereHas('periodePKL', function ($pq) use ($keyword): void {
                       $pq->where('nama', 'like', "%{$keyword}%");

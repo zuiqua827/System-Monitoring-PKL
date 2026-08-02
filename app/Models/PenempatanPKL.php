@@ -90,51 +90,61 @@ class PenempatanPKL extends Model
         ];
     }
 
+    /** @return BelongsTo<PeriodePKL, $this> */
     public function periodePKL(): BelongsTo
     {
         return $this->belongsTo(PeriodePKL::class, 'periode_pkl_id', 'id');
     }
 
+    /** @return BelongsTo<Guru, $this> */
     public function guru(): BelongsTo
     {
         return $this->belongsTo(Guru::class);
     }
 
+    /** @return BelongsTo<Dudi, $this> */
     public function dudi(): BelongsTo
     {
         return $this->belongsTo(Dudi::class);
     }
 
+    /** @return BelongsTo<Siswa, $this> */
     public function siswa(): BelongsTo
     {
         return $this->belongsTo(Siswa::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function dibuatOleh(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dibuat_oleh');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-public function absensi(): HasMany
+/** @return HasMany<Absensi, $this> */
+    public function absensi(): HasMany
     {
         return $this->hasMany(Absensi::class, 'penempatan_pkl_id', 'id');
     }
 
+    /** @return HasMany<Aktivitas, $this> */
     public function aktivitas(): HasMany
     {
-        return $this->hasMany(Aktivitas::class, 'penempatan_pkl_id');
+        return $this->hasMany(Aktivitas::class, 'penempatan_pkl_id', 'id');
     }
 
+    /** @return HasOne<Penilaian, $this> */
     public function penilaian(): HasOne
     {
         return $this->hasOne(Penilaian::class, 'penempatan_pkl_id');
     }
 
+    /** @return HasOne<Laporan, $this> */
     public function laporan(): HasOne
     {
         return $this->hasOne(Laporan::class, 'penempatan_pkl_id');

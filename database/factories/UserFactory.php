@@ -63,4 +63,19 @@ class UserFactory extends Factory
             'two_factor_confirmed_at' => now(),
         ]);
     }
+
+    /**
+     * Attach a Spatie role to the created user.
+     *
+     * This is the single source of truth for authorization. The legacy
+     * `role_id` column is intentionally NOT populated here; the pivot table
+     * `model_has_roles` is authoritative.
+     */
+    public function withRole(string|int $role): static
+    {
+        return $this->afterCreating(
+            fn ($user) => $user->assignRole($role)
+        );
+    }
 }
+

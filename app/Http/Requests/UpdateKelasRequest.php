@@ -28,7 +28,8 @@ class UpdateKelasRequest extends FormRequest
      */
     public function rules(): array
     {
-        $kelasId = $this->route('kela')?->id ?? $this->route('kela');
+        $kelas = $this->route('kela');
+        $kelasId = $kelas instanceof \App\Models\Kelas ? $kelas->id : $kelas;
 
         return [
             'jurusan_id' => ['required', 'integer', 'exists:jurusan,id'],

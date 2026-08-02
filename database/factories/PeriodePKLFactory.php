@@ -27,10 +27,10 @@ class PeriodePKLFactory extends Factory
         return [
             'nama' => fake()->unique()->sentence(3),
             'tahun_ajaran' => fake()->randomElement(['2025/2026', '2026/2027']),
-            'semester' => fake()->randomElement(['ganjil', 'genap']),
             'tanggal_mulai' => $tanggalMulai->format('Y-m-d'),
             'tanggal_selesai' => $tanggalSelesai->format('Y-m-d'),
-            'status' => fake()->randomElement(['draft', 'aktif', 'selesai']),
+            'status' => fake()->randomElement(['Persiapan', 'Aktif', 'Selesai', 'Ditutup']),
+            'keterangan' => fake()->optional()->sentence(),
             'deskripsi' => fake()->optional()->sentence(),
         ];
     }

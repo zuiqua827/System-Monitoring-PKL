@@ -68,7 +68,7 @@ class AbsensiController extends Controller
         }
 
         // Ensure guru only sees absensi of their own bimbingan
-        if ($absensi->penempatanPKL?->guru_id !== $guru->id) {
+        if ($absensi->penempatanPKL->guru_id !== $guru->id) {
             abort(403, 'Anda tidak berhak melihat absensi ini.');
         }
 

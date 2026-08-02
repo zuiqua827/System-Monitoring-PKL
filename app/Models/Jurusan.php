@@ -51,6 +51,7 @@ class Jurusan extends Model
         ];
     }
 
+    /** @return HasMany<Kelas, $this> */
     public function kelas(): HasMany
     {
         return $this->hasMany(Kelas::class);

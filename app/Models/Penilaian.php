@@ -15,18 +15,24 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $penempatan_pkl_id
  * @property int|null $dinilai_oleh
- * @property int|null $nilai_sikap
- * @property int|null $nilai_keterampilan
- * @property int|null $nilai_pengetahuan
- * @property int|null $nilai_akhir
+ * @property int|null $nilai_disiplin
+ * @property int|null $nilai_kehadiran
+ * @property int|null $nilai_tanggung_jawab
+ * @property int|null $nilai_komunikasi
+ * @property int|null $nilai_kerjasama
+ * @property int|null $nilai_inisiatif
+ * @property int|null $nilai_teknis
+ * @property float|null $nilai_akhir
  * @property string|null $predikat
  * @property string $status
  * @property Carbon|null $tanggal_penilaian
  * @property string|null $catatan
+ * @property string|null $catatan_guru
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @property-read PenempatanPKL $penempatan
+ * @property-read PenempatanPKL $penempatanPKL
  * @property-read User|null $dinilaiOleh
  */
 class Penilaian extends Model
@@ -42,14 +48,19 @@ class Penilaian extends Model
     protected $fillable = [
         'penempatan_pkl_id',
         'dinilai_oleh',
-        'nilai_sikap',
-        'nilai_keterampilan',
-        'nilai_pengetahuan',
+        'nilai_disiplin',
+        'nilai_kehadiran',
+        'nilai_tanggung_jawab',
+        'nilai_komunikasi',
+        'nilai_kerjasama',
+        'nilai_inisiatif',
+        'nilai_teknis',
         'nilai_akhir',
         'predikat',
         'status',
         'tanggal_penilaian',
         'catatan',
+        'catatan_guru',
     ];
 
     /**
@@ -65,20 +76,32 @@ class Penilaian extends Model
         return [
             'penempatan_pkl_id' => 'integer',
             'dinilai_oleh' => 'integer',
-            'nilai_sikap' => 'integer',
-            'nilai_keterampilan' => 'integer',
-            'nilai_pengetahuan' => 'integer',
-            'nilai_akhir' => 'integer',
+            'nilai_disiplin' => 'integer',
+            'nilai_kehadiran' => 'integer',
+            'nilai_tanggung_jawab' => 'integer',
+            'nilai_komunikasi' => 'integer',
+            'nilai_kerjasama' => 'integer',
+            'nilai_inisiatif' => 'integer',
+            'nilai_teknis' => 'integer',
+            'nilai_akhir' => 'float',
             'tanggal_penilaian' => 'date',
             'deleted_at' => 'datetime',
         ];
     }
 
+    /** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatan(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id');
     }
 
+    /** @return BelongsTo<PenempatanPKL, $this> */
+    public function penempatanPKL(): BelongsTo
+    {
+        return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
     public function dinilaiOleh(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dinilai_oleh');

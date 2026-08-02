@@ -17,6 +17,8 @@ use Illuminate\View\View;
 
 /**
  * Controller for Siswa Absensi features (Check In, Check Out, own absensi list).
+ *
+ * Handles camera-based check-in/out with GPS and radius validation.
  */
 class AbsensiController extends Controller
 {
@@ -26,6 +28,11 @@ class AbsensiController extends Controller
 
     /**
      * Display a listing of the siswa's own absensi.
+     *
+     * Provides:
+     * - Today's absensi status (check-in/out)
+     * - Watermark data for camera (nama_siswa, nama_dudi, etc.)
+     * - Paginated history
      */
     public function index(Request $request): View
     {
@@ -42,6 +49,7 @@ class AbsensiController extends Controller
         // Get active penempatan
         $penempatanAktif = PenempatanPKL::where('siswa_id', $siswa->id)
             ->where('status', 'aktif')
+            ->with(['dudi', 'periodePKL'])
             ->first();
 
         // Get today's absensi if exists
@@ -49,6 +57,20 @@ class AbsensiController extends Controller
         if ($penempatanAktif !== null) {
             $todayAbsensi = $this->absensiService->getTodayAbsensi($penempatanAktif->id);
         }
+
+        // Prepare watermark data for camera
+        $watermarkData = null;
+        if ($penempatanAktif !== null) {
+            $watermarkData = [
+                'nama_siswa' => $siswa->nama,
+                'nama_dudi' => $penempatanAktif->dudi->nama_perusahaan,
+                'nis' => $siswa->nis,
+            ];
+        }
+
+        // Determine check-in/out status
+        $sudahCheckIn = $todayAbsensi !== null && $todayAbsensi->jam_masuk !== null;
+        $sudahCheckOut = $todayAbsensi !== null && $todayAbsensi->jam_keluar !== null;
 
         // Get paginated absensi history
         $absensis = $this->absensiService->getSiswaAbsensiPaginated($siswa->id, [
@@ -63,12 +85,15 @@ class AbsensiController extends Controller
             'absensis',
             'penempatanAktif',
             'todayAbsensi',
-            'siswa'
+            'siswa',
+            'watermarkData',
+            'sudahCheckIn',
+            'sudahCheckOut'
         ));
     }
 
     /**
-     * Process Check In.
+     * Process Check In with camera photo and GPS.
      */
     public function checkIn(CheckInRequest $request): RedirectResponse
     {
@@ -100,10 +125,13 @@ class AbsensiController extends Controller
         try {
             $data = $request->validated();
 
-            // Handle photo upload
+            // Handle file upload (fallback if camera not supported)
             if ($request->hasFile('foto_masuk')) {
                 $data['foto_masuk'] = $request->file('foto_masuk')->store('absensi/foto_masuk', 'public');
             }
+
+            // If base64 from camera, keep it in data for service to process
+            // If file upload, keep it in data
 
             $this->absensiService->checkIn($penempatanAktif->id, $data);
 
@@ -127,7 +155,7 @@ class AbsensiController extends Controller
     }
 
     /**
-     * Process Check Out.
+     * Process Check Out with camera photo and GPS.
      */
     public function checkOut(CheckOutRequest $request): RedirectResponse
     {
@@ -159,7 +187,7 @@ class AbsensiController extends Controller
         try {
             $data = $request->validated();
 
-            // Handle photo upload
+            // Handle file upload (fallback if camera not supported)
             if ($request->hasFile('foto_pulang')) {
                 $data['foto_pulang'] = $request->file('foto_pulang')->store('absensi/foto_pulang', 'public');
             }
@@ -203,7 +231,7 @@ class AbsensiController extends Controller
         }
 
         // Ensure siswa only sees own absensi
-        if ($absensi->penempatanPKL?->siswa_id !== $siswa->id) {
+        if ($absensi->penempatanPKL->siswa_id !== $siswa->id) {
             abort(403, 'Anda tidak berhak melihat absensi ini.');
         }
 
@@ -217,4 +245,3 @@ class AbsensiController extends Controller
         return view('siswa.absensi.show', compact('absensi'));
     }
 }
-

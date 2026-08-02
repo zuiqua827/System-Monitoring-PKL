@@ -1,0 +1,19 @@
+﻿===== roles_plural (4) =====
+./app\Helpers\RoleRedirectHelper.php:60:$role = $user->roles->first();
+./resources\views\layouts\app\header.blade.php:4:$roleName = $user->roles->first()?->name ?? 'User';
+./resources\views\layouts\app\sidebar.blade.php:4:$roleName = $user->roles->first()?->name ?? 'User';
+./resources\views\layouts\navigation.blade.php:4:$roleName = $user->roles->first()?->name ?? 'User';
+
+===== role_id (11) =====
+./app\Models\User.php:26:* @property int|null $role_id
+./app\Models\User.php:57:'role_id',
+./app\Models\User.php:85:'role_id' => 'integer',
+./database\factories\UserFactory.php:30:'role_id' => null,
+./database\migrations\2026_07_25_000000_create_permission_tables.php:17:$pivotRole = $columnNames['role_pivot_key'] ?? 'role_id';
+./database\migrations\2026_07_25_000000_create_permission_tables.php:121:$table->primary([$pivotPermission, $pivotRole], 'role_has_permissions_permission_id_role_id_primary');
+./database\migrations\2026_07_25_000001_add_pkl_fields_to_users_table.php:15:$table->foreignId('role_id')
+./database\migrations\2026_07_25_000001_add_pkl_fields_to_users_table.php:35:$table->dropForeign(['role_id']);
+./database\migrations\2026_07_25_000001_add_pkl_fields_to_users_table.php:37:'role_id',
+./database\seeders\SuperAdminSeeder.php:35:'role_id' => $role->id,
+./config\permission.php:95:'role_pivot_key' => null, // default 'role_id',
+

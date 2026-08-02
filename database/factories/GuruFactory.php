@@ -25,7 +25,7 @@ class GuruFactory extends Factory
         $name = fake()->name();
 
         return [
-            'user_id' => User::factory()->state([
+            'user_id' => User::factory()->withRole('Guru')->state([
                 'name' => $name,
             ]),
             'nip' => fake()->unique()->numerify('19##############'),

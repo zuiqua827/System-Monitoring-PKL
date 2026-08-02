@@ -38,7 +38,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
- * @property-read Role|null $role
+ * @property-read Role|null $primaryRole
  * @property-read Guru|null $guru
  * @property-read Dudi|null $dudi
  * @property-read Siswa|null $siswa
@@ -92,56 +92,79 @@ class User extends Authenticatable implements PasskeyUser
         ];
     }
 
-    public function role(): BelongsTo
+    /**
+     * Legacy belongsTo relation to the roles table via the `role_id` column.
+     *
+     * This is a DENORMALIZED / legacy relation. Spatie's `model_has_roles`
+     * pivot (managed through `assignRole()`, `hasRole()`, `roles`, etc.) is the
+     * single source of truth for authorization. This relation is kept only for
+     * backward compatibility and is NOT used for authorization decisions.
+     *
+     * NOTE: The method is intentionally NOT named `role()` because that name
+     * shadows Spatie's `scopeRole()` query scope (breaking `User::role('Guru')`).
+     *
+     * @return BelongsTo<Role, $this>
+     */
+    public function primaryRole(): BelongsTo
     {
         return $this->belongsTo(Role::class);
     }
 
+    /** @return HasOne<Guru, $this> */
     public function guru(): HasOne
     {
         return $this->hasOne(Guru::class);
     }
 
+    /** @return HasOne<Dudi, $this> */
     public function dudi(): HasOne
     {
         return $this->hasOne(Dudi::class);
     }
 
+    /** @return HasOne<Siswa, $this> */
     public function siswa(): HasOne
     {
         return $this->hasOne(Siswa::class);
     }
 
+    /** @return HasMany<Notifikasi, $this> */
     public function notifikasi(): HasMany
     {
         return $this->hasMany(Notifikasi::class);
     }
 
+    /** @return HasMany<AuditLog, $this> */
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class);
     }
 
+    /** @return HasMany<PenempatanPKL, $this> */
     public function penempatanDibuat(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'dibuat_oleh');
     }
 
+    /** @return HasMany<PenempatanPKL, $this> */
     public function penempatanDisetujui(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'approved_by');
     }
 
+    /** @return HasMany<Aktivitas, $this> */
     public function approvedAktivitas(): HasMany
     {
         return $this->hasMany(Aktivitas::class, 'approved_by');
     }
 
+    /** @return HasMany<Laporan, $this> */
     public function validatedLaporan(): HasMany
     {
         return $this->hasMany(Laporan::class, 'validated_by');
     }
 
+    /** @return HasMany<Penilaian, $this> */
     public function penilaianDiberikan(): HasMany
     {
         return $this->hasMany(Penilaian::class, 'dinilai_oleh');

@@ -174,6 +174,56 @@ class PenilaianRepository extends EloquentRepository implements PenilaianReposit
             ->paginate(min(max($perPage, 1), 100));
     }
 
+    public function getByDudiPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        ?string $status = null,
+        ?int $periodeId = null,
+        string $sortBy = 'created_at',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator {
+        $query = $this->newQuery()
+            ->with([
+                'penempatanPKL',
+                'penempatanPKL.siswa',
+                'penempatanPKL.guru',
+                'penempatanPKL.dudi',
+                'penempatanPKL.periodePKL',
+                'dinilaiOleh',
+            ])
+            ->whereHas('penempatanPKL', function ($q) use ($dudiId): void {
+                $q->where('dudi_id', $dudiId);
+            });
+
+        if ($keyword !== null && $keyword !== '') {
+            $query->where(function ($q) use ($keyword): void {
+                $q->whereHas('penempatanPKL.siswa', function ($sq) use ($keyword): void {
+                    $sq->where('nama', 'like', "%{$keyword}%")
+                       ->orWhere('nis', 'like', "%{$keyword}%");
+                });
+            });
+        }
+
+        if ($status !== null && $status !== '') {
+            $query->where('status', $status);
+        }
+
+        if ($periodeId !== null) {
+            $query->whereHas('penempatanPKL', function ($pq) use ($periodeId): void {
+                $pq->where('periode_pkl_id', $periodeId);
+            });
+        }
+
+        $allowedSorts = ['created_at', 'status', 'nilai_akhir', 'predikat', 'updated_at'];
+        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'created_at';
+        $sortDirection = in_array($sortDirection, ['asc', 'desc'], true) ? $sortDirection : 'desc';
+
+        return $query
+            ->orderBy($sortBy, $sortDirection)
+            ->paginate(min(max($perPage, 1), 100));
+    }
+
     /**
      * {@inheritDoc}
      */

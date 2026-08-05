@@ -55,7 +55,22 @@ class AbsensiCamera {
         this.onComplete = options.onComplete || null;
         this.mode = options.mode || "checkin"; // 'checkin' or 'checkout'
 
+        this.mode = options.mode || "checkin"; // 'checkin' or 'checkout'
+
+        this._bindEvents();
         this.init();
+    }
+
+    _bindEvents() {
+        if (this.captureBtn) {
+            this.captureBtn.addEventListener("click", () => this.capturePhoto());
+        }
+        if (this.retakeBtn) {
+            this.retakeBtn.addEventListener("click", () => this.retakePhoto());
+        }
+        if (this.confirmBtn) {
+            this.confirmBtn.addEventListener("click", () => this.confirmAndSubmit());
+        }
     }
 
     async init() {

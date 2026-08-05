@@ -42,6 +42,15 @@ class PenilaianPolicy
     public function view(User $user, Penilaian $penilaian): bool
     {
         if ($user->hasPermissionTo('penilaian.view')) {
+            // DUDI can view penilaian of students under their company
+            if ($user->hasRole('DUDI')) {
+                $dudi = $user->dudi;
+                if ($dudi !== null) {
+                    return $penilaian->penempatanPKL->dudi_id === $dudi->id;
+                }
+                return false;
+            }
+
             // Guru can view penilaian of students under their guidance
             if ($user->hasRole('Guru')) {
                 $guru = $user->guru;
@@ -81,16 +90,16 @@ class PenilaianPolicy
      */
     public function update(User $user, Penilaian $penilaian): bool
     {
-        if ($user->hasRole('Guru')) {
-            // Guru can only edit if status is draft
+        if ($user->hasRole('DUDI')) {
+            // DUDI can only edit if status is draft
             if ($penilaian->status === 'final') {
                 return false;
             }
 
-            // Guru can only edit penilaian of their own students
-            $guru = $user->guru;
-            if ($guru !== null) {
-                return $penilaian->penempatanPKL->guru_id === $guru->id;
+            // DUDI can only edit penilaian of their own students
+            $dudi = $user->dudi;
+            if ($dudi !== null) {
+                return $penilaian->penempatanPKL->dudi_id === $dudi->id;
             }
 
             return false;
@@ -129,14 +138,14 @@ class PenilaianPolicy
      */
     public function finalize(User $user, Penilaian $penilaian): bool
     {
-        if ($user->hasRole('Guru')) {
+        if ($user->hasRole('DUDI')) {
             if ($penilaian->status === 'final') {
                 return false;
             }
 
-            $guru = $user->guru;
-            if ($guru !== null) {
-                return $penilaian->penempatanPKL->guru_id === $guru->id;
+            $dudi = $user->dudi;
+            if ($dudi !== null) {
+                return $penilaian->penempatanPKL->dudi_id === $dudi->id;
             }
 
             return false;

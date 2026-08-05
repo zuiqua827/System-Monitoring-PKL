@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\SiswaFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property-read User $user
  * @property-read Kelas $kelas
- * @property-read \Illuminate\Database\Eloquent\Collection<int, PenempatanPKL> $penempatan
+ * @property-read Collection<int, PenempatanPKL> $penempatan
  */
 class Siswa extends Model
 {
@@ -76,13 +77,33 @@ class Siswa extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Get the configured student email domain (without the leading "@").
+     */
+    public static function emailDomain(): string
+    {
+        return (string) config('app.student_email_domain', 'smk1bangsri.sch.id');
+    }
+
+    /**
+     * Generate the student's login email from their NIS.
+     *
+     * Email = NIS + "@" + configured student domain.
+     * This is used internally by Laravel's Auth::attempt() — the student only
+     * ever enters their NIS on the login page.
+     */
+    public static function generateEmail(string $nis): string
+    {
+        return strtolower(trim($nis)).'@'.static::emailDomain();
+    }
+
     /** @return BelongsTo<Kelas, $this> */
     public function kelas(): BelongsTo
     {
         return $this->belongsTo(Kelas::class, 'class_id');
     }
 
-/** @return HasMany<PenempatanPKL, $this> */
+    /** @return HasMany<PenempatanPKL, $this> */
     public function penempatan(): HasMany
     {
         return $this->hasMany(PenempatanPKL::class, 'siswa_id');

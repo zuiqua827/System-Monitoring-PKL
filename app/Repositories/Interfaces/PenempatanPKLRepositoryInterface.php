@@ -25,6 +25,19 @@ interface PenempatanPKLRepositoryInterface extends BaseRepositoryInterface
         int $perPage = 15,
     ): LengthAwarePaginator;
 
+/**
+     * Search penempatan by DUDI.
+     *
+     * @return LengthAwarePaginator<int, PenempatanPKL>
+     */
+    public function searchByDudi(
+        int $dudiId,
+        ?string $keyword = null,
+        string $sortBy = 'created_at',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator;
+
     /**
      * Get all penempatan including trashed records.
      *

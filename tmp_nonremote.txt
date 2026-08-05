@@ -1,0 +1,16 @@
+﻿local-not-remote id=1 nis=11872054 nama=Kendrick Welch class_id=11
+local-not-remote id=2 nis=05006798 nama=Ocie Powlowski class_id=12
+local-not-remote id=3 nis=14112111 nama=Angela Jakubowski Jr. class_id=13
+local-not-remote id=4 nis=54260047 nama=Efren Gutkowski class_id=14
+local-not-remote id=5 nis=50826109 nama=Joanie Mueller class_id=15
+local-not-remote id=6 nis=69699881 nama=Elsa Nikolaus class_id=16
+local-not-remote id=7 nis=46665135 nama=Felicity Koelpin V class_id=17
+local-not-remote id=8 nis=94598187 nama=Mollie Ritchie II class_id=18
+local-not-remote id=9 nis=46618816 nama=Prof. Miguel Carroll IV class_id=19
+local-not-remote id=10 nis=50006243 nama=Luisa Schoen class_id=20
+local-not-remote id=11 nis=08692315 nama=Maribel Jaskolski class_id=21
+local-not-remote id=12 nis=51247770 nama=Nathaniel Balistreri class_id=22
+local-not-remote id=13 nis=82887144 nama=Rosario Green class_id=23
+local-not-remote id=14 nis=25839260 nama=Dr. Lorenzo McClure IV class_id=24
+local-not-remote id=15 nis=98154356 nama=Mrs. Polly Kreiger class_id=25
+local-not-remote id=16 nis=1234 nama=madon class_id=1

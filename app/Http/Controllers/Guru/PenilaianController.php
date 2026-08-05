@@ -58,39 +58,6 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Show form to create penilaian for a specific penempatan.
-     */
-    public function create(): View
-    {
-        $this->authorize('create', Penilaian::class);
-
-        return view('guru.penilaian.create');
-    }
-
-    /**
-     * Store a newly created penilaian.
-     */
-    public function store(StorePenilaianRequest $request): RedirectResponse
-    {
-        $this->authorize('create', Penilaian::class);
-
-        try {
-            $this->penilaianService->store($request->validated());
-
-            return redirect()
-                ->route('guru.penilaian.index')
-                ->with('success', 'Penilaian berhasil disimpan.');
-        } catch (\Exception $e) {
-            Log::error('Gagal menyimpan penilaian: ' . $e->getMessage());
-
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('error', 'Gagal menyimpan penilaian: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * Display the specified penilaian.
      */
     public function show(int $id): View
@@ -108,77 +75,5 @@ class PenilaianController extends Controller
         ]);
 
         return view('guru.penilaian.show', compact('penilaian'));
-    }
-
-    /**
-     * Show form to edit the specified penilaian.
-     */
-    public function edit(int $id): View
-    {
-        $penilaian = $this->penilaianService->findOrFail($id);
-
-        $this->authorize('update', $penilaian);
-
-        $penilaian->load([
-            'penempatanPKL.siswa',
-            'penempatanPKL.guru',
-            'penempatanPKL.dudi',
-            'penempatanPKL.periodePKL',
-        ]);
-
-        return view('guru.penilaian.edit', compact('penilaian'));
-    }
-
-    /**
-     * Update the specified penilaian.
-     */
-    public function update(UpdatePenilaianRequest $request, int $id): RedirectResponse
-    {
-        $penilaian = $this->penilaianService->findOrFail($id);
-
-        $this->authorize('update', $penilaian);
-
-        try {
-            $this->penilaianService->update($penilaian, $request->validated());
-
-            return redirect()
-                ->route('guru.penilaian.index')
-                ->with('success', 'Penilaian berhasil diperbarui.');
-        } catch (\Exception $e) {
-            Log::error('Gagal memperbarui penilaian: ' . $e->getMessage());
-
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('error', 'Gagal memperbarui penilaian: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Finalize the specified penilaian (change status to 'final').
-     */
-    public function finalize(int $id): RedirectResponse
-    {
-        $penilaian = $this->penilaianService->findOrFail($id);
-
-        $this->authorize('finalize', $penilaian);
-
-        try {
-            $this->penilaianService->finalize($penilaian);
-
-            return redirect()
-                ->route('guru.penilaian.index')
-                ->with('success', 'Penilaian berhasil difinalisasi.');
-        } catch (\RuntimeException $e) {
-            return redirect()
-                ->back()
-                ->with('error', $e->getMessage());
-        } catch (\Exception $e) {
-            Log::error('Gagal finalisasi penilaian: ' . $e->getMessage());
-
-            return redirect()
-                ->back()
-                ->with('error', 'Gagal finalisasi penilaian: ' . $e->getMessage());
-        }
     }
 }

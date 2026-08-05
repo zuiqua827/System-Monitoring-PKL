@@ -43,6 +43,21 @@ interface PenilaianRepositoryInterface extends BaseRepositoryInterface
         int $perPage = 15,
     ): LengthAwarePaginator;
 
+/**
+     * Get penilaian paginated by DUDI (penilaian of students under this dudi).
+     *
+     * @return LengthAwarePaginator<int, Penilaian>
+     */
+    public function getByDudiPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        ?string $status = null,
+        ?int $periodeId = null,
+        string $sortBy = 'created_at',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator;
+
     /**
      * Get penilaian paginated by siswa (penilaian belonging to this siswa).
      *

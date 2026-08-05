@@ -5,6 +5,7 @@
     $initial = strtoupper(substr($user->name ?? 'U', 0, 1));
     $title = trim(strip_tags((string) ($__env->yieldContent('title') ?: 'Dashboard')));
     $title = $title === '' ? 'Dashboard' : $title;
+    $dashboardRoute = \App\Helpers\RoleRedirectHelper::getDashboardRouteName($user);
 @endphp
 
 <header class="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-md sm:px-6 lg:px-8">
@@ -15,6 +16,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" />
         </svg>
     </button>
+
+    {{-- Logo (mobile) --}}
+    <a href="{{ route($dashboardRoute ?? 'dashboard') }}" class="flex items-center gap-2 lg:hidden">
+        <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL" class="h-8 w-8 object-contain">
+    </a>
 
     {{-- Title --}}
     <div class="min-w-0 flex-1">

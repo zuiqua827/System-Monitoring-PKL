@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\UserRole;
 use App\Models\Siswa;
+use App\Models\User;
 use App\Repositories\Interfaces\SiswaRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Services\Interfaces\SiswaServiceInterface;
@@ -62,7 +63,7 @@ class SiswaService extends Service implements SiswaServiceInterface
      *
      * Business Rules:
      * 1. Create User account with role "Siswa"
-     * 2. Use NIS as username, tanggal_lahir as initial password (hashed)
+     * 2. Use tanggal_lahir as initial password (hashed)
      * 3. Create Siswa record linked to the new User
      * 4. All within a single database transaction
      */
@@ -71,11 +72,16 @@ class SiswaService extends Service implements SiswaServiceInterface
         /** @var Siswa $siswa */
         $siswa = $this->transaction(function () use ($data): Model {
             // 1. Create User account
-            /** @var \App\Models\User $user */
+            // Initial password = tanggal_lahir (hashed). Student is forced
+            // to change it on first login (must_change_password = true).
+            // Email is auto-generated from NIS — the admin never inputs it.
+            $email = Siswa::generateEmail((string) $data['nis']);
+
+            /** @var User $user */
             $user = $this->userRepository->create([
                 'name' => $data['nama'],
-                'email' => $data['email'],
-                'password' => bcrypt($data['password']),
+                'email' => $email,
+                'password' => bcrypt($data['tanggal_lahir']),
                 'must_change_password' => true,
                 'email_verified_at' => now(),
             ]);
@@ -105,21 +111,21 @@ class SiswaService extends Service implements SiswaServiceInterface
      *
      * Business Rules:
      * 1. Update Siswa record
-     * 2. Sync User name and email if changed
+     * 2. Sync User name and auto-generated email (from NIS)
      * 3. All within a single database transaction
      */
     public function update(Siswa $siswa, array $data): Siswa
     {
         /** @var Siswa $updated */
         $updated = $this->transaction(function () use ($siswa, $data): Model {
-            // 1. Update the associated User account
-            $userUpdateData = ['name' => $data['nama']];
+            // 1. Update the associated User account.
+            // Email is always re-generated from NIS so it stays in sync.
+            $email = Siswa::generateEmail((string) $data['nis']);
 
-            if (isset($data['email'])) {
-                $userUpdateData['email'] = $data['email'];
-            }
-
-            $this->userRepository->update($siswa->user, $userUpdateData);
+            $this->userRepository->update($siswa->user, [
+                'name' => $data['nama'],
+                'email' => $email,
+            ]);
 
             // 2. Update Siswa record
             return $this->siswaRepository->update($siswa, [

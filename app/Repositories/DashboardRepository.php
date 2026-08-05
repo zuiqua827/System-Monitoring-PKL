@@ -442,6 +442,85 @@ class DashboardRepository implements DashboardRepositoryInterface
         return $results;
     }
 
+    public function countAktivitasMenungguValidasiByDudi(int $dudiId): int
+    {
+        return Aktivitas::where('status', 'menunggu_validasi')
+            ->whereHas('penempatanPKL', fn ($q) => $q->where('dudi_id', $dudiId))
+            ->count();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function getRecentSiswaByDudi(int $dudiId, int $limit = 5): array
+    {
+        return PenempatanPKL::where('dudi_id', $dudiId)
+            ->where('status', 'aktif')
+            ->with(['siswa.kelas.jurusan'])
+            ->latest('created_at')
+            ->take($limit)
+            ->get()
+            ->toArray();
+    }
+
+    /** @return list<array<string, string>> */
+    public function getRecentActivityByDudi(int $dudiId, int $limit = 10): array
+    {
+        $activities = [];
+
+        // Recent check-ins
+        $checkIns = Absensi::whereDate('tanggal', today())
+            ->whereNotNull('jam_masuk')
+            ->whereHas('penempatanPKL', fn ($q) => $q->where('dudi_id', $dudiId))
+            ->with('penempatanPKL.siswa')
+            ->latest('jam_masuk')
+            ->take($limit)
+            ->get()
+            ->map(fn ($a) => [
+                'waktu' => $a->jam_masuk->format('H:i'),
+                'deskripsi' => ($a->penempatanPKL->siswa->nama ?? 'Siswa') . ' Check In',
+                'tipe' => 'checkin',
+                'user' => $a->penempatanPKL->siswa->nama ?? '-',
+            ]);
+
+        $activities = array_merge($activities, $checkIns->toArray());
+
+        // Recent check-outs
+        $checkOuts = Absensi::whereDate('tanggal', today())
+            ->whereNotNull('jam_keluar')
+            ->whereHas('penempatanPKL', fn ($q) => $q->where('dudi_id', $dudiId))
+            ->with('penempatanPKL.siswa')
+            ->latest('jam_keluar')
+            ->take($limit)
+            ->get()
+            ->map(fn ($a) => [
+                'waktu' => $a->jam_keluar->format('H:i'),
+                'deskripsi' => ($a->penempatanPKL->siswa->nama ?? 'Siswa') . ' Check Out',
+                'tipe' => 'checkout',
+                'user' => $a->penempatanPKL->siswa->nama ?? '-',
+            ]);
+
+        $activities = array_merge($activities, $checkOuts->toArray());
+
+        // Recent aktivitas
+        $aktivitas = Aktivitas::latest()
+            ->take($limit)
+            ->whereHas('penempatanPKL', fn ($q) => $q->where('dudi_id', $dudiId))
+            ->with('penempatanPKL.siswa')
+            ->get()
+            ->map(fn ($a) => [
+                'waktu' => $a->created_at->format('H:i'),
+                'deskripsi' => ($a->penempatanPKL->siswa->nama ?? 'Siswa') . ' membuat aktivitas: ' . $a->judul,
+                'tipe' => 'aktivitas',
+                'user' => $a->penempatanPKL->siswa->nama ?? '-',
+            ]);
+
+        $activities = array_merge($activities, $aktivitas->toArray());
+
+        // Sort by waktu descending
+        usort($activities, fn ($a, $b) => strcmp($b['waktu'], $a['waktu']));
+
+        return array_slice($activities, 0, $limit);
+    }
+
     /** @return array<string, mixed> */
     public function getSiswaDashboardData(int $siswaId): array
     {
@@ -492,6 +571,7 @@ class DashboardRepository implements DashboardRepositoryInterface
             'sudahCheckOut' => $todayAbsensi && $todayAbsensi->jam_keluar !== null,
             'aktivitasHariIni' => $aktivitasHariIni,
             'totalAktivitas' => $totalAktivitas,
+            'totalAbsensi' => $totalAbsensi,
             'persentaseKehadiran' => $persentaseKehadiran,
             'progress' => $progress,
             'hariBerjalan' => $hariBerjalan,

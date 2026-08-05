@@ -101,14 +101,12 @@ class Absensi extends Model
         ];
     }
 
-    /** @return BelongsTo<PenempatanPKL, $this> */
-    /** @return BelongsTo<PenempatanPKL, $this> */
+/** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatanPKL(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
 
-    /** @return BelongsTo<PenempatanPKL, $this> */
     /** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatan(): BelongsTo
     {

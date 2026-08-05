@@ -48,5 +48,8 @@ interface DashboardRepositoryInterface
     public function countAktivitasHariIniByDudi(int $dudiId): int;
     public function getAbsensi7HariByDudi(int $dudiId): array;
     public function getAktivitas7HariByDudi(int $dudiId): array;
+    public function countAktivitasMenungguValidasiByDudi(int $dudiId): int;
+public function getRecentActivityByDudi(int $dudiId, int $limit = 10): array;
+    public function getRecentSiswaByDudi(int $dudiId, int $limit = 10): array;
     public function getSiswaDashboardData(int $siswaId): array;
 }

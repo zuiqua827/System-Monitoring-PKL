@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Siswa;
 
 use App\Http\Controllers\Controller;
+use App\Models\Penilaian;
 use App\Services\Interfaces\PenilaianServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,7 @@ use Illuminate\View\View;
  *
  * Siswa can:
  * - View their own penilaian results
+ * - Download their own final penilaian as PDF
  * - Cannot create, edit, or delete
  */
 class PenilaianController extends Controller
@@ -44,7 +46,9 @@ class PenilaianController extends Controller
             'per_page' => (int) $request->query('per_page', '15'),
         ]);
 
-        return view('siswa.penilaian.index', compact('penilaianList'));
+$penempatanAktif = $siswa->penempatan()->where('status', 'aktif')->first();
+
+        return view('siswa.penilaian.index', compact('penilaianList', 'penempatanAktif'));
     }
 
     /**
@@ -64,6 +68,36 @@ class PenilaianController extends Controller
             'dinilaiOleh',
         ]);
 
-        return view('siswa.penilaian.show', compact('penilaian'));
+return view('siswa.penilaian.show', compact('penilaian'));
+    }
+
+    /**
+     * Download the penilaian as an official PDF (only when final).
+     */
+    public function downloadPdf(Penilaian $penilaian)
+    {
+        // Authorization: only the owner (or authorized roles) may view.
+        $this->authorize('view', $penilaian);
+
+        // Only finalized penilaian may be printed.
+        if ($penilaian->status !== 'final') {
+            abort(403, 'Penilaian hanya dapat dicetak setelah status Final.');
+        }
+
+        $penilaian->load([
+            'penempatanPKL.siswa.kelas.jurusan',
+            'penempatanPKL.guru',
+            'penempatanPKL.dudi',
+            'penempatanPKL.periodePKL',
+            'dinilaiOleh',
+        ]);
+
+        $siswa = $penilaian->penempatanPKL?->siswa;
+        $fileName = 'Penilaian_PKL_' . str_replace(' ', '_', $siswa?->nama ?? 'Siswa') . '.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.penilaian', compact('penilaian'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download($fileName);
     }
 }

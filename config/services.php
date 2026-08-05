@@ -35,4 +35,28 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | SiPintu Gateway (Server-to-Server)
+    |--------------------------------------------------------------------------
+    |
+    | Credentials and base URL for the SiPintu Identity & API Gateway.
+    | Credentials are read from .env — never hardcode them.
+    |
+    | Every request to the Gateway must include the headers:
+    |   X-Client-ID, X-Client-Secret, Accept: application/json
+    |
+    */
+
+'sipintu' => [
+        'api_url' => env('SIPINTU_API_URL', 'http://localhost:8000'),
+        'client_id' => env('SIPINTU_CLIENT_ID'),
+        'client_secret' => env('SIPINTU_CLIENT_SECRET'),
+        'timeout' => (int) env('SIPINTU_TIMEOUT', 15),
+        // Verify the SSL certificate when calling the SiPintu Gateway.
+        // Set SIPINTU_VERIFY_SSL=false in .env for local/development when
+        // the server uses a self-signed cert or PHP lacks the CA bundle.
+        'verify_ssl' => env('SIPINTU_VERIFY_SSL', true),
+    ],
+
 ];

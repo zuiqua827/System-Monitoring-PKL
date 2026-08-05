@@ -27,7 +27,14 @@ class StorePenempatanPKLRequest extends FormRequest
             'periode_pkl_id' => ['required', 'integer', 'exists:periode_pkl,id'],
             'guru_id' => ['required', 'integer', 'exists:guru,id'],
             'dudi_id' => ['required', 'integer', 'exists:dudi,id'],
-            'siswa_id' => ['required', 'integer', 'exists:siswa,id'],
+            'siswa_id' => [
+                'required', 
+                'integer', 
+                'exists:siswa,id',
+                Rule::unique('penempatan_pkl', 'siswa_id')
+                    ->where('periode_pkl_id', $this->periode_pkl_id)
+                    ->whereNull('deleted_at')
+            ],
             'nomor_surat' => ['nullable', 'string', 'max:100', 'unique:penempatan_pkl,nomor_surat'],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],

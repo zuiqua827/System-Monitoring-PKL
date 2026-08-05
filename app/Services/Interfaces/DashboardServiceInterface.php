@@ -25,6 +25,8 @@ interface DashboardServiceInterface
     /** DUDI Dashboard */
     public function getDudiStats(int $dudiId): array;
     public function getDudiCharts(int $dudiId): array;
+    public function getDudiRecentActivity(int $dudiId): array;
+    public function getDudiRecentSiswa(int $dudiId): array;
 
     /** Siswa Dashboard */
     public function getSiswaStats(int $siswaId): array;

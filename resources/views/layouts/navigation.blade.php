@@ -29,8 +29,14 @@
                 'items' => [
                     ['label' => 'Absensi', 'route' => 'admin.absensi.index', 'active' => ['admin.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas', 'route' => 'admin.aktivitas.index', 'active' => ['admin.aktivitas.*'], 'icon' => 'activity'],
-                    ['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
+['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
                     ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                ],
+            ],
+            [
+                'label' => 'Integrasi',
+                'items' => [
+                    ['label' => 'Sinkronisasi SiPintu', 'route' => 'admin.sipintu-sync.index', 'active' => ['admin.sipintu-sync.*'], 'icon' => 'sync'],
                 ],
             ],
         ];
@@ -66,6 +72,10 @@
                 'label' => 'Utama',
                 'items' => [
                     ['label' => 'Dashboard', 'route' => 'dudi.dashboard', 'active' => ['dudi.dashboard'], 'icon' => 'dashboard'],
+                    ['label' => 'Data Siswa PKL', 'route' => 'dudi.siswa.index', 'active' => ['dudi.siswa.*'], 'icon' => 'students'],
+                    ['label' => 'Absensi', 'route' => 'dudi.absensi.index', 'active' => ['dudi.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
+                    ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
                     ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
                 ],
             ],
@@ -100,14 +110,10 @@
             class="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-slate-950 transition-transform duration-200 ease-in-out lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
         >
-            {{-- Logo --}}
+{{-- Logo --}}
             <div class="flex h-[72px] shrink-0 items-center gap-3 border-b border-white/10 px-6">
                 <a href="{{ route($dashboardRoute) }}" class="flex items-center gap-3">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-extrabold text-white shadow-lg shadow-blue-950/40">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
-                    </span>
+                    <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-10 w-10 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
                     <span>
                         <span class="block text-sm font-bold tracking-wide text-white">SIPKL</span>
                         <span class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Monitoring Console</span>
@@ -171,8 +177,11 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v13l-3.75-2-3.75 2-3.75-2-3.75 2V7A2.5 2.5 0 0 1 7 4.5Z" />
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 9.5h7M8.5 13h5" />
                                                 @break
-                                            @case('profile')
+@case('profile')
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
+                                                @break
+                                            @case('sync')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                                                 @break
                                             @default
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5 12 5l7.5 6.5M6.5 10.5V20h11v-9.5M10 20v-5h4v5" />

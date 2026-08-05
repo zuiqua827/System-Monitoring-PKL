@@ -25,6 +25,19 @@ interface PenempatanPKLServiceInterface
     ): LengthAwarePaginator;
 
     /**
+     * Get paginated students for a specific DUDI.
+     *
+     * @return LengthAwarePaginator<int, PenempatanPKL>
+     */
+    public function getDudiSiswaPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        string $sortBy = 'created_at',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator;
+
+    /**
      * Find a penempatan PKL by ID.
      */
     public function findOrFail(int $id): PenempatanPKL;

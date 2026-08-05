@@ -61,6 +61,35 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
             ->paginate(min(max($perPage, 1), 100));
     }
 
+    public function searchByDudi(
+        int $dudiId,
+        ?string $keyword = null,
+        string $sortBy = 'created_at',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator {
+        $query = $this->newQuery()
+            ->with(['siswa.kelas.jurusan', 'guru', 'periodePKL'])
+            ->where('dudi_id', $dudiId);
+
+        if ($keyword !== null && $keyword !== '') {
+            $query->where(function ($q) use ($keyword): void {
+                $q->whereHas('siswa', function ($sq) use ($keyword): void {
+                      $sq->where('nama', 'like', "%{$keyword}%")
+                         ->orWhere('nis', 'like', "%{$keyword}%");
+                  });
+            });
+        }
+
+        $allowedSorts = ['created_at', 'status'];
+        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'created_at';
+        $sortDirection = in_array($sortDirection, ['asc', 'desc'], true) ? $sortDirection : 'desc';
+
+        return $query
+            ->orderBy($sortBy, $sortDirection)
+            ->paginate(min(max($perPage, 1), 100));
+    }
+
     /**
      * {@inheritDoc}
      */

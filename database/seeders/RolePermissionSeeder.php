@@ -34,12 +34,15 @@ class RolePermissionSeeder extends Seeder
             'dashboard.view',
             'siswa.view',
             'penempatan.view',
+            'absensi.view',
+            'aktivitas.view',
+            'aktivitas.approve',
             'penilaian.view',
             'penilaian.create',
             'penilaian.update',
             'laporan.view',
         ],
-        'Siswa' => [
+'Siswa' => [
             'dashboard.view',
             'profile.update',
             'absensi.checkin',
@@ -48,6 +51,7 @@ class RolePermissionSeeder extends Seeder
             'aktivitas.view',
             'laporan.upload',
             'laporan.view',
+            'penilaian.view',
             'notifikasi.view',
         ],
     ];

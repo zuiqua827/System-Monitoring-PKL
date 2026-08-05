@@ -66,6 +66,10 @@
             'label' => 'MENU UTAMA',
             'items' => [
                 ['label' => 'Dashboard', 'route' => 'dudi.dashboard', 'active' => ['dudi.dashboard'], 'icon' => 'dashboard'],
+                ['label' => 'Siswa PKL', 'route' => 'dudi.siswa.index', 'active' => ['dudi.siswa.*'], 'icon' => 'students'],
+                ['label' => 'Absensi', 'route' => 'dudi.absensi.index', 'active' => ['dudi.absensi.*'], 'icon' => 'attendance'],
+                ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
+                ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
                 ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
             ],
         ],
@@ -90,12 +94,12 @@
     class="fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r border-slate-800 bg-slate-950 text-slate-300 shadow-sidebar transition-transform duration-300 lg:translate-x-0"
     :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
 >
-    {{-- Logo --}}
+{{-- Logo --}}
     <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-800/80 px-5">
         <a href="{{ route($dashboardRoute) }}" class="flex items-center gap-3">
-            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-extrabold text-white shadow-lg shadow-blue-950/50">P</span>
+            <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-9 w-9 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
             <span class="leading-tight">
-                <span class="block text-sm font-bold tracking-wide text-white">PKL-SYSTEM</span>
+                <span class="block text-sm font-bold tracking-wide text-white">SIPKL</span>
                 <span class="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Monitoring Console</span>
             </span>
         </a>

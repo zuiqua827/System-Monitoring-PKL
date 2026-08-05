@@ -111,7 +111,24 @@ class DashboardService implements DashboardServiceInterface
             'total_siswa_pkl' => $this->dashboardRepository->countSiswaPklByDudi($dudiId),
             'absensi_hari_ini' => $this->dashboardRepository->countAbsensiHariIniByDudi($dudiId),
             'aktivitas_hari_ini' => $this->dashboardRepository->countAktivitasHariIniByDudi($dudiId),
+            'aktivitas_menunggu_validasi' => $this->dashboardRepository->countAktivitasMenungguValidasiByDudi($dudiId),
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDudiRecentActivity(int $dudiId): array
+    {
+        return $this->dashboardRepository->getRecentActivityByDudi($dudiId, 10);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDudiRecentSiswa(int $dudiId): array
+    {
+        return $this->dashboardRepository->getRecentSiswaByDudi($dudiId, 5);
     }
 
     /**

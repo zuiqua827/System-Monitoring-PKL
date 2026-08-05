@@ -17,31 +17,15 @@
                 <h3 class="text-base font-bold text-slate-900">Informasi Akun Login</h3>
                 <p class="mt-1 text-sm text-slate-500">Data akun untuk login sistem</p>
             </div>
-            <div class="space-y-5 px-6 py-6">
-                <div>
-                    <label for="email" class="block text-sm font-semibold text-slate-700">
-                        Email Login <span class="text-red-500">*</span>
-                    </label>
-                    <input type="email" id="email" name="email" value="{{ old('email', $siswa->user->email ?? '') }}" required
-                           class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    @error('email')
-                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
+<div class="space-y-5 px-6 py-6">
+                <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                    <p class="text-xs font-semibold text-blue-800">Info Login Siswa</p>
+                    <p class="mt-1 text-xs leading-relaxed text-blue-700">
+                        Akun login dibuat otomatis dari <strong>NIS</strong> (email: <em>NIS@{{ config('app.student_email_domain', 'smk1bangsri.sch.id') }}</em>).
+                        Password awal adalah <strong>Tanggal Lahir</strong> (format <strong>YYYY-MM-DD</strong>).
+                        Siswa akan diminta mengganti password pada saat login pertama.
+                    </p>
                 </div>
-
-                @if(!isset($siswa) || !$siswa)
-                <div>
-                    <label for="password" class="block text-sm font-semibold text-slate-700">
-                        Password <span class="text-red-500">*</span>
-                    </label>
-                    <input type="password" id="password" name="password" required
-                           class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    <p class="mt-1.5 text-xs text-slate-500">Password default, siswa akan diminta mengganti saat login pertama.</p>
-                    @error('password')
-                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-                @endif
             </div>
         </div>
 

@@ -76,38 +76,4 @@ class AktivitasController extends Controller
         return view('guru.aktivitas.show', compact('aktivitas'));
     }
 
-/**
-     * Validate (approve/reject) an aktivitas.
-     * Renamed from `validate` to avoid conflict with Laravel's ValidatesRequests trait.
-     */
-    public function validateAktivitas(ValidateAktivitasRequest $request, int $id): RedirectResponse
-    {
-        $aktivitas = $this->aktivitasService->findOrFail($id);
-
-        $this->authorize('validate', $aktivitas);
-
-        try {
-            $this->aktivitasService->validateAktivitas($aktivitas, $request->validated());
-
-            $statusLabel = $request->validated()['status'] === 'disetujui' ? 'disetujui' : 'ditolak';
-
-            return redirect()
-                ->route('guru.aktivitas.index')
-                ->with('success', "Aktivitas berhasil {$statusLabel}.");
-        } catch (\RuntimeException $e) {
-            return redirect()
-                ->back()
-                ->with('error', $e->getMessage());
-        } catch (\Exception $e) {
-            Log::error('Validasi aktivitas gagal: ' . $e->getMessage(), [
-                'guru_id' => Auth::user()->guru?->id,
-                'aktivitas_id' => $id,
-            ]);
-
-            return redirect()
-                ->back()
-                ->with('error', 'Gagal memvalidasi aktivitas: ' . $e->getMessage());
-        }
-    }
 }
-

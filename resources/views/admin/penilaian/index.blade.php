@@ -104,7 +104,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($penilaianList as $index => $penilaian)
                             <tr class="transition hover:bg-slate-50">
-                                <td class="px-4 py-3.5 text-sm text-slate-500">{{ $penilaianList->firstItem() + $index }}</td>
+                                <td class="px-4 py-3.5 text-sm text-slate-500">{{ ($penilaianList->firstItem() ?? 0) + $index }}</td>
                                 <td class="px-4 py-3.5 text-sm font-medium text-slate-900">{{ $penilaian->penempatanPKL?->siswa?->nama ?? '-' }}</td>
                                 <td class="px-4 py-3.5 text-sm text-slate-600">{{ $penilaian->penempatanPKL?->guru?->nama ?? '-' }}</td>
                                 <td class="px-4 py-3.5 text-sm text-slate-600">{{ $penilaian->penempatanPKL?->dudi?->nama_perusahaan ?? '-' }}</td>

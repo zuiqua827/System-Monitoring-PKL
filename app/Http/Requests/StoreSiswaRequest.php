@@ -30,14 +30,12 @@ class StoreSiswaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
             'class_id' => ['required', 'integer', 'exists:kelas,id'],
             'nis' => ['required', 'string', 'max:30', 'unique:siswa,nis'],
             'nisn' => ['nullable', 'string', 'max:30', 'unique:siswa,nisn'],
             'nama' => ['required', 'string', 'max:255'],
             'jenis_kelamin' => ['nullable', 'string', 'in:L,P'],
-            'tanggal_lahir' => ['nullable', 'date'],
+            'tanggal_lahir' => ['required', 'date'],
             'no_telepon' => ['nullable', 'string', 'max:20'],
             'alamat' => ['nullable', 'string'],
         ];
@@ -52,7 +50,6 @@ class StoreSiswaRequest extends FormRequest
     {
         return [
             'email' => 'Email Login',
-            'password' => 'Password',
             'class_id' => 'Kelas',
             'nis' => 'NIS',
             'nisn' => 'NISN',

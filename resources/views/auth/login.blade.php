@@ -1,76 +1,118 @@
 <x-guest-layout>
+    <!-- Logo -->
+    <div class="mb-6 flex justify-center">
+        <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-16 w-16 object-contain">
+    </div>
+
     <div class="mb-6 text-center">
-        <h2 class="text-xl font-bold text-slate-900">Masuk ke Akun</h2>
-        <p class="mt-1 text-sm text-slate-500">Masukkan kredensial Anda untuk melanjutkan</p>
+        <h2 class="text-xl font-bold text-slate-900">Selamat Datang</h2>
+        <p class="mt-1 text-sm text-slate-500">Silakan masuk untuk melanjutkan ke dashboard.</p>
     </div>
 
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-5">
-        @csrf
-
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input
-                id="email"
-                class="mt-1.5 block w-full"
-                type="email"
-                name="email"
-                :value="old('email')"
-                required
-                autofocus
-                autocomplete="username"
-                placeholder="contoh@email.com"
-            />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+    {{-- Role Tabs --}}
+    <div x-data="{ tab: 'siswa' }">
+        <div class="mb-5 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+            <button type="button" @click="tab = 'siswa'" :class="tab === 'siswa' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="rounded-lg px-3 py-2 text-sm font-semibold transition">
+                Siswa
+            </button>
+            <button type="button" @click="tab = 'guru'" :class="tab === 'guru' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="rounded-lg px-3 py-2 text-sm font-semibold transition">
+                Guru
+            </button>
+            <button type="button" @click="tab = 'dudi'" :class="tab === 'dudi' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="rounded-lg px-3 py-2 text-sm font-semibold transition">
+                Industri
+            </button>
         </div>
 
-        <!-- Password -->
-        <div>
-            <x-input-label for="password" :value="__('Password')" />
-            <x-text-input
-                id="password"
-                class="mt-1.5 block w-full"
-                type="password"
-                name="password"
-                required
-                autocomplete="current-password"
-                placeholder="Masukkan password"
-            />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
+        <form method="POST" action="{{ route('login') }}" class="space-y-5">
+            @csrf
+            <input type="hidden" name="role" x-bind:value="tab">
 
-        <!-- Remember Me -->
-        <div class="flex items-center justify-between">
-            <label for="remember_me" class="inline-flex items-center gap-2">
-                <input
-                    id="remember_me"
-                    type="checkbox"
-                    class="checkbox"
-                    name="remember"
-                >
-                <span class="text-sm text-slate-600">{{ __('Ingat saya') }}</span>
-            </label>
+            {{-- Siswa fields --}}
+            <div x-show="tab === 'siswa'" x-cloak>
+                <div>
+                    <x-input-label for="nis" :value="__('NIS')" />
+                    <x-text-input
+                        id="nis"
+                        class="mt-1.5 block w-full"
+                        type="text"
+                        name="nis"
+                        :value="old('nis')"
+                        autofocus
+                        autocomplete="username"
+                        placeholder="Masukkan NIS"
+                    />
+                    <x-input-error :messages="$errors->get('nis')" class="mt-2" />
+                </div>
+            </div>
 
-            @if (Route::has('password.request'))
-                <a class="text-sm font-medium text-blue-600 hover:text-blue-700" href="{{ route('password.request') }}">
-                    {{ __('Lupa password?') }}
-                </a>
-            @endif
-        </div>
+            {{-- Guru / DUDI email field --}}
+            <div x-show="tab !== 'siswa'" x-cloak>
+                <div>
+                    <x-input-label for="email" :value="__('Email')" />
+<x-text-input
+                        id="email"
+                        class="mt-1.5 block w-full"
+                        type="email"
+                        name="email"
+                        :value="old('email')"
+                        autofocus
+                        autocomplete="username"
+                        x-bind:placeholder="tab === 'guru' ? 'Masukkan Email Guru' : 'Masukkan Email Industri'"
+                    />
+                    <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                </div>
+            </div>
 
-        <div>
-            <x-primary-button class="w-full justify-center py-2.5 text-sm">
-                {{ __('Masuk') }}
-            </x-primary-button>
-        </div>
-    </form>
+            {{-- Password field (shared) --}}
+            <div>
+                <x-input-label for="password" :value="__('Password')" />
+                <x-text-input
+                    id="password"
+                    class="mt-1.5 block w-full"
+                    type="password"
+                    name="password"
+                    required
+                    autocomplete="current-password"
+                    placeholder="Masukkan password"
+                />
+                <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            </div>
 
-    @if (Route::has('register'))
-        <p class="mt-6 text-center text-sm text-slate-500">
-            Belum punya akun?
-            <a href="{{ route('register') }}" class="font-semibold text-blue-600 hover:text-blue-700">Daftar</a>
-        </p>
-    @endif
+            {{-- Remember Me + Forgot Password --}}
+            <div class="flex items-center justify-between">
+                <label for="remember_me" class="inline-flex items-center gap-2">
+                    <input
+                        id="remember_me"
+                        type="checkbox"
+                        class="checkbox"
+                        name="remember"
+                    >
+                    <span class="text-sm text-slate-600">{{ __('Ingat saya') }}</span>
+                </label>
+
+                {{-- Forgot password only for Guru/DUDI --}}
+                <span x-show="tab !== 'siswa'" x-cloak>
+                    @if (Route::has('password.request'))
+                        <a class="text-sm font-medium text-blue-600 hover:text-blue-700" href="{{ route('password.request') }}">
+                            {{ __('Lupa password?') }}
+                        </a>
+                    @endif
+                </span>
+            </div>
+
+            <div>
+                <x-primary-button class="w-full justify-center py-2.5 text-sm">
+                    {{ __('Masuk') }}
+                </x-primary-button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Admin login link --}}
+    <p class="mt-6 text-center text-sm text-slate-500">
+        Administrator?
+        <a href="{{ route('admin.login') }}" class="font-semibold text-blue-600 hover:text-blue-700">Login Khusus Admin</a>
+    </p>
 </x-guest-layout>

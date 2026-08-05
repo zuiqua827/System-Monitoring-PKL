@@ -185,6 +185,23 @@ class AktivitasService extends Service implements AktivitasServiceInterface
     /**
      * {@inheritDoc}
      */
+    public function getDudiAktivitasPaginated(int $dudiId, array $filters = []): LengthAwarePaginator
+    {
+        return $this->aktivitasRepository->getByDudiPaginated(
+            dudiId: $dudiId,
+            keyword: $filters['search'] ?? null,
+            tanggal: $filters['tanggal'] ?? null,
+            status: $filters['status'] ?? null,
+            periodeId: isset($filters['periode_id']) ? (int) $filters['periode_id'] : null,
+            sortBy: $filters['sort_by'] ?? 'tanggal',
+            sortDirection: $filters['sort_direction'] ?? 'desc',
+            perPage: isset($filters['per_page']) ? (int) $filters['per_page'] : 15,
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function submit(Aktivitas $aktivitas): Aktivitas
     {
         /** @var Aktivitas $updated */

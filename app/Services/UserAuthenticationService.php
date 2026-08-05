@@ -16,9 +16,7 @@ use Illuminate\Support\Str;
 
 class UserAuthenticationService extends Service implements UserAuthenticationServiceInterface
 {
-    public function __construct(private readonly UserRepositoryInterface $users)
-    {
-    }
+    public function __construct(private readonly UserRepositoryInterface $users) {}
 
     public function register(array $attributes): User
     {

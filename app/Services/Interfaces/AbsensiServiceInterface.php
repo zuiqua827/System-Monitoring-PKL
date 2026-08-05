@@ -98,6 +98,14 @@ interface AbsensiServiceInterface
     public function getGuruAbsensiPaginated(int $guruId, array $filters = []): LengthAwarePaginator;
 
     /**
+     * Get paginated absensi for a specific dudi's students.
+     *
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, Absensi>
+     */
+    public function getDudiAbsensiPaginated(int $dudiId, array $filters = []): LengthAwarePaginator;
+
+    /**
      * Validate/update absensi status by guru.
      *
      * @param array<string, mixed> $data

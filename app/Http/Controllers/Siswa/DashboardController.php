@@ -38,6 +38,21 @@ class DashboardController extends Controller
 
         $siswaData = $this->dashboardService->getSiswaStats($siswa->id);
 
-        return view('siswa.dashboard.index', compact('siswaData'));
+        $penempatanAktif = $siswaData['has_penempatan'] ? $siswaData['penempatan'] : null;
+        $sudahCheckIn = $siswaData['sudahCheckIn'] ?? false;
+        
+        $stats = [
+            'total_absensi' => $siswaData['totalAbsensi'] ?? 0,
+            'total_aktivitas' => $siswaData['totalAktivitas'] ?? 0,
+            'kehadiran_persen' => $siswaData['persentaseKehadiran'] ?? 0,
+            'progress_persen' => $siswaData['progress'] ?? 0,
+        ];
+        
+        if (isset($penempatanAktif->penilaian)) {
+            $stats['nilai_akhir'] = $penempatanAktif->penilaian->nilai_akhir ?? null;
+            $stats['predikat'] = $penempatanAktif->penilaian->predikat ?? null;
+        }
+
+        return view('siswa.dashboard.index', compact('penempatanAktif', 'sudahCheckIn', 'stats'));
     }
 }

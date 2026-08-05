@@ -61,7 +61,11 @@ class PeriodePKLController extends Controller
     {
         $this->authorize('create', PeriodePKL::class);
 
-        $this->periodePklService->store($request->validated());
+        try {
+            $this->periodePklService->store($request->validated());
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['status' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('admin.periode-pkl.index')
@@ -97,7 +101,11 @@ class PeriodePKLController extends Controller
     {
         $this->authorize('update', $periodePkl);
 
-        $this->periodePklService->update($periodePkl, $request->validated());
+        try {
+            $this->periodePklService->update($periodePkl, $request->validated());
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['status' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('admin.periode-pkl.index')

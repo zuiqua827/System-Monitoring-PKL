@@ -95,14 +95,12 @@ class Aktivitas extends Model
         ];
     }
 
-    /** @return BelongsTo<PenempatanPKL, $this> */
-    /** @return BelongsTo<PenempatanPKL, $this> */
+/** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatanPKL(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
 
-    /** @return BelongsTo<PenempatanPKL, $this> */
     /** @return BelongsTo<PenempatanPKL, $this> */
     public function penempatan(): BelongsTo
     {
@@ -110,20 +108,17 @@ class Aktivitas extends Model
     }
 
     /** @return BelongsTo<User, $this> */
-    /** @return BelongsTo<User, $this> */
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
     /** @return BelongsTo<User, $this> */
-    /** @return BelongsTo<User, $this> */
     public function validatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'validated_by');
     }
 
-    /** @return HasMany<Komentar, $this> */
     /** @return HasMany<Komentar, $this> */
     public function komentar(): HasMany
     {

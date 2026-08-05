@@ -62,6 +62,22 @@ interface AbsensiRepositoryInterface extends BaseRepositoryInterface
         int $perPage = 15,
     ): LengthAwarePaginator;
 
+/**
+     * Get paginated absensi for a specific DUDI (via penempatan).
+     *
+     * @return LengthAwarePaginator<int, Absensi>
+     */
+    public function getByDudiPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        ?string $tanggal = null,
+        ?string $status = null,
+        ?int $periodeId = null,
+        string $sortBy = 'tanggal',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator;
+
     /**
      * Get paginated absensi for a specific guru (via penempatan bimbingan).
      *

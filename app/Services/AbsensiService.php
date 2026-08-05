@@ -85,7 +85,7 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                 $data['tanggal'] = now()->toDateString();
             }
 
-            // Handle base64 photo if present
+// Handle base64 photo if present
             $fotoPath = null;
             if (!empty($data['foto_base64'])) {
                 $fotoPath = $this->saveBase64Photo($data['foto_base64'], 'absensi/foto_masuk');
@@ -95,7 +95,7 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                 'penempatan_pkl_id' => $data['penempatan_pkl_id'],
                 'tanggal' => $data['tanggal'],
                 'jam_masuk' => $data['jam_masuk'] ?? null,
-                'jam_keluar' => $data['jam_keluar'] ?? null,
+                'jam_keluar' => $data['jam_keluar'] ?? $data['jam_pulang'] ?? null,
                 'status' => $data['status'] ?? AbsensiStatus::HADIR->value,
                 'lokasi_masuk' => $data['lokasi_masuk'] ?? null,
                 'lokasi_pulang' => $data['lokasi_pulang'] ?? null,
@@ -124,8 +124,8 @@ class AbsensiService extends Service implements AbsensiServiceInterface
             $updateData = [
                 'penempatan_pkl_id' => $data['penempatan_pkl_id'] ?? $absensi->penempatan_pkl_id,
                 'tanggal' => $data['tanggal'] ?? $absensi->tanggal,
-                'jam_masuk' => $data['jam_masuk'] ?? $absensi->jam_masuk,
-                'jam_keluar' => $data['jam_keluar'] ?? $absensi->jam_keluar,
+'jam_masuk' => $data['jam_masuk'] ?? $absensi->jam_masuk,
+                'jam_keluar' => $data['jam_keluar'] ?? $data['jam_pulang'] ?? $absensi->jam_keluar,
                 'status' => $data['status'] ?? $absensi->status,
                 'lokasi_masuk' => $data['lokasi_masuk'] ?? $absensi->lokasi_masuk,
                 'lokasi_pulang' => $data['lokasi_pulang'] ?? $absensi->lokasi_pulang,
@@ -324,6 +324,23 @@ class AbsensiService extends Service implements AbsensiServiceInterface
     {
         return $this->absensiRepository->getByGuruPaginated(
             guruId: $guruId,
+            keyword: $filters['search'] ?? null,
+            tanggal: $filters['tanggal'] ?? null,
+            status: $filters['status'] ?? null,
+            periodeId: isset($filters['periode_id']) ? (int) $filters['periode_id'] : null,
+            sortBy: $filters['sort_by'] ?? 'tanggal',
+            sortDirection: $filters['sort_direction'] ?? 'desc',
+            perPage: isset($filters['per_page']) ? (int) $filters['per_page'] : 15,
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDudiAbsensiPaginated(int $dudiId, array $filters = []): LengthAwarePaginator
+    {
+        return $this->absensiRepository->getByDudiPaginated(
+            dudiId: $dudiId,
             keyword: $filters['search'] ?? null,
             tanggal: $filters['tanggal'] ?? null,
             status: $filters['status'] ?? null,

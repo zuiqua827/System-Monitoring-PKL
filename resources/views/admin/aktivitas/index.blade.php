@@ -100,7 +100,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($aktivitasList as $index => $aktivitas)
                             <tr class="transition hover:bg-slate-50">
-                                <td class="px-4 py-3.5 text-sm text-slate-500">{{ $aktivitasList->firstItem() + $index }}</td>
+<td class="px-4 py-3.5 text-sm text-slate-500">{{ ($aktivitasList->firstItem() ?? 0) + $index }}</td>
                                 <td class="px-4 py-3.5 text-sm font-medium text-slate-900">{{ $aktivitas->penempatanPKL?->siswa?->nama ?? '-' }}</td>
                                 <td class="px-4 py-3.5 text-sm text-slate-600">{{ $aktivitas->tanggal ? $aktivitas->tanggal->format('d/m/Y') : '-' }}</td>
                                 <td class="px-4 py-3.5 text-sm text-slate-600 max-w-xs truncate">
@@ -194,3 +194,4 @@
     </div>
 </div>
 @endsection
+

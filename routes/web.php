@@ -39,7 +39,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/login');
 });
 
 /*
@@ -99,6 +99,10 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     Route::post('periode-pkl/{periode_pkl}/restore', [PeriodePKLController::class, 'restore'])->name('periode-pkl.restore')->withTrashed();
     Route::delete('periode-pkl/{periode_pkl}/force-delete', [PeriodePKLController::class, 'forceDelete'])->name('periode-pkl.force-delete')->withTrashed();
 
+// Sinkronisasi SiPintu
+    Route::get('/sipintu-sync', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'index'])->name('sipintu-sync.index');
+    Route::post('/sipintu-sync', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'sync'])->name('sipintu-sync.sync');
+
     // Master Absensi
     Route::resource('absensi', AdminAbsensiController::class);
     Route::post('absensi/{absensi}/restore', [AdminAbsensiController::class, 'restore'])->name('absensi.restore')->withTrashed();
@@ -131,16 +135,10 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
     // Aktivitas Siswa Bimbingan
     Route::get('/aktivitas', [GuruAktivitasController::class, 'index'])->name('aktivitas.index');
     Route::get('/aktivitas/{id}', [GuruAktivitasController::class, 'show'])->name('aktivitas.show');
-    Route::post('/aktivitas/{id}/validate', [GuruAktivitasController::class, 'validateAktivitas'])->name('aktivitas.validate');
 
     // Penilaian Siswa Bimbingan
     Route::get('/penilaian', [GuruPenilaianController::class, 'index'])->name('penilaian.index');
-    Route::get('/penilaian/create', [GuruPenilaianController::class, 'create'])->name('penilaian.create');
     Route::get('/penilaian/{id}', [GuruPenilaianController::class, 'show'])->name('penilaian.show');
-    Route::get('/penilaian/{id}/edit', [GuruPenilaianController::class, 'edit'])->name('penilaian.edit');
-    Route::post('/penilaian', [GuruPenilaianController::class, 'store'])->name('penilaian.store');
-    Route::put('/penilaian/{id}', [GuruPenilaianController::class, 'update'])->name('penilaian.update');
-    Route::post('/penilaian/{id}/finalize', [GuruPenilaianController::class, 'finalize'])->name('penilaian.finalize');
 });
 
 /*
@@ -150,6 +148,20 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
 */
 Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi.')->group(function () {
     Route::get('/dashboard', [DudiDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/siswa', [\App\Http\Controllers\Dudi\SiswaController::class, 'index'])->name('siswa.index');
+    Route::get('/siswa/{id}', [\App\Http\Controllers\Dudi\SiswaController::class, 'show'])->name('siswa.show');
+    Route::get('/absensi', [\App\Http\Controllers\Dudi\AbsensiController::class, 'index'])->name('absensi.index');
+    Route::get('/absensi/{id}', [\App\Http\Controllers\Dudi\AbsensiController::class, 'show'])->name('absensi.show');
+    Route::get('/aktivitas', [\App\Http\Controllers\Dudi\AktivitasController::class, 'index'])->name('aktivitas.index');
+    Route::get('/aktivitas/{id}', [\App\Http\Controllers\Dudi\AktivitasController::class, 'show'])->name('aktivitas.show');
+    Route::put('/aktivitas/{id}', [\App\Http\Controllers\Dudi\AktivitasController::class, 'update'])->name('aktivitas.update');
+    Route::get('/penilaian', [\App\Http\Controllers\Dudi\PenilaianController::class, 'index'])->name('penilaian.index');
+    Route::get('/penilaian/create', [\App\Http\Controllers\Dudi\PenilaianController::class, 'create'])->name('penilaian.create');
+    Route::post('/penilaian', [\App\Http\Controllers\Dudi\PenilaianController::class, 'store'])->name('penilaian.store');
+    Route::get('/penilaian/{id}', [\App\Http\Controllers\Dudi\PenilaianController::class, 'show'])->name('penilaian.show');
+    Route::get('/penilaian/{id}/edit', [\App\Http\Controllers\Dudi\PenilaianController::class, 'edit'])->name('penilaian.edit');
+    Route::put('/penilaian/{id}', [\App\Http\Controllers\Dudi\PenilaianController::class, 'update'])->name('penilaian.update');
+    Route::post('/penilaian/{id}/finalize', [\App\Http\Controllers\Dudi\PenilaianController::class, 'finalize'])->name('penilaian.finalize');
 });
 
 /*
@@ -172,6 +184,7 @@ Route::middleware(['auth', 'verified', 'role:Siswa'])->prefix('siswa')->name('si
 
     // Penilaian Siswa
     Route::get('/penilaian', [SiswaPenilaianController::class, 'index'])->name('penilaian.index');
+    Route::get('/penilaian/{penilaian}/pdf', [SiswaPenilaianController::class, 'downloadPdf'])->name('penilaian.pdf');
     Route::get('/penilaian/{id}', [SiswaPenilaianController::class, 'show'])->name('penilaian.show');
 });
 

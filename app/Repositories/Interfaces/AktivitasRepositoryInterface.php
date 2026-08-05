@@ -61,6 +61,22 @@ interface AktivitasRepositoryInterface extends BaseRepositoryInterface
         int $perPage = 15,
     ): LengthAwarePaginator;
 
+/**
+     * Get paginated aktivitas for a specific dudi's students.
+     *
+     * @return LengthAwarePaginator<int, Aktivitas>
+     */
+    public function getByDudiPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        ?string $tanggal = null,
+        ?string $status = null,
+        ?int $periodeId = null,
+        string $sortBy = 'tanggal',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator;
+
     /**
      * Get all trashed records.
      *

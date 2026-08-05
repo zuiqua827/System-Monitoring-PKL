@@ -71,6 +71,14 @@ interface AktivitasServiceInterface
     public function getGuruAktivitasPaginated(int $guruId, array $filters = []): LengthAwarePaginator;
 
     /**
+     * Get paginated aktivitas for a specific dudi.
+     *
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, Aktivitas>
+     */
+    public function getDudiAktivitasPaginated(int $dudiId, array $filters = []): LengthAwarePaginator;
+
+    /**
      * Submit aktivitas for validation (change status from draft to menunggu_validasi).
      */
     public function submit(Aktivitas $aktivitas): Aktivitas;

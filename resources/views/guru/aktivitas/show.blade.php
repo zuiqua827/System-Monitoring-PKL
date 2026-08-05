@@ -120,49 +120,6 @@
             </div>
         </div>
 
-        {{-- Form Validasi (hanya jika status menunggu_validasi) --}}
-        @if($aktivitas->status === 'menunggu_validasi')
-            <div id="validasi" class="card p-6">
-                <h3 class="section-heading mb-4">Validasi Aktivitas</h3>
-
-                <form method="POST" action="{{ route('guru.aktivitas.validate', $aktivitas->id) }}" class="space-y-4">
-                    @csrf
-
-                    <div>
-                        <label class="input-label">Status Validasi <span class="text-red-500">*</span></label>
-                        <div class="flex items-center gap-4">
-                            <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 transition hover:bg-slate-50 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-50">
-                                <input type="radio" name="status" value="disetujui" class="h-4 w-4 text-emerald-600 focus:ring-emerald-500" {{ old('status') === 'disetujui' ? 'checked' : '' }}>
-                                <span class="text-sm font-medium text-slate-700">Disetujui</span>
-                            </label>
-                            <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 transition hover:bg-slate-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
-                                <input type="radio" name="status" value="ditolak" class="h-4 w-4 text-red-600 focus:ring-red-500" {{ old('status') === 'ditolak' ? 'checked' : '' }}>
-                                <span class="text-sm font-medium text-slate-700">Ditolak</span>
-                            </label>
-                        </div>
-                        @error('status')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label for="catatan_guru" class="input-label">Catatan Guru</label>
-                        <textarea id="catatan_guru" name="catatan_guru" rows="3" class="input" placeholder="Tambahkan catatan untuk siswa...">{{ old('catatan_guru') }}</textarea>
-                        @error('catatan_guru')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="flex items-center gap-2 border-t border-slate-200 pt-4">
-                        <button type="submit" class="btn-primary">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-                            Simpan Validasi
-                        </button>
-                        <a href="{{ route('guru.aktivitas.index') }}" class="btn-secondary">Batal</a>
-                    </div>
-                </form>
-            </div>
-        @endif
     </div>
 </div>
 @endsection

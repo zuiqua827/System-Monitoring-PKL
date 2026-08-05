@@ -31,7 +31,7 @@ class SiswaFactory extends Factory
         return [
             'user_id' => User::factory()->withRole('Siswa')->state([
                 'name' => $name,
-                'email' => $nis.'@siswa.monitoringpkl.test',
+                'email' => Siswa::generateEmail($nis),
                 'password' => Hash::make($tanggalLahir->format('Ymd')),
                 'must_change_password' => true,
             ]),

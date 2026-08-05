@@ -38,7 +38,9 @@ class DashboardController extends Controller
 
         $stats = $this->dashboardService->getDudiStats($dudi->id);
         $charts = $this->dashboardService->getDudiCharts($dudi->id);
+        $recentActivities = $this->dashboardService->getDudiRecentActivity($dudi->id);
+        $recentSiswa = $this->dashboardService->getDudiRecentSiswa($dudi->id);
 
-        return view('dudi.dashboard.index', compact('stats', 'charts'));
+        return view('dudi.dashboard.index', compact('stats', 'charts', 'recentActivities', 'recentSiswa'));
     }
 }

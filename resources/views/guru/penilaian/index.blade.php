@@ -26,14 +26,6 @@
                 <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Penilaian Siswa Bimbingan</h1>
                 <p class="mt-2 text-sm text-slate-500">Kelola penilaian PKL siswa bimbingan</p>
             </div>
-            @can('create', App\Models\Penilaian::class)
-                <a href="{{ route('admin.penilaian.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Tambah Penilaian
-                </a>
-            @endcan
         </div>
 
         {{-- Filters --}}
@@ -90,7 +82,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($penilaianList as $index => $penilaian)
                             <tr class="transition hover:bg-slate-50">
-                                <td class="px-4 py-3.5 text-sm text-slate-500">{{ $penilaianList->firstItem() + $index }}</td>
+                                <td class="px-4 py-3.5 text-sm text-slate-500">{{ ($penilaianList->firstItem() ?? 0) + $index }}</td>
                                 <td class="px-4 py-3.5 text-sm font-medium text-slate-900">{{ $penilaian->penempatanPKL?->siswa?->nama ?? '-' }}</td>
                                 <td class="px-4 py-3.5 text-sm text-slate-600">{{ $penilaian->penempatanPKL?->dudi?->nama_perusahaan ?? '-' }}</td>
                                 <td class="px-4 py-3.5 text-sm font-bold text-slate-900">{{ $penilaian->nilai_akhir ?? '-' }}</td>
@@ -123,9 +115,6 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1">
                                         <a href="{{ route('guru.penilaian.show', $penilaian->id) }}" class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">Detail</a>
-                                        @if($penilaian->status === 'draft')
-                                            <a href="{{ route('guru.penilaian.edit', $penilaian->id) }}" class="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">Edit</a>
-                                        @endif
                                     </div>
                                 </td>
                             </tr>

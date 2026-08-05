@@ -36,6 +36,19 @@ class PenempatanPKLService extends Service implements PenempatanPKLServiceInterf
     /**
      * {@inheritDoc}
      */
+    public function getDudiSiswaPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        string $sortBy = 'created_at',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator {
+        return $this->penempatanPklRepository->searchByDudi($dudiId, $keyword, $sortBy, $sortDirection, $perPage);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function findOrFail(int $id): PenempatanPKL
     {
         /** @var PenempatanPKL|null $penempatanPkl */

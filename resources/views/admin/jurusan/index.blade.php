@@ -73,4 +73,91 @@
                                 </a>
                             </th>
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Deskripsi</th>
-                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Status
+                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Status</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse($jurusans as $index => $jurusan)
+                            <tr class="transition hover:bg-slate-50">
+                                <td class="px-4 py-3.5 text-sm text-slate-500">{{ $jurusans->firstItem() + $index }}</td>
+                                <td class="px-4 py-3.5 text-sm font-medium text-slate-900">{{ $jurusan->kode }}</td>
+                                <td class="px-4 py-3.5 text-sm font-medium text-slate-800">{{ $jurusan->nama }}</td>
+                                <td class="px-4 py-3.5 text-sm text-slate-600">{{ Str::limit($jurusan->deskripsi, 50) }}</td>
+                                <td class="px-4 py-3.5">
+                                    @if($jurusan->trashed())
+                                        <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800">Dihapus</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Aktif</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <div class="flex items-center justify-center gap-1">
+                                        @can('view', $jurusan)
+                                            <a href="{{ route('admin.jurusan.show', $jurusan->id) }}" class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">Detail</a>
+                                        @endcan
+
+                                        @unless($jurusan->trashed())
+                                            @can('update', $jurusan)
+                                                <a href="{{ route('admin.jurusan.edit', $jurusan->id) }}" class="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">Edit</a>
+                                            @endcan
+
+                                            @can('delete', $jurusan)
+                                                <form method="POST" action="{{ route('admin.jurusan.destroy', $jurusan->id) }}" class="inline" onsubmit="return confirm('Hapus jurusan {{ $jurusan->nama }}?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex items-center rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus</button>
+                                                </form>
+                                            @endcan
+                                        @else
+                                            @can('restore', $jurusan)
+                                                <form method="POST" action="{{ route('admin.jurusan.restore', $jurusan->id) }}" class="inline" onsubmit="return confirm('Pulihkan jurusan {{ $jurusan->nama }}?')">
+                                                    @csrf
+                                                    <button type="submit" class="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Restore</button>
+                                                </form>
+                                            @endcan
+
+                                            @can('forceDelete', $jurusan)
+                                                <form method="POST" action="{{ route('admin.jurusan.force-delete', $jurusan->id) }}" class="inline" onsubmit="return confirm('Hapus permanen {{ $jurusan->nama }}?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex items-center rounded-lg bg-red-800 px-2.5 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-900">Force Delete</button>
+                                                </form>
+                                            @endcan
+                                        @endunless
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6">
+                                    <div class="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
+                                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                                            <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
+                                        </div>
+                                        <p class="text-sm font-semibold text-slate-700">
+                                            @if(request('search'))
+                                                Tidak ada hasil untuk pencarian "{{ request('search') }}"
+                                            @else
+                                                Belum ada data jurusan.
+                                            @endif
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($jurusans->hasPages())
+                <div class="border-t border-slate-200 px-5 py-4">
+                    {{ $jurusans->appends(request()->query())->links() }}
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+@endsection

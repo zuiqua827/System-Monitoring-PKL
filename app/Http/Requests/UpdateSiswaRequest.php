@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Siswa;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -31,14 +32,12 @@ class UpdateSiswaRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var \App\Models\Siswa|string|null $siswa */
+        /** @var Siswa|string|null $siswa */
         $siswa = $this->route('siswa');
 
-        $siswaId = $siswa instanceof \App\Models\Siswa ? $siswa->id : $siswa;
-        $userId = $siswa instanceof \App\Models\Siswa ? $siswa->user_id : null;
+        $siswaId = $siswa instanceof Siswa ? $siswa->id : $siswa;
 
         return [
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'class_id' => ['required', 'integer', 'exists:kelas,id'],
             'nis' => ['required', 'string', 'max:30', Rule::unique('siswa', 'nis')->ignore($siswaId)],
             'nisn' => ['nullable', 'string', 'max:30', Rule::unique('siswa', 'nisn')->ignore($siswaId)],
@@ -58,7 +57,6 @@ class UpdateSiswaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'email' => 'Email Login',
             'class_id' => 'Kelas',
             'nis' => 'NIS',
             'nisn' => 'NISN',

@@ -29,6 +29,14 @@ interface PenilaianServiceInterface
     public function getGuruPenilaianPaginated(int $guruId, array $filters = []): LengthAwarePaginator;
 
     /**
+     * Get paginated penilaian for a DUDI's students.
+     *
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, Penilaian>
+     */
+    public function getDudiPenilaianPaginated(int $dudiId, array $filters = []): LengthAwarePaginator;
+
+    /**
      * Get paginated penilaian for a Siswa's own records.
      *
      * @return LengthAwarePaginator<int, Penilaian>

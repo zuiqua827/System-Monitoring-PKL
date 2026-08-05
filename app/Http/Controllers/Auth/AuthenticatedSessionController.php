@@ -6,7 +6,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Helpers\RoleRedirectHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\AdminLoginRequest;
+use App\Http\Requests\Auth\PklLoginRequest;
 use App\Models\User;
 use App\Services\Interfaces\UserAuthenticationServiceInterface;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,10 @@ use Illuminate\View\View;
  * 2. Record login metadata (timestamp + IP)
  * 3. Redirect based on role (Super Admin, Guru, DUDI, Siswa)
  * 4. If must_change_password is true, ForceChangePassword middleware will intercept
+ *
+ * Two entry points:
+ *  - /admin/login  -> Super Admin only (email + password)
+ *  - /login        -> PKL users (Siswa, Guru, DUDI) via role tabs
  */
 class AuthenticatedSessionController extends Controller
 {
@@ -30,7 +35,7 @@ class AuthenticatedSessionController extends Controller
     ) {}
 
     /**
-     * Display the login view.
+     * Display the PKL users login view.
      */
     public function create(): View
     {
@@ -38,9 +43,17 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Display the Super Admin login view.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function createAdmin(): View
+    {
+        return view('admin.login');
+    }
+
+    /**
+     * Handle an incoming PKL users authentication request.
+     */
+    public function store(PklLoginRequest $request): RedirectResponse
     {
         $request->authenticate();
 
@@ -59,6 +72,28 @@ class AuthenticatedSessionController extends Controller
         $dashboardUrl = RoleRedirectHelper::getDashboardUrl($user);
 
         return redirect()->intended($dashboardUrl);
+    }
+
+    /**
+     * Handle an incoming Super Admin authentication request.
+     */
+    public function storeAdmin(AdminLoginRequest $request): RedirectResponse
+    {
+        $request->authenticate();
+
+        $request->session()->regenerate();
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Record login metadata
+        $this->authenticationService->recordLoginMetadata(
+            user: $user,
+            ipAddress: $request->ip(),
+        );
+
+        // Super Admin always redirects to the admin dashboard
+        return redirect()->intended('/admin/dashboard');
     }
 
     /**

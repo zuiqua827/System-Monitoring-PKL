@@ -52,7 +52,25 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+'url' => env('APP_URL', 'http://localhost'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Student Email Domain
+    |--------------------------------------------------------------------------
+    |
+    | The domain used to auto-generate student account emails from their NIS.
+    | Email = NIS + "@" + STUDENT_EMAIL_DOMAIN.
+    |
+    | Example:
+    |   NIS: 11872054
+    |   Email: 11872054@smk1bangsri.sch.id
+    |
+    | Set STUDENT_EMAIL_DOMAIN in your .env when deploying to real servers.
+    |
+    */
+
+    'student_email_domain' => env('STUDENT_EMAIL_DOMAIN', 'smk1bangsri.sch.id'),
 
     /*
     |--------------------------------------------------------------------------

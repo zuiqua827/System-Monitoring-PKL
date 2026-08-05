@@ -35,7 +35,8 @@ class AktivitasPolicy
     {
         return $user->hasPermissionTo('aktivitas.view')
             || $user->hasRole('Guru')
-            || $user->hasRole('Siswa');
+            || $user->hasRole('Siswa')
+            || $user->hasRole('DUDI');
     }
 
     /**
@@ -55,6 +56,11 @@ class AktivitasPolicy
         // Siswa can only view own aktivitas
         if ($user->hasRole('Siswa') && $user->siswa) {
             return $aktivitas->penempatanPKL->siswa_id === $user->siswa->id;
+        }
+
+        // DUDI can only view aktivitas of students in their company
+        if ($user->hasRole('DUDI') && $user->dudi) {
+            return $aktivitas->penempatanPKL->dudi_id === $user->dudi->id;
         }
 
         return false;

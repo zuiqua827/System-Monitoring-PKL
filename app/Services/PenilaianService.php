@@ -57,6 +57,22 @@ class PenilaianService extends Service implements PenilaianServiceInterface
     /**
      * {@inheritDoc}
      */
+    public function getDudiPenilaianPaginated(int $dudiId, array $filters = []): LengthAwarePaginator
+    {
+        return $this->penilaianRepository->getByDudiPaginated(
+            dudiId: $dudiId,
+            keyword: $filters['search'] ?? null,
+            status: $filters['status'] ?? null,
+            periodeId: $filters['periode_id'] ?? null,
+            sortBy: $filters['sort_by'] ?? 'created_at',
+            sortDirection: $filters['sort_direction'] ?? 'desc',
+            perPage: (int) ($filters['per_page'] ?? 15),
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSiswaPenilaianPaginated(int $siswaId, array $filters = []): LengthAwarePaginator
     {
         return $this->penilaianRepository->getBySiswaPaginated(

@@ -26,6 +26,13 @@ Route::middleware('guest')->group(function () {
     // Route::get('register', ...);
     // Route::post('register', ...);
 
+    // Super Admin dedicated login
+    Route::get('admin/login', [AuthenticatedSessionController::class, 'createAdmin'])
+        ->name('admin.login');
+
+    Route::post('admin/login', [AuthenticatedSessionController::class, 'storeAdmin']);
+
+    // PKL users login (Siswa, Guru, DUDI)
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 

@@ -33,7 +33,16 @@ class UpdateKelasRequest extends FormRequest
 
         return [
             'jurusan_id' => ['required', 'integer', 'exists:jurusan,id'],
-            'nama' => ['required', 'string', 'max:100'],
+            'nama' => [
+                'required', 
+                'string', 
+                'max:100',
+                \Illuminate\Validation\Rule::unique('kelas', 'nama')
+                    ->where('jurusan_id', $this->jurusan_id)
+                    ->where('tahun_ajaran', $this->tahun_ajaran)
+                    ->ignore($kelasId)
+                    ->whereNull('deleted_at')
+            ],
             'tingkat' => ['required', 'integer', 'in:10,11,12'],
             'tahun_ajaran' => ['required', 'string', 'max:9'],
         ];

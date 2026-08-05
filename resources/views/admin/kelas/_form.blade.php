@@ -47,15 +47,26 @@
                     @enderror
                 </div>
                 <div class="bg-white p-5">
-                    <label for="tingkat" class="block text-sm font-semibold text-slate-700">Tingkat</label>
-                    <select id="tingkat" name="tingkat"
+                    <label for="tingkat" class="block text-sm font-semibold text-slate-700">Tingkat <span class="text-red-500">*</span></label>
+                    <select id="tingkat" name="tingkat" required
                             class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
                         <option value="">-- Pilih Tingkat --</option>
-                        @foreach(['X', 'XI', 'XII'] as $t)
-                            <option value="{{ $t }}" {{ old('tingkat', $kelas->tingkat ?? '') === $t ? 'selected' : '' }}>{{ $t }}</option>
-                        @endforeach
+                        <option value="10" {{ old('tingkat', $kelas->tingkat ?? '') == 10 ? 'selected' : '' }}>X (10)</option>
+                        <option value="11" {{ old('tingkat', $kelas->tingkat ?? '') == 11 ? 'selected' : '' }}>XI (11)</option>
+                        <option value="12" {{ old('tingkat', $kelas->tingkat ?? '') == 12 ? 'selected' : '' }}>XII (12)</option>
                     </select>
                     @error('tingkat')
+                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div class="bg-white p-5">
+                    <label for="tahun_ajaran" class="block text-sm font-semibold text-slate-700">
+                        Tahun Ajaran <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="tahun_ajaran" name="tahun_ajaran" value="{{ old('tahun_ajaran', $kelas->tahun_ajaran ?? '') }}" required
+                           class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                           placeholder="2026/2027">
+                    @error('tahun_ajaran')
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>

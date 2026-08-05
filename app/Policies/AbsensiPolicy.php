@@ -42,7 +42,8 @@ class AbsensiPolicy
     {
         return $user->hasPermissionTo('absensi.view')
             || $user->hasRole('Guru')
-            || $user->hasRole('Siswa');
+            || $user->hasRole('Siswa')
+            || $user->hasRole('DUDI');
     }
 
     /**
@@ -70,15 +71,28 @@ class AbsensiPolicy
             }
         }
 
+        // DUDI can only view absensi of students in their company
+        if ($user->hasRole('DUDI')) {
+            $dudi = $user->dudi;
+            if ($dudi !== null) {
+                return $absensi->penempatanPKL->dudi_id === $dudi->id;
+            }
+        }
+
         return false;
     }
 
-    /**
+/**
      * Determine whether the user can create absensi (admin CRUD).
+     *
+     * Only Super Admin (handled by before()) may create/update/delete
+     * attendance records. Guru, DUDI, and Siswa are strictly view-only
+     * (except Siswa's own check-in/check-out workflow, which is managed
+     * through PenempatanPKLPolicy, not here).
      */
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('absensi.view');
+        return false;
     }
 
     /**
@@ -86,7 +100,7 @@ class AbsensiPolicy
      */
     public function update(User $user, Absensi $absensi): bool
     {
-        return $user->hasPermissionTo('absensi.view');
+        return false;
     }
 
     /**
@@ -94,7 +108,7 @@ class AbsensiPolicy
      */
     public function delete(User $user, Absensi $absensi): bool
     {
-        return $user->hasPermissionTo('absensi.view');
+        return false;
     }
 
     /**
@@ -102,7 +116,7 @@ class AbsensiPolicy
      */
     public function restore(User $user, Absensi $absensi): bool
     {
-        return $user->hasPermissionTo('absensi.view');
+        return false;
     }
 
     /**
@@ -110,7 +124,7 @@ class AbsensiPolicy
      */
     public function forceDelete(User $user, Absensi $absensi): bool
     {
-        return $user->hasPermissionTo('absensi.view');
+        return false;
     }
 
     /**

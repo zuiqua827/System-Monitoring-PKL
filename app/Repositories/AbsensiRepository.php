@@ -175,6 +175,63 @@ class AbsensiRepository extends EloquentRepository implements AbsensiRepositoryI
             ->paginate(min(max($perPage, 1), 100));
     }
 
+/**
+     * {@inheritDoc}
+     */
+    public function getByDudiPaginated(
+        int $dudiId,
+        ?string $keyword = null,
+        ?string $tanggal = null,
+        ?string $status = null,
+        ?int $periodeId = null,
+        string $sortBy = 'tanggal',
+        string $sortDirection = 'desc',
+        int $perPage = 15,
+    ): LengthAwarePaginator {
+        $query = $this->newQuery()
+            ->with([
+                'penempatanPKL',
+                'penempatanPKL.siswa',
+                'penempatanPKL.guru',
+                'penempatanPKL.dudi',
+                'penempatanPKL.periodePKL',
+            ])
+            ->whereHas('penempatanPKL', function ($q) use ($dudiId): void {
+                $q->where('dudi_id', $dudiId);
+            });
+
+        if ($keyword !== null && $keyword !== '') {
+            $query->where(function ($q) use ($keyword): void {
+                $q->whereHas('penempatanPKL.siswa', function ($sq) use ($keyword): void {
+                    $sq->where('nama', 'like', "%{$keyword}%")
+                       ->orWhere('nis', 'like', "%{$keyword}%");
+                });
+            });
+        }
+
+        if ($tanggal !== null && $tanggal !== '') {
+            $query->whereDate('tanggal', $tanggal);
+        }
+
+        if ($status !== null && $status !== '') {
+            $query->where('status', $status);
+        }
+
+        if ($periodeId !== null) {
+            $query->whereHas('penempatanPKL', function ($pq) use ($periodeId): void {
+                $pq->where('periode_pkl_id', $periodeId);
+            });
+        }
+
+        $allowedSorts = ['tanggal', 'status', 'jam_masuk', 'jam_keluar', 'created_at'];
+        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'tanggal';
+        $sortDirection = in_array($sortDirection, ['asc', 'desc'], true) ? $sortDirection : 'desc';
+
+        return $query
+            ->orderBy($sortBy, $sortDirection)
+            ->paginate(min(max($perPage, 1), 100));
+    }
+
     /**
      * {@inheritDoc}
      */

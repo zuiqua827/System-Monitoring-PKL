@@ -112,11 +112,5 @@
                 </x-primary-button>
             </div>
         </form>
-    </div>
-
-    {{-- Admin login link --}}
-    <p class="mt-6 text-center text-sm text-slate-500">
-        Administrator?
-        <a href="{{ route('admin.login') }}" class="font-semibold text-blue-600 hover:text-blue-700">Login Khusus Admin</a>
-    </p>
+</div>
 </x-guest-layout>

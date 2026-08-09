@@ -70,11 +70,5 @@
                 {{ __('Masuk') }}
             </x-primary-button>
         </div>
-    </form>
-
-    {{-- PKL user login link --}}
-    <p class="mt-6 text-center text-sm text-slate-500">
-        Bukan Administrator?
-        <a href="{{ route('login') }}" class="font-semibold text-blue-600 hover:text-blue-700">Login Siswa / Guru / Industri</a>
-    </p>
+</form>
 </x-guest-layout>

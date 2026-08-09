@@ -19,7 +19,7 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
         parent::__construct($model);
     }
 
-    /**
+/**
      * {@inheritDoc}
      */
     public function search(
@@ -27,9 +27,14 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
         string $sortBy = 'created_at',
         string $sortDirection = 'desc',
         int $perPage = 15,
+        ?int $jurusanId = null,
+        ?int $kelasId = null,
+        ?int $dudiId = null,
+        ?int $guruId = null,
+        ?string $status = null,
     ): LengthAwarePaginator {
-        $query = $this->newQuery()
-            ->with(['siswa', 'guru', 'dudi', 'periodePKL']);
+$query = $this->newQuery()
+            ->with(['siswa.kelas', 'guru', 'dudi', 'periodePKL']);
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {
@@ -50,6 +55,26 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
                       $pq->where('nama', 'like', "%{$keyword}%");
                   });
             });
+        }
+
+        if ($jurusanId !== null && $jurusanId !== 0) {
+            $query->whereHas('siswa.kelas', fn ($q) => $q->where('jurusan_id', $jurusanId));
+        }
+
+if ($kelasId !== null && $kelasId !== 0) {
+            $query->whereHas('siswa', fn ($q) => $q->where('class_id', $kelasId));
+        }
+
+        if ($dudiId !== null && $dudiId !== 0) {
+            $query->where('dudi_id', $dudiId);
+        }
+
+        if ($guruId !== null && $guruId !== 0) {
+            $query->where('guru_id', $guruId);
+        }
+
+        if ($status !== null && $status !== '') {
+            $query->where('status', $status);
         }
 
         $allowedSorts = ['created_at', 'status', 'nomor_surat', 'tanggal_mulai', 'tanggal_selesai'];

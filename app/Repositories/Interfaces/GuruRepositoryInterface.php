@@ -25,6 +25,11 @@ interface GuruRepositoryInterface extends BaseRepositoryInterface
         int $perPage = 15,
     ): LengthAwarePaginator;
 
+/**
+     * Find a guru by NIP (including trashed records).
+     */
+    public function findByNip(string $nip): ?Guru;
+
     /**
      * Get all guru including trashed records.
      *

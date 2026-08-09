@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'SIPKL') }}</title>
-    <link rel="icon" type="image/png" href="{{ asset('images/sipkl-logo.png') }}">
+<title>{{ config('app.name', 'SIMONGAN') }}</title>
+<link rel="icon" type="image/png" href="{{ asset('images/simongan-logo.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -28,21 +28,21 @@
 
             <div class="relative">
                 <div class="flex items-center gap-3">
-                    <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-12 w-12 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
+<img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-12 w-12 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
                     <div>
-                        <h1 class="text-lg font-bold tracking-tight text-white">SIPKL</h1>
+                        <h1 class="text-lg font-bold tracking-tight text-white">SIMONGAN</h1>
                         <p class="text-xs text-blue-100">SMK Negeri 1 Bangsri</p>
                     </div>
                 </div>
             </div>
 
             <div class="relative">
-                <h2 class="text-3xl font-bold leading-tight text-white">
+<h2 class="text-3xl font-bold leading-tight text-white">
                     Sistem Monitoring<br>
-                    <span class="text-blue-200">Praktik Kerja Lapangan</span>
+                    <span class="text-blue-200">Lapangan</span>
                 </h2>
                 <p class="mt-4 max-w-md text-sm leading-relaxed text-blue-100">
-                    Platform terintegrasi untuk mengelola kegiatan Praktik Kerja Lapangan
+                    Platform terintegrasi untuk mengelola Praktik Kerja Lapangan (PKL)
                     secara digital, transparan, dan real-time.
                 </p>
             </div>
@@ -56,7 +56,7 @@
         <div class="flex w-full items-center justify-center px-6 lg:w-1/2">
             <div class="w-full max-w-md">
                 <div class="mb-8 text-center lg:hidden">
-                    <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="mx-auto h-14 w-14 object-contain">
+<img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="mx-auto h-14 w-14 object-contain">
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-card">
@@ -64,7 +64,7 @@
                 </div>
 
                 <p class="mt-6 text-center text-xs text-slate-400">
-                    &copy; {{ date('Y') }} SIPKL {{ config('app.name', 'Sistem Monitoring PKL') }}. All rights reserved.
+&copy; {{ date('Y') }} SIMONGAN {{ config('app.name', 'Sistem Monitoring Lapangan') }}. All rights reserved.
                 </p>
             </div>
         </div>

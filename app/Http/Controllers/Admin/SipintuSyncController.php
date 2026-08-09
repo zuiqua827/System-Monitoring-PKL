@@ -34,8 +34,62 @@ class SipintuSyncController extends Controller
             'connectionMessage' => $data['connection_message'],
             'lastSync' => $data['last_sync'],
             'sipintuStudentCount' => $data['sipintu_student_count'],
+            'sipintuTeacherCount' => $data['sipintu_teacher_count'],
             'localStudentCount' => $data['local_student_count'],
+            'localTeacherCount' => $data['local_teacher_count'],
             'history' => $data['history'],
+            'preview' => null,
+        ]);
+    }
+
+    /**
+     * Run a READ-ONLY preview / dry-run of the sync.
+     *
+     * Does NOT modify any data. Only classifies the upcoming sync into the
+     * 7 categories. Returns the same dashboard view with the preview.
+     */
+    public function preview(): View
+    {
+        $data = $this->syncService->getDashboardData();
+
+        $preview = $this->syncService->preview();
+
+        if (! $preview['success']) {
+            return view('admin.sipintu-sync.index', [
+                'connectionStatus' => $data['connection_status'],
+                'connectionMessage' => $data['connection_message'],
+                'lastSync' => $data['last_sync'],
+                'sipintuStudentCount' => $data['sipintu_student_count'],
+                'sipintuTeacherCount' => $data['sipintu_teacher_count'],
+                'localStudentCount' => $data['local_student_count'],
+                'localTeacherCount' => $data['local_teacher_count'],
+                'history' => $data['history'],
+                'preview' => [
+                    'success' => false,
+                    'message' => $preview['message'],
+                    'students' => $preview['students'],
+                    'teachers' => $preview['teachers'],
+                    'duration_ms' => $preview['duration_ms'],
+                ],
+            ]);
+        }
+
+        return view('admin.sipintu-sync.index', [
+            'connectionStatus' => $data['connection_status'],
+            'connectionMessage' => $data['connection_message'],
+            'lastSync' => $data['last_sync'],
+            'sipintuStudentCount' => $data['sipintu_student_count'],
+            'sipintuTeacherCount' => $data['sipintu_teacher_count'],
+            'localStudentCount' => $data['local_student_count'],
+            'localTeacherCount' => $data['local_teacher_count'],
+            'history' => $data['history'],
+            'preview' => [
+                'success' => true,
+                'message' => $preview['message'],
+                'students' => $preview['students'],
+                'teachers' => $preview['teachers'],
+                'duration_ms' => $preview['duration_ms'],
+            ],
         ]);
     }
 

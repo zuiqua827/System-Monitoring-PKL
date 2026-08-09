@@ -4,6 +4,7 @@
         $roleName = $user->roles->first()?->name ?? 'User';
         $dashboardRoute = \App\Helpers\RoleRedirectHelper::getDashboardRouteName($user);
         $initial = strtoupper(substr($user->name ?? 'U', 0, 1));
+        $avatar = $user->avatar ? \Illuminate\Support\Facades\Storage::url($user->avatar) : null;
 
         $adminSections = [
             [
@@ -29,8 +30,8 @@
                 'items' => [
                     ['label' => 'Absensi', 'route' => 'admin.absensi.index', 'active' => ['admin.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas', 'route' => 'admin.aktivitas.index', 'active' => ['admin.aktivitas.*'], 'icon' => 'activity'],
-['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
-                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                    ['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
             [
@@ -49,7 +50,7 @@
                     ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
-                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
         ];
@@ -62,7 +63,7 @@
                     ['label' => 'Absensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas', 'route' => 'siswa.aktivitas.index', 'active' => ['siswa.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'siswa.penilaian.index', 'active' => ['siswa.penilaian.*'], 'icon' => 'grade'],
-                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
         ];
@@ -76,7 +77,7 @@
                     ['label' => 'Absensi', 'route' => 'dudi.absensi.index', 'active' => ['dudi.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
-                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
         ];
@@ -90,7 +91,7 @@
                 'label' => 'Utama',
                 'items' => [
                     ['label' => 'Dashboard', 'route' => $dashboardRoute, 'active' => ['dashboard'], 'icon' => 'dashboard'],
-                    ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+                    ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ]],
         };
@@ -107,22 +108,22 @@
 
         {{-- Sidebar --}}
         <aside
-            class="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-slate-950 transition-transform duration-200 ease-in-out lg:translate-x-0"
+            class="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-slate-800 bg-slate-950 transition-transform duration-200 ease-in-out lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
         >
 {{-- Logo --}}
             <div class="flex h-[72px] shrink-0 items-center gap-3 border-b border-white/10 px-6">
                 <a href="{{ route($dashboardRoute) }}" class="flex items-center gap-3">
-                    <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-10 w-10 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
+<img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-10 w-10 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
                     <span>
-                        <span class="block text-sm font-bold tracking-wide text-white">SIPKL</span>
-                        <span class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Monitoring Console</span>
+                        <span class="block text-sm font-bold tracking-wide text-white">SIMONGAN</span>
+                        <span class="block text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">Sistem Monitoring Lapangan</span>
                     </span>
                 </a>
             </div>
 
             {{-- Nav links --}}
-            <div class="flex-1 space-y-7 overflow-y-auto px-4 py-6">
+            <div class="dark-ish-scrollbar flex-1 space-y-7 overflow-y-auto px-4 py-6">
                 @foreach ($sections as $section)
                     <div>
                         <p class="px-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ $section['label'] }}</p>
@@ -134,10 +135,13 @@
                                 @endphp
                                 <a
                                     href="{{ $href }}"
-                                    class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 {{ $isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/40' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}"
+                                    class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 {{ $isActive ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-950/40' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}"
                                     @click="sidebarOpen = false"
                                 >
-                                    <svg class="h-5 w-5 shrink-0 {{ $isActive ? 'text-white' : 'text-slate-500 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                    @if($isActive)
+                                        <span class="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-white"></span>
+                                    @endif
+                                    <svg class="h-5 w-5 shrink-0 {{ $isActive ? 'text-white' : 'text-slate-500 group-hover:text-blue-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                                         @switch($item['icon'])
                                             @case('dashboard')
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -188,10 +192,6 @@
                                         @endswitch
                                     </svg>
                                     <span>{{ $item['label'] }}</span>
-
-                                    @if ($isActive)
-                                        <span class="absolute right-3 h-1.5 w-1.5 rounded-full bg-white"></span>
-                                    @endif
                                 </a>
                             @endforeach
                         </div>
@@ -202,7 +202,11 @@
             {{-- User footer --}}
             <div class="shrink-0 border-t border-white/10 p-4">
                 <div class="mb-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-white">{{ $initial }}</div>
+                    @if ($avatar)
+                        <img src="{{ $avatar }}" alt="{{ $user->name }}" class="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/20">
+                    @else
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-white">{{ $initial }}</div>
+                    @endif
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-white">{{ $user->name }}</p>
                         <p class="truncate text-xs text-slate-500">{{ $roleName }}</p>
@@ -233,21 +237,6 @@
                 <p class="truncate text-base font-bold text-slate-900">{{ $__pageTitle ?? '' }}</p>
             </div>
 
-            <div class="hidden flex-1 items-center justify-center lg:flex">
-                <div class="relative w-full max-w-md">
-                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3 text-slate-400">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </span>
-                    <input
-                        type="search"
-                        placeholder="Cari siswa atau jurnal..."
-                        class="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 ps-10 pe-4 text-sm text-slate-700 transition focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                </div>
-            </div>
-
             <div class="flex items-center gap-2 sm:gap-3">
                 <div class="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm md:flex">
                     <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -256,20 +245,17 @@
                     {{ now()->format('d M Y') }}
                 </div>
 
-                <button type="button" class="relative hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 md:flex" aria-label="Notifications">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0h6z" />
-                    </svg>
-                    <span class="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white"></span>
-                </button>
-
                 <div class="relative" x-data="{ open: false }" @click.outside="open = false">
                     <button type="button" @click="open = !open" class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm transition hover:border-slate-300 sm:px-3">
                         <span class="hidden text-right sm:block">
                             <span class="block text-sm font-semibold leading-tight text-slate-900">{{ $user->name }}</span>
                             <span class="block text-xs leading-tight text-slate-500">{{ $roleName }}</span>
                         </span>
-                        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-white">{{ $initial }}</span>
+                        @if ($avatar)
+                            <img src="{{ $avatar }}" alt="{{ $user->name }}" class="h-9 w-9 rounded-lg object-cover ring-2 ring-slate-200">
+                        @else
+                            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-bold text-white">{{ $initial }}</span>
+                        @endif
                         <svg class="hidden h-4 w-4 text-slate-400 sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
                         </svg>
@@ -282,11 +268,11 @@
                             <p class="truncate text-xs text-slate-500">{{ $user->email }}</p>
                         </div>
                         <div class="flex flex-col p-2">
-                            <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                            <a href="{{ route('account.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
                                 <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" />
                                 </svg>
-                                Profil
+                                Pengaturan Akun
                             </a>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
@@ -304,4 +290,3 @@
 </header>
     </div>
 @endauth
-

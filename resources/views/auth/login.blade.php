@@ -1,7 +1,7 @@
 <x-guest-layout>
-    <!-- Logo -->
+<!-- Logo -->
     <div class="mb-6 flex justify-center">
-        <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-16 w-16 object-contain">
+<img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-16 w-16 object-contain">
     </div>
 
     <div class="mb-6 text-center">
@@ -26,8 +26,11 @@
         </div>
 
         <form method="POST" action="{{ route('login') }}" class="space-y-5">
-            @csrf
-            <input type="hidden" name="role" x-bind:value="tab">
+@csrf
+            {{-- Role is synced to the active tab via Alpine, but has a static
+                 fallback "siswa" so the field is never empty (which would fail
+                 validation and show a misleading "credentials" error). --}}
+            <input type="hidden" name="role" value="siswa" x-bind:value="tab">
 
             {{-- Siswa fields --}}
             <div x-show="tab === 'siswa'" x-cloak>
@@ -42,6 +45,7 @@
                         autofocus
                         autocomplete="username"
                         placeholder="Masukkan NIS"
+                        required
                     />
                     <x-input-error :messages="$errors->get('nis')" class="mt-2" />
                 </div>

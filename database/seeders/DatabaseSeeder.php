@@ -28,6 +28,8 @@ class DatabaseSeeder extends Seeder
             PeriodePKLSeeder::class,
             PenempatanPKLSeeder::class,
             BackfillUserRolesSeeder::class,
+            MasterDataSekolahSeeder::class,
+            CleanupDummyDataSeeder::class,
         ]);
     }
 }

@@ -5,7 +5,7 @@
     $dashboardRoute = \App\Helpers\RoleRedirectHelper::getDashboardRouteName($user);
     $initial = strtoupper(substr($user->name ?? 'U', 0, 1));
 
-    $adminSections = [
+$adminSections = [
         [
             'label' => 'MENU UTAMA',
             'items' => [
@@ -27,10 +27,17 @@
         [
             'label' => 'MONITORING',
             'items' => [
-                ['label' => 'Absensi', 'route' => 'admin.absensi.index', 'active' => ['admin.absensi.*'], 'icon' => 'attendance'],
+['label' => 'Absensi', 'route' => 'admin.absensi.index', 'active' => ['admin.absensi.*'], 'icon' => 'attendance'],
                 ['label' => 'Aktivitas', 'route' => 'admin.aktivitas.index', 'active' => ['admin.aktivitas.*'], 'icon' => 'activity'],
-                ['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
-                ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
+                ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
+            ],
+        ],
+        [
+            'label' => 'INTEGRASI',
+            'items' => [
+                ['label' => 'Sinkronisasi SiPintu', 'route' => 'admin.sipintu-sync.index', 'active' => ['admin.sipintu-sync.*'], 'icon' => 'sync'],
+                ['label' => 'Pemetaan Kelas SiPintu', 'route' => 'admin.sipintu-classroom-mapping.index', 'active' => ['admin.sipintu-classroom-mapping.*'], 'icon' => 'classes'],
             ],
         ],
     ];
@@ -42,8 +49,8 @@
                 ['label' => 'Dashboard', 'route' => 'guru.dashboard', 'active' => ['guru.dashboard'], 'icon' => 'dashboard'],
                 ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
                 ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
-                ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
-                ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
+                ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
             ],
         ],
     ];
@@ -55,8 +62,8 @@
                 ['label' => 'Dashboard', 'route' => 'siswa.dashboard', 'active' => ['siswa.dashboard'], 'icon' => 'dashboard'],
                 ['label' => 'Absensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
                 ['label' => 'Aktivitas', 'route' => 'siswa.aktivitas.index', 'active' => ['siswa.aktivitas.*'], 'icon' => 'activity'],
-                ['label' => 'Penilaian', 'route' => 'siswa.penilaian.index', 'active' => ['siswa.penilaian.*'], 'icon' => 'grade'],
-                ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+['label' => 'Penilaian', 'route' => 'siswa.penilaian.index', 'active' => ['siswa.penilaian.*'], 'icon' => 'grade'],
+                ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
             ],
         ],
     ];
@@ -69,8 +76,8 @@
                 ['label' => 'Siswa PKL', 'route' => 'dudi.siswa.index', 'active' => ['dudi.siswa.*'], 'icon' => 'students'],
                 ['label' => 'Absensi', 'route' => 'dudi.absensi.index', 'active' => ['dudi.absensi.*'], 'icon' => 'attendance'],
                 ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
-                ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
-                ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
+                ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
             ],
         ],
     ];
@@ -84,7 +91,7 @@
             'label' => 'MENU UTAMA',
             'items' => [
                 ['label' => 'Dashboard', 'route' => $dashboardRoute, 'active' => [$dashboardRoute], 'icon' => 'dashboard'],
-                ['label' => 'Pengaturan Akun', 'route' => 'profile.edit', 'active' => ['profile.*'], 'icon' => 'profile'],
+['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
             ],
         ]],
     };
@@ -97,10 +104,10 @@
 {{-- Logo --}}
     <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-800/80 px-5">
         <a href="{{ route($dashboardRoute) }}" class="flex items-center gap-3">
-            <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-9 w-9 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
+            <img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-9 w-9 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
             <span class="leading-tight">
-                <span class="block text-sm font-bold tracking-wide text-white">SIPKL</span>
-                <span class="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Monitoring Console</span>
+                <span class="block text-sm font-bold tracking-wide text-white">SIMONGAN</span>
+                <span class="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Sistem Monitoring Lapangan</span>
             </span>
         </a>
     </div>
@@ -165,8 +172,11 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v13l-3.75-2-3.75 2-3.75-2-3.75 2V7A2.5 2.5 0 0 1 7 4.5Z" />
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 9.5h7M8.5 13h5" />
                                         @break
-                                    @case('profile')
+@case('profile')
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
+                                        @break
+                                    @case('sync')
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                                         @break
                                     @default
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5 12 5l7.5 6.5M6.5 10.5V20h11v-9.5M10 20v-5h4v5" />

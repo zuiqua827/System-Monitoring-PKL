@@ -121,10 +121,10 @@ class AktivitasService extends Service implements AktivitasServiceInterface
         return $updated;
     }
 
-    /**
+/**
      * {@inheritDoc}
      */
-    public function destroy(Aktivitas $aktivitas): bool
+public function destroy(Aktivitas $aktivitas): bool
     {
         return $this->aktivitasRepository->delete($aktivitas);
     }

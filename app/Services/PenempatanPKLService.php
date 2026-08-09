@@ -24,13 +24,28 @@ class PenempatanPKLService extends Service implements PenempatanPKLServiceInterf
     /**
      * {@inheritDoc}
      */
-    public function getPaginated(
+public function getPaginated(
         ?string $keyword = null,
         string $sortBy = 'created_at',
         string $sortDirection = 'desc',
         int $perPage = 15,
+        ?int $jurusanId = null,
+        ?int $kelasId = null,
+        ?int $dudiId = null,
+        ?int $guruId = null,
+        ?string $status = null,
     ): LengthAwarePaginator {
-        return $this->penempatanPklRepository->search($keyword, $sortBy, $sortDirection, $perPage);
+        return $this->penempatanPklRepository->search(
+            $keyword,
+            $sortBy,
+            $sortDirection,
+            $perPage,
+            $jurusanId,
+            $kelasId,
+            $dudiId,
+            $guruId,
+            $status,
+        );
     }
 
     /**

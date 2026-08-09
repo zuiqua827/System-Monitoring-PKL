@@ -13,8 +13,8 @@ Artisan::command('inspire', function () {
 | Scheduled Tasks
 |--------------------------------------------------------------------------
 |
-| Synchronize real students from the SiPintu Gateway daily.
-| The command is safe to run and only touches student data.
+| Synchronize real students and teachers from the SiPintu Gateway daily.
+| The command is safe to run and only touches student/teacher data.
 |
 */
-Schedule::command('sipintu:sync-students')->dailyAt('02:00');
+Schedule::command('sipintu:sync')->dailyAt('02:00');

@@ -252,7 +252,7 @@ class AktivitasRepository extends EloquentRepository implements AktivitasReposit
             ->paginate(min(max($perPage, 1), 100));
     }
 
-    /**
+/**
      * {@inheritDoc}
      */
     public function allWithTrashed(): Collection

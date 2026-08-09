@@ -16,7 +16,7 @@ class KelasSeeder extends Seeder
         $tingkat = 12;
 
         $kelasByJurusan = [
-            'MPLB' => ['XII MPLB 1', 'XII MPLB 2'],
+            'MPLB' => ['XII MPLB 1', 'XII MPLB 2', 'XII MPLB 3'],
             'AKL' => ['XII AKL 1', 'XII AKL 2'],
             'PPLG' => ['XII PPLG 1', 'XII PPLG 2'],
             'TO' => ['XII TO 1', 'XII TO 2'],

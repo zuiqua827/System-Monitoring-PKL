@@ -20,6 +20,7 @@ use App\Http\Controllers\Siswa\AbsensiController as SiswaAbsensiController;
 use App\Http\Controllers\Siswa\AktivitasController as SiswaAktivitasController;
 use App\Http\Controllers\Siswa\DashboardController as SiswaDashboardController;
 use App\Http\Controllers\Siswa\PenilaianController as SiswaPenilaianController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -90,6 +91,7 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     Route::delete('siswa/{siswa}/force-delete', [SiswaController::class, 'forceDelete'])->name('siswa.force-delete')->withTrashed();
 
     // Master Penempatan PKL
+    Route::get('penempatan-pkl/students', [PenempatanPKLController::class, 'searchStudents'])->name('penempatan-pkl.students');
     Route::resource('penempatan-pkl', PenempatanPKLController::class);
     Route::post('penempatan-pkl/{penempatan_pkl}/restore', [PenempatanPKLController::class, 'restore'])->name('penempatan-pkl.restore')->withTrashed();
     Route::delete('penempatan-pkl/{penempatan_pkl}/force-delete', [PenempatanPKLController::class, 'forceDelete'])->name('penempatan-pkl.force-delete')->withTrashed();
@@ -101,7 +103,13 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
 
 // Sinkronisasi SiPintu
     Route::get('/sipintu-sync', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'index'])->name('sipintu-sync.index');
+    Route::get('/sipintu-sync/preview', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'preview'])->name('sipintu-sync.preview');
     Route::post('/sipintu-sync', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'sync'])->name('sipintu-sync.sync');
+
+    // Pemetaan Kelas SiPintu
+    Route::get('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'index'])->name('sipintu-classroom-mapping.index');
+    Route::post('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'store'])->name('sipintu-classroom-mapping.store');
+    Route::post('/sipintu-classroom-mapping/apply', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'apply'])->name('sipintu-classroom-mapping.apply');
 
     // Master Absensi
     Route::resource('absensi', AdminAbsensiController::class);
@@ -197,6 +205,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Account Settings (all roles)
+    Route::get('/account', [AccountController::class, 'index'])->name('account.index');
+    Route::patch('/account', [AccountController::class, 'updateInfo'])->name('account.update-info');
+    Route::post('/account/avatar', [AccountController::class, 'uploadAvatar'])->name('account.upload-avatar');
+    Route::delete('/account/avatar', [AccountController::class, 'deleteAvatar'])->name('account.delete-avatar');
+    Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.update-password');
 });
 
 require __DIR__.'/auth.php';

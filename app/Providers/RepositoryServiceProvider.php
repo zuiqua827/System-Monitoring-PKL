@@ -20,6 +20,7 @@ use App\Repositories\Interfaces\PenempatanPKLRepositoryInterface;
 use App\Repositories\Interfaces\PenilaianRepositoryInterface;
 use App\Repositories\Interfaces\PeriodePKLRepositoryInterface;
 use App\Repositories\Interfaces\SiPintuRepositoryInterface;
+use App\Repositories\Interfaces\SipintuClassroomMappingRepositoryInterface;
 use App\Repositories\Interfaces\SipintuSyncLogRepositoryInterface;
 use App\Repositories\Interfaces\SiswaRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
@@ -29,6 +30,7 @@ use App\Repositories\PenempatanPKLRepository;
 use App\Repositories\PenilaianRepository;
 use App\Repositories\PeriodePKLRepository;
 use App\Repositories\SiPintuRepository;
+use App\Repositories\SipintuClassroomMappingRepository;
 use App\Repositories\SipintuSyncLogRepository;
 use App\Repositories\SiswaRepository;
 use App\Repositories\UserRepository;
@@ -52,6 +54,7 @@ class RepositoryServiceProvider extends ServiceProvider
         PeriodePKLRepositoryInterface::class => PeriodePKLRepository::class,
 SiswaRepositoryInterface::class => SiswaRepository::class,
         SiPintuRepositoryInterface::class => SiPintuRepository::class,
+        SipintuClassroomMappingRepositoryInterface::class => SipintuClassroomMappingRepository::class,
         SipintuSyncLogRepositoryInterface::class => SipintuSyncLogRepository::class,
         UserRepositoryInterface::class => UserRepository::class,
     ];

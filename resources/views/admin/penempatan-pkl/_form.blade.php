@@ -4,6 +4,8 @@
      * @var string $route
      * @var string $method
      */
+
+    $selectedSiswa = $penempatanPkl?->siswa;
 @endphp
 
 <div class="mx-auto max-w-3xl">
@@ -18,19 +20,125 @@
                 <p class="mt-1 text-sm text-slate-500">Data penempatan siswa PKL</p>
             </div>
             <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
-                <div class="bg-white p-5">
-                    <label for="siswa_id" class="block text-sm font-semibold text-slate-700">
+                <div class="bg-white p-5" x-data="{
+                    query: '',
+                    open: false,
+                    loading: false,
+                    results: [],
+                    selected: @js($selectedSiswa ? [
+                        'id' => $selectedSiswa->id,
+                        'nama' => $selectedSiswa->nama,
+                        'nis' => $selectedSiswa->nis,
+                        'nisn' => $selectedSiswa->nisn,
+                        'kelas' => $selectedSiswa->kelas?->nama,
+                        'jurusan' => $selectedSiswa->kelas?->jurusan?->nama,
+                    ] : null),
+                    timer: null,
+                    async search() {
+                        if (this.selected) return;
+                        if (this.query.trim().length < 2) {
+                            this.results = [];
+                            this.open = false;
+                            return;
+                        }
+                        this.loading = true;
+                        this.open = true;
+                        const url = '{{ route('admin.penempatan-pkl.students') }}?q=' + encodeURIComponent(this.query);
+                        try {
+                            const res = await fetch(url);
+                            const json = await res.json();
+                            this.results = json.data ?? [];
+                        } catch (e) {
+                            this.results = [];
+                        } finally {
+                            this.loading = false;
+                        }
+                    },
+                    debouncedSearch() {
+                        clearTimeout(this.timer);
+                        this.timer = setTimeout(() => this.search(), 300);
+                    },
+                    selectStudent(s) {
+                        this.selected = s;
+                        this.open = false;
+                        this.query = '';
+                        this.results = [];
+                    },
+                    clearStudent() {
+                        this.selected = null;
+                    }
+                }">
+                    <label for="siswa_search" class="block text-sm font-semibold text-slate-700">
                         Siswa <span class="text-red-500">*</span>
                     </label>
-                    <select id="siswa_id" name="siswa_id" required
-                            class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                        <option value="">-- Pilih Siswa --</option>
-                        @foreach(\App\Models\Siswa::with('kelas')->get() as $siswa)
-                            <option value="{{ $siswa->id }}" {{ old('siswa_id', $penempatanPkl->siswa_id ?? '') == $siswa->id ? 'selected' : '' }}>
-                                {{ $siswa->nama }} ({{ $siswa->nis }} - {{ $siswa->kelas?->nama ?? '-' }})
-                            </option>
-                        @endforeach
-                    </select>
+
+                    {{-- Hidden field carries selected siswa_id --}}
+                    <input type="hidden" name="siswa_id" :value="selected ? selected.id : ''">
+
+                    {{-- Searchable input --}}
+                    <template x-if="!selected">
+                        <div class="relative mt-1.5">
+                            <input type="text" id="siswa_search" x-model="query"
+                                   @input="debouncedSearch()"
+                                   @focus="if (query.trim().length >= 2) open = true"
+                                   @click.outside="open = false"
+                                   autocomplete="off"
+                                   placeholder="Ketik nama, NIS, NISN, kelas, atau jurusan…"
+                                   class="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 @error('siswa_id') border-red-500 @enderror">
+
+                            <div x-show="open" x-cloak
+                                 class="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                <div x-show="loading" class="px-4 py-3 text-sm text-slate-500">
+                                    Mencari data…
+                                </div>
+                                <template x-if="!loading && results.length === 0">
+                                    <div class="px-4 py-3 text-sm text-slate-500">Tidak ada siswa ditemukan.</div>
+                                </template>
+                                <ul>
+                                    <template x-for="s in results" :key="s.id">
+                                        <li>
+                                            <button type="button" @click="selectStudent(s)"
+                                                    class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-blue-50"
+                                                    x-on:keydown.enter.prevent="selectStudent(s)">
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="truncate text-sm font-semibold text-slate-900" x-text="s.nama"></p>
+                                                    <p class="mt-0.5 text-xs text-slate-500">
+                                                        <span x-text="'NIS: ' + (s.nis || '-')"></span>
+                                                        <span x-show="s.kelas" class="ml-1">· <span x-text="s.kelas"></span></span>
+                                                        <span x-show="s.jurusan" class="ml-1">· <span x-text="s.jurusan"></span></span>
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- Selected student card --}}
+                    <template x-if="selected">
+                        <div class="mt-1.5 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-slate-900" x-text="selected.nama"></p>
+                                    <p class="mt-1 text-xs text-slate-600">
+                                        <span x-text="'NIS: ' + (selected.nis || '-')"></span>
+                                        <span x-show="selected.kelas" class="ml-1">· <span x-text="selected.kelas"></span></span>
+                                        <span x-show="selected.jurusan" class="ml-1">· <span x-text="selected.jurusan"></span></span>
+                                    </p>
+                                </div>
+                                <button type="button" @click="clearStudent()"
+                                        class="rounded-md p-1 text-slate-400 transition hover:bg-white hover:text-red-600"
+                                        title="Pilih siswa lain">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
                     @error('siswa_id')
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror

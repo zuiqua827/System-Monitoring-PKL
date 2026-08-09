@@ -13,7 +13,18 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'SIMONGAN'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Subtitle
+    |--------------------------------------------------------------------------
+    |
+    | Brand subtitle shown across layouts and login screens.
+    |
+    */
+
+    'app_subtitle' => env('APP_SUBTITLE', 'Sistem Monitoring Lapangan'),
 
     /*
     |--------------------------------------------------------------------------

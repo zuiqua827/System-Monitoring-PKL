@@ -17,11 +17,16 @@ interface PenempatanPKLServiceInterface
      *
      * @return LengthAwarePaginator<int, PenempatanPKL>
      */
-    public function getPaginated(
+public function getPaginated(
         ?string $keyword = null,
         string $sortBy = 'created_at',
         string $sortDirection = 'desc',
         int $perPage = 15,
+        ?int $jurusanId = null,
+        ?int $kelasId = null,
+        ?int $dudiId = null,
+        ?int $guruId = null,
+        ?string $status = null,
     ): LengthAwarePaginator;
 
     /**

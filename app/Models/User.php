@@ -53,13 +53,19 @@ class User extends Authenticatable implements PasskeyUser
     /**
      * @var list<string>
      */
-    protected $fillable = [
+protected $fillable = [
         'role_id',
         'name',
         'email',
         'email_verified_at',
         'password',
         'must_change_password',
+        'avatar',
+        'phone',
+        'department',
+        'address',
+        'gender',
+        'birth_date',
         'last_login_at',
         'last_login_ip',
     ];
@@ -84,8 +90,9 @@ class User extends Authenticatable implements PasskeyUser
         return [
             'role_id' => 'integer',
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'birth_date' => 'date',
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at' => 'datetime',
             'deleted_at' => 'datetime',

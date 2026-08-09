@@ -22,6 +22,14 @@ class GuruRepository extends EloquentRepository implements GuruRepositoryInterfa
     /**
      * {@inheritDoc}
      */
+    public function findByNip(string $nip): ?Guru
+    {
+        /** @var Guru|null $guru */
+        $guru = Guru::query()->withTrashed()->where('nip', $nip)->first();
+
+        return $guru;
+    }
+
     public function search(
         ?string $keyword = null,
         string $sortBy = 'nama',

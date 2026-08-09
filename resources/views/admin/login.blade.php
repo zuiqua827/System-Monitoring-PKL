@@ -1,12 +1,12 @@
 <x-guest-layout>
-    <!-- Logo -->
+<!-- Logo -->
     <div class="mb-6 flex justify-center">
-        <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL Logo" class="h-16 w-16 object-contain">
+<img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-16 w-16 object-contain">
     </div>
 
     <div class="mb-6 text-center">
-        <h2 class="text-xl font-bold text-slate-900">SIPKL Administrator</h2>
-        <p class="mt-1 text-sm text-slate-500">Monitoring Console</p>
+        <h2 class="text-xl font-bold text-slate-900">SIMONGAN Administrator</h2>
+<p class="mt-1 text-sm text-slate-500">Sistem Monitoring Lapangan</p>
     </div>
 
     <x-auth-session-status class="mb-4" :status="session('status')" />

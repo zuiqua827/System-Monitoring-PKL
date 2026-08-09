@@ -215,7 +215,7 @@
     <table class="header-table">
         <tr>
             <td style="width:84px; vertical-align:middle; text-align:center;">
-                <img src="{{ public_path('images/sipkl-logo.png') }}" alt="SIPKL" style="width:64px;height:64px;object-fit:contain;">
+<img src="{{ public_path('images/simongan-logo.png') }}" alt="SIMONGAN" style="width:64px;height:64px;object-fit:contain;">
             </td>
             <td style="vertical-align:middle;">
                 <div class="header-text">
@@ -426,7 +426,7 @@
 
     <div class="footer">
         Dokumen ini dicetak secara elektronik pada {{ now()->locale('id')->translatedFormat('l, d F Y H:i:s') }} &bull;
-        Sistem Monitoring PKL &bull; SMK Negeri 1 Bandung
+Sistem Monitoring Lapangan &bull; SMK Negeri 1 Bangsri
     </div>
 
 </body>

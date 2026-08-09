@@ -18,8 +18,8 @@
     </button>
 
     {{-- Logo (mobile) --}}
-    <a href="{{ route($dashboardRoute ?? 'dashboard') }}" class="flex items-center gap-2 lg:hidden">
-        <img src="{{ asset('images/sipkl-logo.png') }}" alt="SIPKL" class="h-8 w-8 object-contain">
+<a href="{{ route($dashboardRoute ?? 'dashboard') }}" class="flex items-center gap-2 lg:hidden">
+        <img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN" class="h-8 w-8 object-contain">
     </a>
 
     {{-- Title --}}
@@ -82,7 +82,7 @@
                 <p class="truncate text-xs text-slate-500">{{ $user->email }}</p>
             </div>
             <div class="flex flex-col p-1.5">
-                <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+<a href="{{ route('account.index') }}" class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
                     <svg class="h-4.5 w-4.5 h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                     </svg>

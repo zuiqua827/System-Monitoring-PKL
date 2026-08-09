@@ -13,6 +13,7 @@ use App\Services\Interfaces\SiswaServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * Service layer for Siswa business logic.
@@ -39,8 +40,28 @@ class SiswaService extends Service implements SiswaServiceInterface
         string $sortBy = 'nama',
         string $sortDirection = 'asc',
         int $perPage = 15,
+        ?int $jurusanId = null,
+        ?int $kelasId = null,
+        ?string $status = null,
     ): LengthAwarePaginator {
-        return $this->siswaRepository->search($keyword, $sortBy, $sortDirection, $perPage);
+        return $this->siswaRepository->search($keyword, $sortBy, $sortDirection, $perPage, $jurusanId, $kelasId, $status);
+    }
+
+/**
+     * {@inheritDoc}
+     */
+    public function searchForSelect(string $search): array
+    {
+        $students = $this->siswaRepository->searchForSelect($search);
+
+        return $students->map(fn (Siswa $siswa): array => [
+            'id' => $siswa->id,
+            'nama' => $siswa->nama,
+            'nis' => $siswa->nis,
+            'nisn' => $siswa->nisn,
+            'kelas' => $siswa->kelas?->nama,
+            'jurusan' => $siswa->kelas?->jurusan?->nama,
+        ])->values()->all();
     }
 
     /**
@@ -178,5 +199,65 @@ class SiswaService extends Service implements SiswaServiceInterface
 
             return $result;
         });
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return array{total: int, updated: int, skipped: int, failed: int}
+     */
+    public function migrateStudentPasswords(): array
+    {
+        $total = 0;
+        $updated = 0;
+        $skipped = 0;
+        $failed = 0;
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Siswa> $students */
+        $students = Siswa::query()->withoutTrashed()->with('user')->get();
+
+        $total = $students->count();
+
+        foreach ($students as $siswa) {
+            /** @var User|null $user */
+            $user = $siswa->user;
+
+            // Guard: student must have a linked, non-deleted User with the Siswa role.
+            if ($user === null || $user->trashed()) {
+                $skipped++;
+                continue;
+            }
+
+            if (! $user->hasRole(UserRole::SISWA->value)) {
+                $skipped++;
+                continue;
+            }
+
+            // Idempotency: skip if already compliant.
+            if (Hash::check('password', (string) $user->password) && ! (bool) $user->must_change_password) {
+                $skipped++;
+                continue;
+            }
+
+            try {
+                $this->userRepository->update($user, [
+                    'password' => Hash::make('password'),
+                    'must_change_password' => false,
+                ]);
+
+                $updated++;
+            } catch (\Throwable $e) {
+                $failed++;
+                // Log the error; don't halt the entire migration.
+                logger()->error("Failed to migrate student password for NIS={$siswa->nis}, user_id={$user->id}: {$e->getMessage()}");
+            }
+        }
+
+        return [
+            'total' => $total,
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'failed' => $failed,
+        ];
     }
 }

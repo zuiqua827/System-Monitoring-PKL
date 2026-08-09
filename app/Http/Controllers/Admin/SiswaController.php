@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSiswaRequest;
 use App\Http\Requests\UpdateSiswaRequest;
+use App\Models\Jurusan;
+use App\Models\Kelas;
 use App\Models\Siswa;
 use App\Services\Interfaces\SiswaServiceInterface;
 use Illuminate\Http\RedirectResponse;
@@ -30,18 +32,28 @@ class SiswaController extends Controller
     /**
      * Display a listing of siswa.
      */
-    public function index(Request $request): View
+public function index(Request $request): View
     {
         $this->authorize('viewAny', Siswa::class);
+
+        $jurusanId = $request->integer('jurusan_id');
+        $kelasId = $request->integer('kelas_id');
+        $status = $request->query('status');
 
         $siswas = $this->siswaService->getPaginated(
             keyword: $request->query('search'),
             sortBy: $request->query('sort', 'nama'),
             sortDirection: $request->query('direction', 'asc'),
             perPage: (int) $request->query('per_page', '15'),
+            jurusanId: $jurusanId ?: null,
+            kelasId: $kelasId ?: null,
+            status: $status ?: null,
         );
 
-        return view('admin.siswa.index', compact('siswas'));
+        $jurusans = Jurusan::query()->orderBy('nama')->get();
+        $kelass = Kelas::query()->orderBy('nama')->get();
+
+        return view('admin.siswa.index', compact('siswas', 'jurusans', 'kelass'));
     }
 
     /**

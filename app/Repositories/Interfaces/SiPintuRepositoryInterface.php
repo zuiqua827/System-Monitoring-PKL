@@ -24,4 +24,14 @@ interface SiPintuRepositoryInterface
      *                             or any non-2xx API response.
      */
     public function fetchStudents(?string $nis = null, ?string $search = null): array;
+
+    /**
+     * Fetch the list of teachers from the SiPintu SIJUNA endpoint.
+     *
+     * @return array<int, array<string, mixed>> The decoded JSON "data" array of teachers.
+     *
+     * @throws SiPintuApiException On connection error, invalid credentials, timeout,
+     *                             or any non-2xx API response.
+     */
+    public function fetchTeachers(?string $nip = null, ?string $search = null): array;
 }

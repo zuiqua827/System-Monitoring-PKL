@@ -77,14 +77,7 @@ interface AktivitasRepositoryInterface extends BaseRepositoryInterface
         int $perPage = 15,
     ): LengthAwarePaginator;
 
-    /**
-     * Get all trashed records.
-     *
-     * @return Collection<int, Aktivitas>
-     */
-    public function allWithTrashed(): Collection;
-
-    /**
+/**
      * Restore a soft-deleted aktivitas.
      */
     public function restore(Aktivitas $aktivitas): bool;

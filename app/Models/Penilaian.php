@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $nilai_kehadiran
  * @property int|null $nilai_tanggung_jawab
  * @property int|null $nilai_komunikasi
+ * @property int|null $nilai_problem_solving
  * @property int|null $nilai_kerjasama
  * @property int|null $nilai_inisiatif
  * @property int|null $nilai_teknis
@@ -52,6 +53,7 @@ class Penilaian extends Model
         'nilai_kehadiran',
         'nilai_tanggung_jawab',
         'nilai_komunikasi',
+        'nilai_problem_solving',
         'nilai_kerjasama',
         'nilai_inisiatif',
         'nilai_teknis',
@@ -80,6 +82,7 @@ class Penilaian extends Model
             'nilai_kehadiran' => 'integer',
             'nilai_tanggung_jawab' => 'integer',
             'nilai_komunikasi' => 'integer',
+            'nilai_problem_solving' => 'integer',
             'nilai_kerjasama' => 'integer',
             'nilai_inisiatif' => 'integer',
             'nilai_teknis' => 'integer',

@@ -50,24 +50,27 @@
                 {{-- Nilai inputs --}}
                 @php
                     $fields = [
-                        'nilai_disiplin' => 'Disiplin',
-                        'nilai_kehadiran' => 'Kehadiran',
-                        'nilai_tanggung_jawab' => 'Tanggung Jawab',
-                        'nilai_komunikasi' => 'Komunikasi',
-                        'nilai_kerjasama' => 'Kerjasama',
-                        'nilai_inisiatif' => 'Inisiatif',
-                        'nilai_teknis' => 'Teknis',
+                        'nilai_kehadiran' => 'Kehadiran (Bobot: 4)',
+                        'nilai_kerjasama' => 'Kerja Sama (Bobot: 2)',
+                        'nilai_komunikasi' => 'Komunikasi (Bobot: 2)',
+                        'nilai_problem_solving' => 'Problem Solving (Bobot: 2)',
+                        'nilai_teknis' => 'Teknis (Bobot: 2)',
+                        'nilai_inisiatif' => 'Inisiatif (Bobot: 2)',
                     ];
                 @endphp
 
                 @foreach($fields as $field => $label)
                 <div class="bg-white p-5">
                     <label for="{{ $field }}" class="block text-sm font-semibold text-slate-700">
-                        {{ $label }} <span class="text-red-500">*</span>
+                        {{ $label }} @if($field !== 'nilai_kehadiran')<span class="text-red-500">*</span>@endif
                     </label>
-                    <input type="number" id="{{ $field }}" name="{{ $field }}" min="0" max="100" required
+                    <input type="number" id="{{ $field }}" name="{{ $field }}" min="0" max="100" {{ $field !== 'nilai_kehadiran' ? 'required' : '' }}
                            value="{{ old($field, $penilaian->$field ?? '') }}"
-                           class="nilai-input mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                           class="nilai-input mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                           {{ $field === 'nilai_kehadiran' ? 'readonly' : '' }}>
+                    @if($field === 'nilai_kehadiran')
+                        <p class="mt-1.5 text-xs text-slate-500">Nilai kehadiran dihitung otomatis dari data absensi siswa.</p>
+                    @endif
                     @error($field)
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -125,21 +128,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const inputs = document.querySelectorAll('.nilai-input');
 
     function calculateNilaiAkhir() {
-        let total = 0;
-        let count = 0;
+        let kehadiran = parseFloat(document.getElementById('nilai_kehadiran')?.value) || 0;
+        let kerjasama = parseFloat(document.getElementById('nilai_kerjasama')?.value) || 0;
+        let komunikasi = parseFloat(document.getElementById('nilai_komunikasi')?.value) || 0;
+        let problem_solving = parseFloat(document.getElementById('nilai_problem_solving')?.value) || 0;
+        let teknis = parseFloat(document.getElementById('nilai_teknis')?.value) || 0;
+        let inisiatif = parseFloat(document.getElementById('nilai_inisiatif')?.value) || 0;
+
+        let totalScore = 
+            (kehadiran * 4) +
+            (kerjasama * 2) +
+            (komunikasi * 2) +
+            (problem_solving * 2) +
+            (teknis * 2) +
+            (inisiatif * 2);
+
+        let validCount = 0;
         inputs.forEach(function(input) {
-            const val = parseFloat(input.value);
-            if (!isNaN(val) && val >= 0 && val <= 100) {
-                total += val;
-                count++;
-            }
+            if (input.value !== '' || input.id === 'nilai_kehadiran') validCount++;
         });
 
         const previewNilai = document.getElementById('nilai_akhir_preview');
         const previewPredikat = document.getElementById('predikat_preview');
 
-        if (count > 0) {
-            const avg = (total / count).toFixed(2);
+        if (validCount === 6) {
+            const avg = (totalScore / 14).toFixed(2);
             previewNilai.textContent = avg;
 
             const avgNum = parseFloat(avg);

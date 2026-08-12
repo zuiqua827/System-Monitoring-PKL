@@ -215,7 +215,7 @@
     <table class="header-table">
         <tr>
             <td style="width:84px; vertical-align:middle; text-align:center;">
-<img src="{{ public_path('images/simongan-logo.png') }}" alt="SIMONGAN" style="width:64px;height:64px;object-fit:contain;">
+<img src="{{ public_path('images/simongan-logo.svg') }}" alt="SIMONGAN" style="width:64px;height:64px;object-fit:contain;">
             </td>
             <td style="vertical-align:middle;">
                 <div class="header-text">
@@ -315,32 +315,28 @@
         </thead>
         <tbody>
             <tr>
-                <td>1. Disiplin</td>
-                <td>{{ $penilaian->nilai_disiplin ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td>2. Kehadiran</td>
+                <td>1. Kehadiran</td>
                 <td>{{ $penilaian->nilai_kehadiran ?? '-' }}</td>
             </tr>
             <tr>
-                <td>3. Tanggung Jawab</td>
-                <td>{{ $penilaian->nilai_tanggung_jawab ?? '-' }}</td>
+                <td>2. Kerja Sama</td>
+                <td>{{ $penilaian->nilai_kerjasama ?? '-' }}</td>
             </tr>
             <tr>
-                <td>4. Komunikasi</td>
+                <td>3. Komunikasi</td>
                 <td>{{ $penilaian->nilai_komunikasi ?? '-' }}</td>
             </tr>
             <tr>
-                <td>5. Kerjasama</td>
-                <td>{{ $penilaian->nilai_kerjasama ?? '-' }}</td>
+                <td>4. Problem Solving</td>
+                <td>{{ $penilaian->nilai_problem_solving ?? '-' }}</td>
+            </tr>
+            <tr>
+                <td>5. Keterampilan Teknis</td>
+                <td>{{ $penilaian->nilai_teknis ?? '-' }}</td>
             </tr>
             <tr>
                 <td>6. Inisiatif</td>
                 <td>{{ $penilaian->nilai_inisiatif ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td>7. Keterampilan Teknis</td>
-                <td>{{ $penilaian->nilai_teknis ?? '-' }}</td>
             </tr>
         </tbody>
     </table>

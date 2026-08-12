@@ -94,13 +94,12 @@ interface PenilaianServiceInterface
      * Formula: (disiplin + kehadiran + tanggung_jawab + komunikasi + kerjasama + inisiatif + teknis) / 7
      */
     public function calculateNilaiAkhir(
-        ?int $disiplin,
         ?int $kehadiran,
-        ?int $tanggungJawab,
-        ?int $komunikasi,
         ?int $kerjasama,
-        ?int $inisiatif,
+        ?int $komunikasi,
+        ?int $problemSolving,
         ?int $teknis,
+        ?int $inisiatif,
     ): ?float;
 
     /**

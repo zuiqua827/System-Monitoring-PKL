@@ -8,8 +8,8 @@ use App\Models\Kelas;
 use App\Models\SipintuClassroomMapping;
 use App\Models\Siswa;
 use App\Repositories\Interfaces\SipintuClassroomMappingRepositoryInterface;
+use App\Repositories\Interfaces\SiPintuRepositoryInterface;
 use App\Services\Interfaces\SipintuClassroomMappingServiceInterface;
-use App\Services\Interfaces\SiPintuServiceInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -28,7 +28,7 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
 {
     public function __construct(
         private readonly SipintuClassroomMappingRepositoryInterface $mappingRepository,
-        private readonly SiPintuServiceInterface $siPintuService,
+        private readonly SiPintuRepositoryInterface $siPintuRepository,
     ) {}
 
     /**
@@ -40,7 +40,7 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
         $connected = true;
 
         try {
-            $students = $this->siPintuService->fetchStudents();
+            $students = $this->siPintuRepository->fetchStudents();
 
             $counts = [];
             foreach ($students as $student) {
@@ -112,7 +112,7 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
         DB::transaction(function () use ($mapped, &$stats): void {
             // Fetch SiPintu students to know which classroom each NIS belongs to.
             try {
-                $students = $this->siPintuService->fetchStudents();
+                $students = $this->siPintuRepository->fetchStudents();
             } catch (\Throwable $e) {
                 $stats['failed'] = 1;
                 throw $e;

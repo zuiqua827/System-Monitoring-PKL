@@ -28,13 +28,13 @@ class UpdatePenilaianRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nilai_disiplin' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_kehadiran' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_tanggung_jawab' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_komunikasi' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_kerjasama' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_inisiatif' => ['required', 'numeric', 'min:0', 'max:100'],
+            'status' => ['sometimes', 'required', 'in:draft,final'],
+            'nilai_kehadiran' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'nilai_kerjasama' => ['sometimes', 'required', 'numeric', 'min:0', 'max:100'],
+            'nilai_komunikasi' => ['sometimes', 'required', 'numeric', 'min:0', 'max:100'],
+            'nilai_problem_solving' => ['required', 'numeric', 'min:0', 'max:100'],
             'nilai_teknis' => ['required', 'numeric', 'min:0', 'max:100'],
+            'nilai_inisiatif' => ['required', 'numeric', 'min:0', 'max:100'],
             'catatan' => ['nullable', 'string'],
             'catatan_guru' => ['nullable', 'string'],
         ];
@@ -48,13 +48,12 @@ class UpdatePenilaianRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nilai_disiplin' => 'Nilai Disiplin',
             'nilai_kehadiran' => 'Nilai Kehadiran',
-            'nilai_tanggung_jawab' => 'Nilai Tanggung Jawab',
+            'nilai_kerjasama' => 'Nilai Kerja Sama',
             'nilai_komunikasi' => 'Nilai Komunikasi',
-            'nilai_kerjasama' => 'Nilai Kerjasama',
-            'nilai_inisiatif' => 'Nilai Inisiatif',
+            'nilai_problem_solving' => 'Nilai Problem Solving',
             'nilai_teknis' => 'Nilai Teknis',
+            'nilai_inisiatif' => 'Nilai Inisiatif',
             'catatan' => 'Catatan',
             'catatan_guru' => 'Catatan Guru',
         ];

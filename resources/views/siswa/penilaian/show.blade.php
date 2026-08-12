@@ -82,13 +82,12 @@
             <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
                 @php
                     $nilaiFields = [
-                        'nilai_disiplin' => 'Disiplin',
                         'nilai_kehadiran' => 'Kehadiran',
-                        'nilai_tanggung_jawab' => 'Tanggung Jawab',
+                        'nilai_kerjasama' => 'Kerja Sama',
                         'nilai_komunikasi' => 'Komunikasi',
-                        'nilai_kerjasama' => 'Kerjasama',
-                        'nilai_inisiatif' => 'Inisiatif',
+                        'nilai_problem_solving' => 'Problem Solving',
                         'nilai_teknis' => 'Teknis',
+                        'nilai_inisiatif' => 'Inisiatif',
                     ];
                 @endphp
 

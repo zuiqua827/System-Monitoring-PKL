@@ -125,6 +125,16 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     Route::resource('penilaian', AdminPenilaianController::class);
     Route::post('penilaian/{penilaian}/restore', [AdminPenilaianController::class, 'restore'])->name('penilaian.restore')->withTrashed();
     Route::delete('penilaian/{penilaian}/force-delete', [AdminPenilaianController::class, 'forceDelete'])->name('penilaian.force-delete')->withTrashed();
+
+    // Pusat Laporan
+    Route::get('/laporan', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan/siswa', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'siswa'])->name('laporan.siswa');
+    Route::get('/laporan/siswa/export/excel', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportSiswaExcel'])->name('laporan.siswa.export.excel');
+    Route::get('/laporan/siswa/export/pdf', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportSiswaPdf'])->name('laporan.siswa.export.pdf');
+    Route::get('/laporan/absensi', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'absensi'])->name('laporan.absensi');
+    Route::get('/laporan/absensi/export/excel', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportAbsensiExcel'])->name('laporan.absensi.export.excel');
+    Route::get('/laporan/aktivitas', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'aktivitas'])->name('laporan.aktivitas');
+    Route::get('/laporan/penilaian', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
 });
 
 /*
@@ -147,6 +157,16 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
     // Penilaian Siswa Bimbingan
     Route::get('/penilaian', [GuruPenilaianController::class, 'index'])->name('penilaian.index');
     Route::get('/penilaian/{id}', [GuruPenilaianController::class, 'show'])->name('penilaian.show');
+
+    // Pusat Laporan
+    Route::get('/laporan', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan/siswa', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'siswa'])->name('laporan.siswa');
+    Route::get('/laporan/siswa/export/excel', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportSiswaExcel'])->name('laporan.siswa.export.excel');
+    Route::get('/laporan/siswa/export/pdf', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportSiswaPdf'])->name('laporan.siswa.export.pdf');
+    Route::get('/laporan/absensi', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'absensi'])->name('laporan.absensi');
+    Route::get('/laporan/absensi/export/excel', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAbsensiExcel'])->name('laporan.absensi.export.excel');
+    Route::get('/laporan/aktivitas', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'aktivitas'])->name('laporan.aktivitas');
+    Route::get('/laporan/penilaian', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
 });
 
 /*
@@ -163,6 +183,12 @@ Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi
     Route::get('/aktivitas', [\App\Http\Controllers\Dudi\AktivitasController::class, 'index'])->name('aktivitas.index');
     Route::get('/aktivitas/{id}', [\App\Http\Controllers\Dudi\AktivitasController::class, 'show'])->name('aktivitas.show');
     Route::put('/aktivitas/{id}', [\App\Http\Controllers\Dudi\AktivitasController::class, 'update'])->name('aktivitas.update');
+    
+    // Pengajuan Ketidakhadiran Siswa
+    Route::get('/ketidakhadiran', [\App\Http\Controllers\Dudi\PengajuanKetidakhadiranController::class, 'index'])->name('ketidakhadiran.index');
+    Route::get('/ketidakhadiran/{id}', [\App\Http\Controllers\Dudi\PengajuanKetidakhadiranController::class, 'show'])->name('ketidakhadiran.show');
+    Route::post('/ketidakhadiran/{id}/process', [\App\Http\Controllers\Dudi\PengajuanKetidakhadiranController::class, 'process'])->name('ketidakhadiran.process');
+
     Route::get('/penilaian', [\App\Http\Controllers\Dudi\PenilaianController::class, 'index'])->name('penilaian.index');
     Route::get('/penilaian/create', [\App\Http\Controllers\Dudi\PenilaianController::class, 'create'])->name('penilaian.create');
     Route::post('/penilaian', [\App\Http\Controllers\Dudi\PenilaianController::class, 'store'])->name('penilaian.store');
@@ -170,6 +196,16 @@ Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi
     Route::get('/penilaian/{id}/edit', [\App\Http\Controllers\Dudi\PenilaianController::class, 'edit'])->name('penilaian.edit');
     Route::put('/penilaian/{id}', [\App\Http\Controllers\Dudi\PenilaianController::class, 'update'])->name('penilaian.update');
     Route::post('/penilaian/{id}/finalize', [\App\Http\Controllers\Dudi\PenilaianController::class, 'finalize'])->name('penilaian.finalize');
+
+    // Pusat Laporan
+    Route::get('/laporan', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan/siswa', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'siswa'])->name('laporan.siswa');
+    Route::get('/laporan/siswa/export/excel', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportSiswaExcel'])->name('laporan.siswa.export.excel');
+    Route::get('/laporan/siswa/export/pdf', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportSiswaPdf'])->name('laporan.siswa.export.pdf');
+    Route::get('/laporan/absensi', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'absensi'])->name('laporan.absensi');
+    Route::get('/laporan/absensi/export/excel', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportAbsensiExcel'])->name('laporan.absensi.export.excel');
+    Route::get('/laporan/aktivitas', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'aktivitas'])->name('laporan.aktivitas');
+    Route::get('/laporan/penilaian', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
 });
 
 /*
@@ -189,6 +225,10 @@ Route::middleware(['auth', 'verified', 'role:Siswa'])->prefix('siswa')->name('si
     // Aktivitas Siswa
     Route::resource('/aktivitas', SiswaAktivitasController::class)->names('aktivitas');
     Route::post('/aktivitas/{id}/submit', [SiswaAktivitasController::class, 'submit'])->name('aktivitas.submit');
+
+    // Pengajuan Ketidakhadiran
+    Route::get('/ketidakhadiran', [\App\Http\Controllers\Siswa\PengajuanKetidakhadiranController::class, 'index'])->name('ketidakhadiran.index');
+    Route::post('/ketidakhadiran', [\App\Http\Controllers\Siswa\PengajuanKetidakhadiranController::class, 'store'])->name('ketidakhadiran.store');
 
     // Penilaian Siswa
     Route::get('/penilaian', [SiswaPenilaianController::class, 'index'])->name('penilaian.index');

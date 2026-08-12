@@ -48,24 +48,20 @@
                     <div class="px-6 py-5">
                         <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                             <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Disiplin Waktu</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_disiplin ?? '-' }}</dd>
-                            </div>
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                                 <dt class="text-sm font-medium text-slate-500">Kehadiran</dt>
                                 <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_kehadiran ?? '-' }}</dd>
                             </div>
                             <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Tanggung Jawab</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_tanggung_jawab ?? '-' }}</dd>
+                                <dt class="text-sm font-medium text-slate-500">Kerja Sama</dt>
+                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_kerjasama ?? '-' }}</dd>
                             </div>
                             <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                                 <dt class="text-sm font-medium text-slate-500">Komunikasi</dt>
                                 <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_komunikasi ?? '-' }}</dd>
                             </div>
                             <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Kerjasama Tim</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_kerjasama ?? '-' }}</dd>
+                                <dt class="text-sm font-medium text-slate-500">Problem Solving</dt>
+                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_problem_solving ?? '-' }}</dd>
                             </div>
                             <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                                 <dt class="text-sm font-medium text-slate-500">Inisiatif</dt>

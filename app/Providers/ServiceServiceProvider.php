@@ -20,7 +20,9 @@ use App\Services\Interfaces\JurusanServiceInterface;
 use App\Services\Interfaces\KelasServiceInterface;
 use App\Services\Interfaces\PenempatanPKLServiceInterface;
 use App\Services\Interfaces\PenilaianServiceInterface;
+use App\Services\Interfaces\PengajuanKetidakhadiranServiceInterface;
 use App\Services\Interfaces\PeriodePKLServiceInterface;
+use App\Services\Laporan\Interfaces\LaporanServiceInterface;
 use App\Services\Interfaces\SiPintuServiceInterface;
 use App\Services\Interfaces\SipintuClassroomMappingServiceInterface;
 use App\Services\Interfaces\SipintuSyncServiceInterface;
@@ -31,7 +33,9 @@ use App\Services\JurusanService;
 use App\Services\KelasService;
 use App\Services\PenempatanPKLService;
 use App\Services\PenilaianService;
+use App\Services\PengajuanKetidakhadiranService;
 use App\Services\PeriodePKLService;
+use App\Services\Laporan\LaporanService;
 use App\Services\SiPintuService;
 use App\Services\SipintuClassroomMappingService;
 use App\Services\SipintuSyncService;
@@ -56,8 +60,10 @@ private array $services = [
         KelasServiceInterface::class => KelasService::class,
         PenempatanPKLServiceInterface::class => PenempatanPKLService::class,
         PenilaianServiceInterface::class => PenilaianService::class,
+        PengajuanKetidakhadiranServiceInterface::class => PengajuanKetidakhadiranService::class,
         PeriodePKLServiceInterface::class => PeriodePKLService::class,
-SiswaServiceInterface::class => SiswaService::class,
+        LaporanServiceInterface::class => LaporanService::class,
+        SiswaServiceInterface::class => SiswaService::class,
         SiPintuServiceInterface::class => SiPintuService::class,
         SipintuClassroomMappingServiceInterface::class => SipintuClassroomMappingService::class,
         SipintuSyncServiceInterface::class => SipintuSyncService::class,

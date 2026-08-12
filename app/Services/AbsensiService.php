@@ -34,10 +34,6 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      */
     private const MAX_RADIUS_METERS = 100;
 
-    /**
-     * Batas jam untuk deteksi keterlambatan (07:30).
-     */
-    private const BATAS_JAM_MASUK = '07:30:00';
 
     public function __construct(
         private readonly AbsensiRepositoryInterface $absensiRepository,
@@ -212,15 +208,32 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         // Validate GPS radius against DUDI location
         $this->validateGpsRadius($penempatanPklId, $data);
 
+        // Get penempatan and dudi settings
+        /** @var PenempatanPKL $penempatan */
+        $penempatan = PenempatanPKL::with('dudi')->find($penempatanPklId);
+        $dudiJamMasuk = $penempatan?->dudi?->jam_masuk ?? '07:00:00';
+        $toleransiMinutes = $penempatan?->dudi?->toleransi_keterlambatan ?? 15;
+
         /** @var Absensi $absensi */
-        $absensi = $this->transaction(function () use ($penempatanPklId, $data): Model {
+        $absensi = $this->transaction(function () use ($penempatanPklId, $data, $dudiJamMasuk, $toleransiMinutes): Model {
             $tanggal = now()->toDateString();
             $jamMasuk = $data['jam_masuk'] ?? now()->format('H:i:s');
 
             // Auto-determine status based on time
             $status = AbsensiStatus::HADIR->value;
-            $batasJam = Carbon::createFromTimeString(self::BATAS_JAM_MASUK);
-            $jamMasukCarbon = Carbon::createFromFormat('H:i:s', $jamMasuk);
+            
+            // Calculate batas jam masuk = jam masuk DUDI + toleransi
+            if ($dudiJamMasuk instanceof \DateTimeInterface) {
+                $batasJam = \Carbon\Carbon::instance($dudiJamMasuk)->addMinutes($toleransiMinutes);
+            } else {
+                $batasJam = \Carbon\Carbon::createFromTimeString((string) $dudiJamMasuk)->addMinutes($toleransiMinutes);
+            }
+
+            if ($jamMasuk instanceof \DateTimeInterface) {
+                $jamMasukCarbon = \Carbon\Carbon::instance($jamMasuk);
+            } else {
+                $jamMasukCarbon = \Carbon\Carbon::createFromTimeString((string) $jamMasuk);
+            }
 
             if ($jamMasukCarbon !== false && $jamMasukCarbon->gt($batasJam)) {
                 $status = AbsensiStatus::TERLAMBAT->value;

@@ -45,7 +45,7 @@
                         autofocus
                         autocomplete="username"
                         placeholder="Masukkan NIS"
-                        required
+                        x-bind:required="tab === 'siswa'"
                     />
                     <x-input-error :messages="$errors->get('nis')" class="mt-2" />
                 </div>
@@ -64,6 +64,7 @@
                         autofocus
                         autocomplete="username"
                         x-bind:placeholder="tab === 'guru' ? 'Masukkan Email Guru' : 'Masukkan Email Industri'"
+                        x-bind:required="tab !== 'siswa'"
                     />
                     <x-input-error :messages="$errors->get('email')" class="mt-2" />
                 </div>

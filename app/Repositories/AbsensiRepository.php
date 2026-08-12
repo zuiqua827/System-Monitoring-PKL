@@ -118,6 +118,20 @@ class AbsensiRepository extends EloquentRepository implements AbsensiRepositoryI
     /**
      * {@inheritDoc}
      */
+    public function findByPenempatanAndTanggal(int $penempatanPklId, string|\DateTimeInterface $tanggal): ?Absensi
+    {
+        /** @var Absensi|null $absensi */
+        $absensi = $this->newQuery()
+            ->where('penempatan_pkl_id', $penempatanPklId)
+            ->whereDate('tanggal', $tanggal)
+            ->first();
+
+        return $absensi;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getBySiswa(int $siswaId): Collection
     {
         return $this->newQuery()

@@ -20,6 +20,8 @@ use App\Repositories\Interfaces\PenempatanPKLRepositoryInterface;
 use App\Repositories\Interfaces\PenilaianRepositoryInterface;
 use App\Repositories\Interfaces\PeriodePKLRepositoryInterface;
 use App\Repositories\Interfaces\SiPintuRepositoryInterface;
+use App\Repositories\Laporan\Interfaces\LaporanRepositoryInterface;
+use App\Repositories\Interfaces\PengajuanKetidakhadiranRepositoryInterface;
 use App\Repositories\Interfaces\SipintuClassroomMappingRepositoryInterface;
 use App\Repositories\Interfaces\SipintuSyncLogRepositoryInterface;
 use App\Repositories\Interfaces\SiswaRepositoryInterface;
@@ -29,6 +31,8 @@ use App\Repositories\KelasRepository;
 use App\Repositories\PenempatanPKLRepository;
 use App\Repositories\PenilaianRepository;
 use App\Repositories\PeriodePKLRepository;
+use App\Repositories\PengajuanKetidakhadiranRepository;
+use App\Repositories\Laporan\LaporanRepository;
 use App\Repositories\SiPintuRepository;
 use App\Repositories\SipintuClassroomMappingRepository;
 use App\Repositories\SipintuSyncLogRepository;
@@ -52,7 +56,9 @@ class RepositoryServiceProvider extends ServiceProvider
         PenempatanPKLRepositoryInterface::class => PenempatanPKLRepository::class,
         PenilaianRepositoryInterface::class => PenilaianRepository::class,
         PeriodePKLRepositoryInterface::class => PeriodePKLRepository::class,
-SiswaRepositoryInterface::class => SiswaRepository::class,
+        SiswaRepositoryInterface::class => SiswaRepository::class,
+        LaporanRepositoryInterface::class => LaporanRepository::class,
+        PengajuanKetidakhadiranRepositoryInterface::class => PengajuanKetidakhadiranRepository::class,
         SiPintuRepositoryInterface::class => SiPintuRepository::class,
         SipintuClassroomMappingRepositoryInterface::class => SipintuClassroomMappingRepository::class,
         SipintuSyncLogRepositoryInterface::class => SipintuSyncLogRepository::class,

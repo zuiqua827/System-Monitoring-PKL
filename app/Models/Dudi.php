@@ -29,6 +29,9 @@ use Illuminate\Support\Carbon;
  * @property float|null $latitude
  * @property float|null $longitude
  * @property bool $status_aktif
+ * @property string $jam_masuk
+ * @property string $jam_pulang
+ * @property int $toleransi_keterlambatan
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -61,6 +64,9 @@ class Dudi extends Model
         'latitude',
         'longitude',
         'status_aktif',
+        'jam_masuk',
+        'jam_pulang',
+        'toleransi_keterlambatan',
     ];
 
     /**
@@ -78,6 +84,9 @@ class Dudi extends Model
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
             'status_aktif' => 'boolean',
+            'jam_masuk' => 'datetime:H:i:s',
+            'jam_pulang' => 'datetime:H:i:s',
+            'toleransi_keterlambatan' => 'integer',
             'deleted_at' => 'datetime',
         ];
     }

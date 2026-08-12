@@ -28,14 +28,13 @@ class StorePenilaianRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id'],
-            'nilai_disiplin' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_kehadiran' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_tanggung_jawab' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_komunikasi' => ['required', 'numeric', 'min:0', 'max:100'],
+            'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id', 'unique:penilaian,penempatan_pkl_id'],
+            'nilai_kehadiran' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'nilai_kerjasama' => ['required', 'numeric', 'min:0', 'max:100'],
-            'nilai_inisiatif' => ['required', 'numeric', 'min:0', 'max:100'],
+            'nilai_komunikasi' => ['required', 'numeric', 'min:0', 'max:100'],
+            'nilai_problem_solving' => ['required', 'numeric', 'min:0', 'max:100'],
             'nilai_teknis' => ['required', 'numeric', 'min:0', 'max:100'],
+            'nilai_inisiatif' => ['required', 'numeric', 'min:0', 'max:100'],
             'catatan' => ['nullable', 'string'],
             'catatan_guru' => ['nullable', 'string'],
         ];
@@ -50,15 +49,26 @@ class StorePenilaianRequest extends FormRequest
     {
         return [
             'penempatan_pkl_id' => 'Penempatan PKL',
-            'nilai_disiplin' => 'Nilai Disiplin',
             'nilai_kehadiran' => 'Nilai Kehadiran',
-            'nilai_tanggung_jawab' => 'Nilai Tanggung Jawab',
+            'nilai_kerjasama' => 'Nilai Kerja Sama',
             'nilai_komunikasi' => 'Nilai Komunikasi',
-            'nilai_kerjasama' => 'Nilai Kerjasama',
-            'nilai_inisiatif' => 'Nilai Inisiatif',
+            'nilai_problem_solving' => 'Nilai Problem Solving',
             'nilai_teknis' => 'Nilai Teknis',
+            'nilai_inisiatif' => 'Nilai Inisiatif',
             'catatan' => 'Catatan',
             'catatan_guru' => 'Catatan Guru',
+        ];
+    }
+
+    /**
+     * Get the error messages for the defined validation rules.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'penempatan_pkl_id.unique' => 'Siswa pada Penempatan PKL ini sudah memiliki penilaian.',
         ];
     }
 }

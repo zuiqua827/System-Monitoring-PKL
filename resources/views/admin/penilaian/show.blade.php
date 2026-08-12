@@ -89,24 +89,20 @@
                 </div>
                 <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
                     <div class="flex items-center justify-between bg-white p-4">
-                        <span class="text-sm font-medium text-slate-700">Disiplin</span>
-                        <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_disiplin ?? '-' }}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Kehadiran</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_kehadiran ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between bg-white p-4">
-                        <span class="text-sm font-medium text-slate-700">Tanggung Jawab</span>
-                        <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_tanggung_jawab ?? '-' }}</span>
+                        <span class="text-sm font-medium text-slate-700">Kerja Sama</span>
+                        <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_kerjasama ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Komunikasi</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_komunikasi ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between bg-white p-4">
-                        <span class="text-sm font-medium text-slate-700">Kerjasama</span>
-                        <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_kerjasama ?? '-' }}</span>
+                        <span class="text-sm font-medium text-slate-700">Problem Solving</span>
+                        <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_problem_solving ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Inisiatif</span>

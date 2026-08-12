@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Penilaian;
 use App\Repositories\Interfaces\PenilaianRepositoryInterface;
+use App\Repositories\Interfaces\AbsensiRepositoryInterface;
 use App\Services\Interfaces\PenilaianServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,7 @@ class PenilaianService extends Service implements PenilaianServiceInterface
 {
     public function __construct(
         private readonly PenilaianRepositoryInterface $penilaianRepository,
+        private readonly AbsensiRepositoryInterface $absensiRepository,
     ) {}
 
     /**
@@ -105,14 +107,15 @@ class PenilaianService extends Service implements PenilaianServiceInterface
     {
         /** @var Penilaian $penilaian */
         $penilaian = $this->transaction(function () use ($data): Model {
+            $nilaiKehadiran = $this->calculateKehadiranPercentage((int) $data['penempatan_pkl_id']);
+
             $nilaiAkhir = $this->calculateNilaiAkhir(
-                disiplin: isset($data['nilai_disiplin']) ? (int) $data['nilai_disiplin'] : null,
-                kehadiran: isset($data['nilai_kehadiran']) ? (int) $data['nilai_kehadiran'] : null,
-                tanggungJawab: isset($data['nilai_tanggung_jawab']) ? (int) $data['nilai_tanggung_jawab'] : null,
-                komunikasi: isset($data['nilai_komunikasi']) ? (int) $data['nilai_komunikasi'] : null,
+                kehadiran: $nilaiKehadiran,
                 kerjasama: isset($data['nilai_kerjasama']) ? (int) $data['nilai_kerjasama'] : null,
-                inisiatif: isset($data['nilai_inisiatif']) ? (int) $data['nilai_inisiatif'] : null,
+                komunikasi: isset($data['nilai_komunikasi']) ? (int) $data['nilai_komunikasi'] : null,
+                problemSolving: isset($data['nilai_problem_solving']) ? (int) $data['nilai_problem_solving'] : null,
                 teknis: isset($data['nilai_teknis']) ? (int) $data['nilai_teknis'] : null,
+                inisiatif: isset($data['nilai_inisiatif']) ? (int) $data['nilai_inisiatif'] : null,
             );
 
             $predikat = $this->calculatePredikat($nilaiAkhir);
@@ -120,13 +123,12 @@ class PenilaianService extends Service implements PenilaianServiceInterface
             return $this->penilaianRepository->create([
                 'penempatan_pkl_id' => $data['penempatan_pkl_id'],
                 'dinilai_oleh' => Auth::id(),
-                'nilai_disiplin' => $data['nilai_disiplin'] ?? null,
-                'nilai_kehadiran' => $data['nilai_kehadiran'] ?? null,
-                'nilai_tanggung_jawab' => $data['nilai_tanggung_jawab'] ?? null,
-                'nilai_komunikasi' => $data['nilai_komunikasi'] ?? null,
+                'nilai_kehadiran' => $nilaiKehadiran,
                 'nilai_kerjasama' => $data['nilai_kerjasama'] ?? null,
-                'nilai_inisiatif' => $data['nilai_inisiatif'] ?? null,
+                'nilai_komunikasi' => $data['nilai_komunikasi'] ?? null,
+                'nilai_problem_solving' => $data['nilai_problem_solving'] ?? null,
                 'nilai_teknis' => $data['nilai_teknis'] ?? null,
+                'nilai_inisiatif' => $data['nilai_inisiatif'] ?? null,
                 'nilai_akhir' => $nilaiAkhir,
                 'predikat' => $predikat,
                 'status' => $data['status'] ?? 'draft',
@@ -146,26 +148,26 @@ class PenilaianService extends Service implements PenilaianServiceInterface
     {
         /** @var Penilaian $updated */
         $updated = $this->transaction(function () use ($penilaian, $data): Model {
+            $nilaiKehadiran = $this->calculateKehadiranPercentage((int) $penilaian->penempatan_pkl_id);
+
             $nilaiAkhir = $this->calculateNilaiAkhir(
-                disiplin: isset($data['nilai_disiplin']) ? (int) $data['nilai_disiplin'] : ($penilaian->nilai_disiplin),
-                kehadiran: isset($data['nilai_kehadiran']) ? (int) $data['nilai_kehadiran'] : ($penilaian->nilai_kehadiran),
-                tanggungJawab: isset($data['nilai_tanggung_jawab']) ? (int) $data['nilai_tanggung_jawab'] : ($penilaian->nilai_tanggung_jawab),
-                komunikasi: isset($data['nilai_komunikasi']) ? (int) $data['nilai_komunikasi'] : ($penilaian->nilai_komunikasi),
+                kehadiran: $nilaiKehadiran,
                 kerjasama: isset($data['nilai_kerjasama']) ? (int) $data['nilai_kerjasama'] : ($penilaian->nilai_kerjasama),
-                inisiatif: isset($data['nilai_inisiatif']) ? (int) $data['nilai_inisiatif'] : ($penilaian->nilai_inisiatif),
+                komunikasi: isset($data['nilai_komunikasi']) ? (int) $data['nilai_komunikasi'] : ($penilaian->nilai_komunikasi),
+                problemSolving: isset($data['nilai_problem_solving']) ? (int) $data['nilai_problem_solving'] : ($penilaian->nilai_problem_solving),
                 teknis: isset($data['nilai_teknis']) ? (int) $data['nilai_teknis'] : ($penilaian->nilai_teknis),
+                inisiatif: isset($data['nilai_inisiatif']) ? (int) $data['nilai_inisiatif'] : ($penilaian->nilai_inisiatif),
             );
 
             $predikat = $this->calculatePredikat($nilaiAkhir);
 
             return $this->penilaianRepository->update($penilaian, [
-                'nilai_disiplin' => $data['nilai_disiplin'] ?? $penilaian->nilai_disiplin,
-                'nilai_kehadiran' => $data['nilai_kehadiran'] ?? $penilaian->nilai_kehadiran,
-                'nilai_tanggung_jawab' => $data['nilai_tanggung_jawab'] ?? $penilaian->nilai_tanggung_jawab,
-                'nilai_komunikasi' => $data['nilai_komunikasi'] ?? $penilaian->nilai_komunikasi,
+                'nilai_kehadiran' => $nilaiKehadiran,
                 'nilai_kerjasama' => $data['nilai_kerjasama'] ?? $penilaian->nilai_kerjasama,
-                'nilai_inisiatif' => $data['nilai_inisiatif'] ?? $penilaian->nilai_inisiatif,
+                'nilai_komunikasi' => $data['nilai_komunikasi'] ?? $penilaian->nilai_komunikasi,
+                'nilai_problem_solving' => $data['nilai_problem_solving'] ?? $penilaian->nilai_problem_solving,
                 'nilai_teknis' => $data['nilai_teknis'] ?? $penilaian->nilai_teknis,
+                'nilai_inisiatif' => $data['nilai_inisiatif'] ?? $penilaian->nilai_inisiatif,
                 'nilai_akhir' => $nilaiAkhir,
                 'predikat' => $predikat,
                 'status' => $data['status'] ?? $penilaian->status,
@@ -222,23 +224,29 @@ class PenilaianService extends Service implements PenilaianServiceInterface
      * {@inheritDoc}
      */
     public function calculateNilaiAkhir(
-        ?int $disiplin,
         ?int $kehadiran,
-        ?int $tanggungJawab,
-        ?int $komunikasi,
         ?int $kerjasama,
-        ?int $inisiatif,
+        ?int $komunikasi,
+        ?int $problemSolving,
         ?int $teknis,
+        ?int $inisiatif,
     ): ?float {
-        $nilai = array_filter([$disiplin, $kehadiran, $tanggungJawab, $komunikasi, $kerjasama, $inisiatif, $teknis], function ($v): bool {
-            return $v !== null;
-        });
-
-        if (count($nilai) === 0) {
-            return null;
+        if ($kehadiran === null || $kerjasama === null || $komunikasi === null || $problemSolving === null || $teknis === null || $inisiatif === null) {
+            return null; // Return null if any component is missing, or adjust based on requirements. If all are required, this is safe.
         }
 
-        return round(array_sum($nilai) / count($nilai), 2);
+        $totalBobot = 14;
+        
+        $nilai = (
+            ($kehadiran * 4) +
+            ($kerjasama * 2) +
+            ($komunikasi * 2) +
+            ($problemSolving * 2) +
+            ($teknis * 2) +
+            ($inisiatif * 2)
+        ) / $totalBobot;
+
+        return round($nilai, 2);
     }
 
     /**
@@ -257,5 +265,19 @@ class PenilaianService extends Service implements PenilaianServiceInterface
             $nilaiAkhir >= 60 => 'D',
             default => 'E',
         };
+    }
+
+    private function calculateKehadiranPercentage(int $penempatanPklId): int
+    {
+        $absensi = $this->absensiRepository->getByPenempatan($penempatanPklId);
+        
+        $total = $absensi->count();
+        if ($total === 0) {
+            return 0; // Or 100 if assuming no absensi records = perfect? No, based on rule, missing is Alfa. So 0.
+        }
+
+        $hadir = $absensi->whereIn('status', ['hadir', 'terlambat'])->count();
+        
+        return (int) round(($hadir / $total) * 100);
     }
 }

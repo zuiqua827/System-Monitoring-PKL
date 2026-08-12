@@ -37,6 +37,7 @@ class SipintuSyncController extends Controller
             'sipintuTeacherCount' => $data['sipintu_teacher_count'],
             'localStudentCount' => $data['local_student_count'],
             'localTeacherCount' => $data['local_teacher_count'],
+            'classroomMappingCount' => $data['classroom_mapping_count'],
             'history' => $data['history'],
             'preview' => null,
         ]);
@@ -63,6 +64,7 @@ class SipintuSyncController extends Controller
                 'sipintuTeacherCount' => $data['sipintu_teacher_count'],
                 'localStudentCount' => $data['local_student_count'],
                 'localTeacherCount' => $data['local_teacher_count'],
+                'classroomMappingCount' => $data['classroom_mapping_count'],
                 'history' => $data['history'],
                 'preview' => [
                     'success' => false,
@@ -82,6 +84,7 @@ class SipintuSyncController extends Controller
             'sipintuTeacherCount' => $data['sipintu_teacher_count'],
             'localStudentCount' => $data['local_student_count'],
             'localTeacherCount' => $data['local_teacher_count'],
+            'classroomMappingCount' => $data['classroom_mapping_count'],
             'history' => $data['history'],
             'preview' => [
                 'success' => true,

@@ -19,11 +19,20 @@ use Illuminate\Support\Facades\Http;
  */
 class SiPintuRepository implements SiPintuRepositoryInterface
 {
+    /**
+     * The dashboard fetches the student and teacher endpoints sequentially.
+     * Keep each upstream request comfortably below the usual PHP web request
+     * limit so an unavailable gateway cannot turn the dashboard into HTTP 500.
+     */
+    private const MAX_SAFE_TIMEOUT_SECONDS = 10;
+
     private int $timeout;
 
     public function __construct()
     {
-        $this->timeout = (int) config('services.sipintu.timeout', 15);
+        $configuredTimeout = (int) config('services.sipintu.timeout', 15);
+
+        $this->timeout = max(1, min($configuredTimeout, self::MAX_SAFE_TIMEOUT_SECONDS));
     }
 
     /**
@@ -56,7 +65,9 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 'X-Client-ID' => $clientId,
                 'X-Client-Secret' => $clientSecret,
                 'Accept' => 'application/json',
-            ])->timeout($this->timeout);
+            ])
+                ->connectTimeout(min($this->timeout, 5))
+                ->timeout($this->timeout);
 
             if (! $verifySsl) {
                 $client = $client->withoutVerifying();
@@ -102,7 +113,9 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 'X-Client-ID' => $clientId,
                 'X-Client-Secret' => $clientSecret,
                 'Accept' => 'application/json',
-            ])->timeout($this->timeout);
+            ])
+                ->connectTimeout(min($this->timeout, 5))
+                ->timeout($this->timeout);
 
             if (! $verifySsl) {
                 $client = $client->withoutVerifying();

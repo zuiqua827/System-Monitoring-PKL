@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Exceptions\SiPintuApiException;
 use App\Models\Guru;
 use App\Models\SiPintuSyncLog;
+use App\Models\SipintuClassroomMapping;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Repositories\Interfaces\SipintuSyncLogRepositoryInterface;
@@ -51,6 +52,7 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
             'sipintu_teacher_count' => $remote['teacher_count'],
             'local_student_count' => $localStudents,
             'local_teacher_count' => $localTeachers,
+            'classroom_mapping_count' => SipintuClassroomMapping::query()->count(),
             'history' => $this->syncLogRepository->paginateHistory(15),
         ];
     }
@@ -166,6 +168,15 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
         $s = $studentStats;
         $t = $teacherStats;
 
+        $processed = array_sum(array_map(
+            static fn (string $key): int => (int) ($s[$key] ?? 0) + (int) ($t[$key] ?? 0),
+            ['created', 'updated', 'skipped', 'unchanged', 'conflicts', 'needs_mapping', 'errors'],
+        ));
+
+        if ($processed === 0) {
+            return 'Sinkronisasi selesai. Tidak ada data baru yang ditemukan. Ditemukan: 0, ditambahkan: 0, diperbarui: 0, dilewati: 0, gagal: 0.';
+        }
+
         return sprintf(
             'Siswa: %d baru, %d diperbarui, %d tidak berubah, %d konflik, %d perlu pemetaan, %d tidak ditemukan, %d error. '
             .'Guru: %d baru, %d diperbarui, %d tidak berubah, %d error.',
@@ -203,7 +214,7 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
             ];
         }
 
-        return Cache::remember('sipintu_remote_data', now()->addMinutes(5), function () {
+        $remote = Cache::remember('sipintu_remote_data', now()->addMinutes(5), function (): array {
             try {
                 $students = $this->siPintuService->fetchStudents();
                 $teachers = $this->siPintuService->fetchTeachers();
@@ -214,15 +225,69 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
                     'student_count' => count($students),
                     'teacher_count' => count($teachers),
                 ];
-            } catch (\Throwable) {
-                return [
-                    'status' => 'error',
-                    'message' => 'Gagal terhubung ke gateway SiPintu.',
-                    'student_count' => 0,
-                    'teacher_count' => 0,
-                ];
+            } catch (SiPintuApiException $e) {
+                logger()->warning('Gagal memuat data dashboard SiPintu.', [
+                    'exception_class' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
+
+                return $this->connectionErrorData($e->getMessage());
+            } catch (\Throwable $e) {
+                logger()->error('Kesalahan tak terduga saat memuat dashboard SiPintu.', [
+                    'exception_class' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
+
+                return $this->connectionErrorData(
+                    'Gagal memuat data SiPintu. Periksa koneksi API dan log aplikasi.'
+                );
             }
         });
+
+        return $this->normalizeDashboardRemoteData($remote);
+    }
+
+    /**
+     * Build a safe dashboard payload when the upstream API cannot be used.
+     *
+     * @return array{status: string, message: string, student_count: int, teacher_count: int}
+     */
+    private function connectionErrorData(string $message): array
+    {
+        return [
+            'status' => 'error',
+            'message' => $message,
+            'student_count' => 0,
+            'teacher_count' => 0,
+        ];
+    }
+
+    /**
+     * Cache data can outlive a deployment. Never let a malformed or stale
+     * cache value cause array-offset errors while rendering the dashboard.
+     *
+     * @return array{status: string, message: string, student_count: int, teacher_count: int}
+     */
+    private function normalizeDashboardRemoteData(mixed $remote): array
+    {
+        if (! is_array($remote)
+            || ! is_string($remote['status'] ?? null)
+            || ! is_string($remote['message'] ?? null)
+            || ! is_numeric($remote['student_count'] ?? null)
+            || ! is_numeric($remote['teacher_count'] ?? null)) {
+            logger()->warning('Cache dashboard SiPintu tidak valid; memakai status aman.', [
+                'cache_value_type' => get_debug_type($remote),
+            ]);
+
+            return $this->connectionErrorData('Status data SiPintu belum tersedia. Silakan coba lagi.');
+        }
+
+        return [
+            'status' => $remote['status'],
+            'message' => $remote['message'],
+            'student_count' => max(0, (int) $remote['student_count']),
+            'teacher_count' => max(0, (int) $remote['teacher_count']),
+        ];
     }
 
     /**

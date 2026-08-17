@@ -42,6 +42,15 @@ interface LaporanServiceInterface
     
     public function getDudiAbsensiReport(int $dudiId, array $filters): array;
 
+    /** @return array{data: Collection<int, \App\Models\Absensi>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int} */
+    public function getAdminAbsensiPdfReport(array $filters): array;
+
+    /** @return array{data: Collection<int, \App\Models\Absensi>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int} */
+    public function getGuruAbsensiPdfReport(int $guruId, array $filters): array;
+
+    /** @return array{data: Collection<int, \App\Models\Absensi>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int} */
+    public function getDudiAbsensiPdfReport(int $dudiId, array $filters): array;
+
     /** @return array{query: \Illuminate\Database\Eloquent\Builder, stats: array<string, int>} */
     public function getAdminAbsensiExport(array $filters): array;
 
@@ -56,6 +65,24 @@ interface LaporanServiceInterface
     public function getGuruAktivitasReport(int $guruId, array $filters): array;
     
     public function getDudiAktivitasReport(int $dudiId, array $filters): array;
+
+    /** @return array{query: \Illuminate\Database\Eloquent\Builder, stats: array<string, int>} */
+    public function getAdminAktivitasExport(array $filters): array;
+
+    /** @return array{query: \Illuminate\Database\Eloquent\Builder, stats: array<string, int>} */
+    public function getGuruAktivitasExport(int $guruId, array $filters): array;
+
+    /** @return array{query: \Illuminate\Database\Eloquent\Builder, stats: array<string, int>} */
+    public function getDudiAktivitasExport(int $dudiId, array $filters): array;
+
+    /** @return array{data: Collection<int, \App\Models\Aktivitas>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int} */
+    public function getAdminAktivitasPdfReport(array $filters): array;
+
+    /** @return array{data: Collection<int, \App\Models\Aktivitas>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int} */
+    public function getGuruAktivitasPdfReport(int $guruId, array $filters): array;
+
+    /** @return array{data: Collection<int, \App\Models\Aktivitas>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int} */
+    public function getDudiAktivitasPdfReport(int $dudiId, array $filters): array;
     
     public function getAdminPenilaianReport(array $filters): array;
     

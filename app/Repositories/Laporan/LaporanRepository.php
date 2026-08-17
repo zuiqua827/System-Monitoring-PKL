@@ -178,6 +178,91 @@ class LaporanRepository implements LaporanRepositoryInterface
             ->orderByDesc('id');
     }
 
+    public function getAbsensiReportForPdf(array $filters, int $limit): Collection
+    {
+        $query = \App\Models\Absensi::query()
+            ->with([
+                'penempatanPKL.siswa.kelas.jurusan',
+                'penempatanPKL.guru',
+                'penempatanPKL.dudi',
+                'penempatanPKL.periodePKL',
+            ]);
+
+        $this->applyAbsensiFilters($query, $filters);
+
+        return $query->orderBy('tanggal', 'asc')->orderBy('id')->limit($limit)->get();
+    }
+
+    public function getAbsensiPdfFilterSummary(array $filters): array
+    {
+        $summary = [];
+
+        if (!empty($filters['periode_id'])) {
+            $periode = \App\Models\PeriodePKL::query()->find($filters['periode_id']);
+            $summary[] = [
+                'label' => 'Periode PKL',
+                'value' => $periode?->nama ?? 'ID #'.$filters['periode_id'],
+            ];
+        }
+
+        if (!empty($filters['jurusan_id'])) {
+            $jurusan = \App\Models\Jurusan::query()->find($filters['jurusan_id']);
+            $summary[] = [
+                'label' => 'Jurusan',
+                'value' => $jurusan?->nama ?? 'ID #'.$filters['jurusan_id'],
+            ];
+        }
+
+        if (!empty($filters['kelas_id'])) {
+            $kelas = \App\Models\Kelas::query()->find($filters['kelas_id']);
+            $summary[] = [
+                'label' => 'Kelas',
+                'value' => $kelas?->nama ?? 'ID #'.$filters['kelas_id'],
+            ];
+        }
+
+        if (!empty($filters['guru_id'])) {
+            $guru = \App\Models\Guru::query()->find($filters['guru_id']);
+            $summary[] = [
+                'label' => 'Guru Pembimbing',
+                'value' => $guru?->nama ?? 'ID #'.$filters['guru_id'],
+            ];
+        }
+
+        if (!empty($filters['dudi_id'])) {
+            $dudi = \App\Models\Dudi::query()->find($filters['dudi_id']);
+            $summary[] = [
+                'label' => 'DUDI',
+                'value' => $dudi?->nama_perusahaan ?? 'ID #'.$filters['dudi_id'],
+            ];
+        }
+
+        if (!empty($filters['tanggal_mulai'])) {
+            $summary[] = [
+                'label' => 'Tanggal Mulai',
+                'value' => \Carbon\Carbon::parse($filters['tanggal_mulai'])->format('d/m/Y'),
+            ];
+        }
+
+        if (!empty($filters['tanggal_akhir'])) {
+            $summary[] = [
+                'label' => 'Tanggal Akhir',
+                'value' => \Carbon\Carbon::parse($filters['tanggal_akhir'])->format('d/m/Y'),
+            ];
+        }
+
+        if (!empty($filters['status'])) {
+            $summary[] = [
+                'label' => 'Status Kehadiran',
+                'value' => ucfirst((string) $filters['status']),
+            ];
+        }
+
+        return $summary === []
+            ? [['label' => 'Filter', 'value' => 'Semua data']]
+            : $summary;
+    }
+
     public function getSiswaExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder
     {
         $query = \App\Models\PenempatanPKL::query()
@@ -416,6 +501,114 @@ class LaporanRepository implements LaporanRepositoryInterface
             'approved' => (int) $stats->approved,
             'rejected' => (int) $stats->rejected,
         ];
+    }
+
+    public function getAktivitasExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = \App\Models\Aktivitas::query()
+            ->with([
+                'penempatanPKL.siswa.kelas.jurusan',
+                'penempatanPKL.guru',
+                'penempatanPKL.dudi',
+                'penempatanPKL.periodePKL',
+            ]);
+
+        $this->applyAktivitasFilters($query, $filters);
+
+        return $query
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id');
+    }
+
+    public function getAktivitasReportForPdf(array $filters, int $limit): Collection
+    {
+        $query = \App\Models\Aktivitas::query()
+            ->with([
+                'penempatanPKL.siswa.kelas.jurusan',
+                'penempatanPKL.guru',
+                'penempatanPKL.dudi',
+                'penempatanPKL.periodePKL',
+            ]);
+
+        $this->applyAktivitasFilters($query, $filters);
+
+        return $query->orderBy('tanggal', 'asc')->orderBy('id')->limit($limit)->get();
+    }
+
+    public function getAktivitasPdfFilterSummary(array $filters): array
+    {
+        $summary = [];
+
+        if (!empty($filters['periode_id'])) {
+            $periode = \App\Models\PeriodePKL::query()->find($filters['periode_id']);
+            $summary[] = [
+                'label' => 'Periode PKL',
+                'value' => $periode?->nama ?? 'ID #'.$filters['periode_id'],
+            ];
+        }
+
+        if (!empty($filters['jurusan_id'])) {
+            $jurusan = \App\Models\Jurusan::query()->find($filters['jurusan_id']);
+            $summary[] = [
+                'label' => 'Jurusan',
+                'value' => $jurusan?->nama ?? 'ID #'.$filters['jurusan_id'],
+            ];
+        }
+
+        if (!empty($filters['kelas_id'])) {
+            $kelas = \App\Models\Kelas::query()->find($filters['kelas_id']);
+            $summary[] = [
+                'label' => 'Kelas',
+                'value' => $kelas?->nama ?? 'ID #'.$filters['kelas_id'],
+            ];
+        }
+
+        if (!empty($filters['guru_id'])) {
+            $guru = \App\Models\Guru::query()->find($filters['guru_id']);
+            $summary[] = [
+                'label' => 'Guru Pembimbing',
+                'value' => $guru?->nama ?? 'ID #'.$filters['guru_id'],
+            ];
+        }
+
+        if (!empty($filters['dudi_id'])) {
+            $dudi = \App\Models\Dudi::query()->find($filters['dudi_id']);
+            $summary[] = [
+                'label' => 'DUDI',
+                'value' => $dudi?->nama_perusahaan ?? 'ID #'.$filters['dudi_id'],
+            ];
+        }
+
+        if (!empty($filters['tanggal_mulai'])) {
+            $summary[] = [
+                'label' => 'Tanggal Mulai',
+                'value' => \Carbon\Carbon::parse($filters['tanggal_mulai'])->format('d/m/Y'),
+            ];
+        }
+
+        if (!empty($filters['tanggal_akhir'])) {
+            $summary[] = [
+                'label' => 'Tanggal Akhir',
+                'value' => \Carbon\Carbon::parse($filters['tanggal_akhir'])->format('d/m/Y'),
+            ];
+        }
+
+        if (!empty($filters['status'])) {
+            $statusLabel = match(strtolower((string) $filters['status'])) {
+                'pending' => 'Menunggu Validasi',
+                'approved' => 'Disetujui',
+                'rejected' => 'Ditolak',
+                default => ucfirst((string) $filters['status']),
+            };
+            $summary[] = [
+                'label' => 'Status Aktivitas',
+                'value' => $statusLabel,
+            ];
+        }
+
+        return $summary === []
+            ? [['label' => 'Filter', 'value' => 'Semua data']]
+            : $summary;
     }
 
     private function applyAktivitasFilters($query, array $filters): void

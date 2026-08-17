@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin\Laporan;
 
 use App\Exports\AbsensiReportExcelExporter;
+use App\Exports\AktivitasReportExcelExporter;
 use App\Http\Controllers\Controller;
 use App\Models\Dudi;
 use App\Models\Guru;
@@ -105,7 +106,7 @@ class LaporanController extends Controller
         $fileName = 'laporan-siswa-pkl-' . now()->format('Y-m-d-His') . '.xlsx';
         
         return response()->streamDownload(function () use ($query) {
-            $writer = \Spatie\SimpleExcel\SimpleExcelWriter::stream('php://output', 'xlsx');
+            $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create('php://output', 'xlsx');
             
             $no = 1;
             $query->chunk(100, function ($records) use ($writer, &$no) {
@@ -183,5 +184,88 @@ class LaporanController extends Controller
         }, $fileName, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    public function exportAbsensiPdf(Request $request)
+    {
+        $filters = $request->only([
+            'periode_id', 'jurusan_id', 'kelas_id', 'guru_id', 'dudi_id',
+            'tanggal_mulai', 'tanggal_akhir', 'status',
+        ]);
+        $report = $this->laporanService->getAdminAbsensiPdfReport($filters);
+
+        if ($report['is_over_limit']) {
+            return back()->with(
+                'error',
+                "Data hasil filter melebihi {$report['limit']} baris. Silakan persempit filter sebelum mengekspor PDF.",
+            );
+        }
+
+        if ($report['data']->isEmpty()) {
+            return back()->with('error', 'Tidak ada data absensi untuk diekspor berdasarkan filter yang dipilih.');
+        }
+
+        $printedAt = now();
+        $pdf = Pdf::loadView('pdf.laporan.absensi', [
+            'absensis' => $report['data'],
+            'stats' => $report['stats'],
+            'appliedFilters' => $report['applied_filters'],
+            'systemName' => (string) config('app.name', 'Sistem Monitoring PKL'),
+            'printedAt' => $printedAt,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('laporan-absensi-pkl-'.$printedAt->format('Y-m-d-His').'.pdf');
+    }
+
+    public function exportAktivitasExcel(Request $request)
+    {
+        $filters = $request->only([
+            'periode_id', 'jurusan_id', 'kelas_id', 'guru_id', 'dudi_id',
+            'tanggal_mulai', 'tanggal_akhir', 'status',
+        ]);
+        $export = $this->laporanService->getAdminAktivitasExport($filters);
+
+        if (!$export['query']->exists()) {
+            return back()->with('error', 'Tidak ada data aktivitas untuk diekspor berdasarkan filter yang dipilih.');
+        }
+
+        $fileName = 'laporan-aktivitas-pkl-'.now()->format('Y-m-d-His').'.xlsx';
+
+        return response()->streamDownload(function () use ($export): void {
+            (new AktivitasReportExcelExporter())->stream($export['query'], $export['stats']);
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function exportAktivitasPdf(Request $request)
+    {
+        $filters = $request->only([
+            'periode_id', 'jurusan_id', 'kelas_id', 'guru_id', 'dudi_id',
+            'tanggal_mulai', 'tanggal_akhir', 'status',
+        ]);
+        $report = $this->laporanService->getAdminAktivitasPdfReport($filters);
+
+        if ($report['is_over_limit']) {
+            return back()->with(
+                'error',
+                "Data hasil filter melebihi {$report['limit']} baris. Silakan persempit filter sebelum mengekspor PDF.",
+            );
+        }
+
+        if ($report['data']->isEmpty()) {
+            return back()->with('error', 'Tidak ada data aktivitas untuk diekspor berdasarkan filter yang dipilih.');
+        }
+
+        $printedAt = now();
+        $pdf = Pdf::loadView('pdf.laporan.aktivitas', [
+            'aktivitas' => $report['data'],
+            'stats' => $report['stats'],
+            'appliedFilters' => $report['applied_filters'],
+            'systemName' => (string) config('app.name', 'Sistem Monitoring PKL'),
+            'printedAt' => $printedAt,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('laporan-aktivitas-pkl-'.$printedAt->format('Y-m-d-His').'.pdf');
     }
 }

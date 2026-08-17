@@ -133,7 +133,10 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     Route::get('/laporan/siswa/export/pdf', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportSiswaPdf'])->name('laporan.siswa.export.pdf');
     Route::get('/laporan/absensi', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'absensi'])->name('laporan.absensi');
     Route::get('/laporan/absensi/export/excel', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportAbsensiExcel'])->name('laporan.absensi.export.excel');
+    Route::get('/laporan/absensi/export/pdf', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportAbsensiPdf'])->name('laporan.absensi.export.pdf');
     Route::get('/laporan/aktivitas', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'aktivitas'])->name('laporan.aktivitas');
+    Route::get('/laporan/aktivitas/export/excel', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportAktivitasExcel'])->name('laporan.aktivitas.export.excel');
+    Route::get('/laporan/aktivitas/export/pdf', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'exportAktivitasPdf'])->name('laporan.aktivitas.export.pdf');
     Route::get('/laporan/penilaian', [\App\Http\Controllers\Admin\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
 });
 
@@ -165,7 +168,10 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
     Route::get('/laporan/siswa/export/pdf', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportSiswaPdf'])->name('laporan.siswa.export.pdf');
     Route::get('/laporan/absensi', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'absensi'])->name('laporan.absensi');
     Route::get('/laporan/absensi/export/excel', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAbsensiExcel'])->name('laporan.absensi.export.excel');
+    Route::get('/laporan/absensi/export/pdf', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAbsensiPdf'])->name('laporan.absensi.export.pdf');
     Route::get('/laporan/aktivitas', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'aktivitas'])->name('laporan.aktivitas');
+    Route::get('/laporan/aktivitas/export/excel', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAktivitasExcel'])->name('laporan.aktivitas.export.excel');
+    Route::get('/laporan/aktivitas/export/pdf', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAktivitasPdf'])->name('laporan.aktivitas.export.pdf');
     Route::get('/laporan/penilaian', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
 });
 
@@ -204,7 +210,10 @@ Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi
     Route::get('/laporan/siswa/export/pdf', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportSiswaPdf'])->name('laporan.siswa.export.pdf');
     Route::get('/laporan/absensi', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'absensi'])->name('laporan.absensi');
     Route::get('/laporan/absensi/export/excel', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportAbsensiExcel'])->name('laporan.absensi.export.excel');
+    Route::get('/laporan/absensi/export/pdf', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportAbsensiPdf'])->name('laporan.absensi.export.pdf');
     Route::get('/laporan/aktivitas', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'aktivitas'])->name('laporan.aktivitas');
+    Route::get('/laporan/aktivitas/export/excel', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportAktivitasExcel'])->name('laporan.aktivitas.export.excel');
+    Route::get('/laporan/aktivitas/export/pdf', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'exportAktivitasPdf'])->name('laporan.aktivitas.export.pdf');
     Route::get('/laporan/penilaian', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
 });
 

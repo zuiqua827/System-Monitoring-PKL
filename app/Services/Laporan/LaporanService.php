@@ -60,6 +60,45 @@ class LaporanService implements LaporanServiceInterface
         ];
     }
 
+    public function getAdminAbsensiPdfReport(array $filters): array
+    {
+        return $this->getAbsensiPdfReport($filters);
+    }
+
+    public function getGuruAbsensiPdfReport(int $guruId, array $filters): array
+    {
+        $filters['guru_id'] = $guruId;
+        return $this->getAbsensiPdfReport($filters);
+    }
+
+    public function getDudiAbsensiPdfReport(int $dudiId, array $filters): array
+    {
+        $filters['dudi_id'] = $dudiId;
+        return $this->getAbsensiPdfReport($filters);
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return array{data: Collection<int, \App\Models\Absensi>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int}
+     */
+    private function getAbsensiPdfReport(array $filters): array
+    {
+        $filters = $this->sanitizeAbsensiExportFilters($filters);
+        
+        $records = $this->laporanRepository->getAbsensiReportForPdf(
+            $filters,
+            self::PDF_ROW_LIMIT + 1,
+        );
+
+        return [
+            'data' => $records->take(self::PDF_ROW_LIMIT)->values(),
+            'stats' => $this->laporanRepository->getAbsensiSummaryStats($filters),
+            'applied_filters' => $this->laporanRepository->getAbsensiPdfFilterSummary($filters),
+            'is_over_limit' => $records->count() > self::PDF_ROW_LIMIT,
+            'limit' => self::PDF_ROW_LIMIT,
+        ];
+    }
+
     public function getAdminAbsensiExport(array $filters): array
     {
         return $this->getAbsensiExport($filters);
@@ -275,6 +314,71 @@ class LaporanService implements LaporanServiceInterface
         return [
             'data' => $this->laporanRepository->getAktivitasReport($filters),
             'stats' => $this->laporanRepository->getAktivitasSummaryStats($filters)
+        ];
+    }
+
+    public function getAdminAktivitasExport(array $filters): array
+    {
+        return [
+            'query' => $this->laporanRepository->getAktivitasExportQuery($filters),
+            'stats' => $this->laporanRepository->getAktivitasSummaryStats($filters),
+        ];
+    }
+
+    public function getGuruAktivitasExport(int $guruId, array $filters): array
+    {
+        $filters['guru_id'] = $guruId;
+        return [
+            'query' => $this->laporanRepository->getAktivitasExportQuery($filters),
+            'stats' => $this->laporanRepository->getAktivitasSummaryStats($filters),
+        ];
+    }
+
+    public function getDudiAktivitasExport(int $dudiId, array $filters): array
+    {
+        $filters['dudi_id'] = $dudiId;
+        return [
+            'query' => $this->laporanRepository->getAktivitasExportQuery($filters),
+            'stats' => $this->laporanRepository->getAktivitasSummaryStats($filters),
+        ];
+    }
+
+    public function getAdminAktivitasPdfReport(array $filters): array
+    {
+        return $this->getAktivitasPdfReport($filters);
+    }
+
+    public function getGuruAktivitasPdfReport(int $guruId, array $filters): array
+    {
+        // Deliberately overwrite any query-string value to prevent data leaks.
+        $filters['guru_id'] = $guruId;
+        return $this->getAktivitasPdfReport($filters);
+    }
+
+    public function getDudiAktivitasPdfReport(int $dudiId, array $filters): array
+    {
+        // Deliberately overwrite any query-string value to prevent data leaks.
+        $filters['dudi_id'] = $dudiId;
+        return $this->getAktivitasPdfReport($filters);
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return array{data: Collection<int, \App\Models\Aktivitas>, stats: array<string, int>, applied_filters: list<array{label: string, value: string}>, is_over_limit: bool, limit: int}
+     */
+    private function getAktivitasPdfReport(array $filters): array
+    {
+        $records = $this->laporanRepository->getAktivitasReportForPdf(
+            $filters,
+            self::PDF_ROW_LIMIT + 1,
+        );
+
+        return [
+            'data' => $records->take(self::PDF_ROW_LIMIT)->values(),
+            'stats' => $this->laporanRepository->getAktivitasSummaryStats($filters),
+            'applied_filters' => $this->laporanRepository->getAktivitasPdfFilterSummary($filters),
+            'is_over_limit' => $records->count() > self::PDF_ROW_LIMIT,
+            'limit' => self::PDF_ROW_LIMIT,
         ];
     }
 

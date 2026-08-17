@@ -31,6 +31,7 @@
                     ['label' => 'Absensi', 'route' => 'admin.absensi.index', 'active' => ['admin.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas', 'route' => 'admin.aktivitas.index', 'active' => ['admin.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'admin.penilaian.index', 'active' => ['admin.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Laporan PKL', 'route' => 'admin.laporan.index', 'active' => ['admin.laporan.*'], 'icon' => 'report'],
                     ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
@@ -50,6 +51,7 @@
                     ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Laporan PKL', 'route' => 'guru.laporan.index', 'active' => ['guru.laporan.*'], 'icon' => 'report'],
                     ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
@@ -79,6 +81,7 @@
                     ['label' => 'Ketidakhadiran', 'route' => 'dudi.ketidakhadiran.index', 'active' => ['dudi.ketidakhadiran.*'], 'icon' => 'calendar'],
                     ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
+                    ['label' => 'Laporan PKL', 'route' => 'dudi.laporan.index', 'active' => ['dudi.laporan.*'], 'icon' => 'report'],
                     ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
@@ -183,7 +186,10 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v13l-3.75-2-3.75 2-3.75-2-3.75 2V7A2.5 2.5 0 0 1 7 4.5Z" />
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 9.5h7M8.5 13h5" />
                                                 @break
-@case('profile')
+                                            @case('report')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                @break
+                                            @case('profile')
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
                                                 @break
                                             @case('sync')

@@ -3,7 +3,7 @@
 @section('title', 'Detail Guru')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-5xl">
         {{-- Page header --}}
         <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -34,7 +34,7 @@
                                 {{ $guru->trashed() ? 'Dihapus' : ($guru->user?->email_verified_at ? 'Terverifikasi' : 'Belum Verifikasi') }}
                             </span>
                         </div>
-                        <div class="mt-2 grid gap-x-8 gap-y-1 text-sm text-slate-500 sm:grid-cols-2">
+                        <div class="mt-2 grid gap-x-8 gap-y-1 text-sm text-slate-500 sm:grid-cols-1 sm:grid-cols-2">
                             <p><span class="font-semibold text-slate-700">NIP:</span> {{ $guru->nip ?? '-' }}</p>
                             <p><span class="font-semibold text-slate-700">Email:</span> {{ $guru->user?->email ?? '-' }}</p>
                             <p><span class="font-semibold text-slate-700">No. HP:</span> {{ $guru->no_hp ?? '-' }}</p>
@@ -50,7 +50,7 @@
                     <h3 class="text-base font-bold text-slate-900">Informasi Akun</h3>
                     <p class="mt-1 text-sm text-slate-500">Status dan aktivitas akun login</p>
                 </div>
-                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                     <div class="bg-white p-5">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Email Login</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $guru->user?->email ?? '-' }}</p>
@@ -82,7 +82,7 @@
                     <h3 class="text-base font-bold text-slate-900">Data Pribadi</h3>
                     <p class="mt-1 text-sm text-slate-500">Informasi lengkap data guru</p>
                 </div>
-                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                     <div class="bg-white p-5">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">NIP</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $guru->nip ?? '-' }}</p>

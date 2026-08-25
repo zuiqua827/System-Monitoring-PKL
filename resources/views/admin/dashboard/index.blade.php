@@ -151,7 +151,7 @@
     ];
 @endphp
 
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl">
         {{-- Header Row --}}
         <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -174,10 +174,10 @@
         </div>
 
         {{-- Primary Stat Cards --}}
-        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ($primaryCards as $card)
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">{{ $card['label'] }}</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
@@ -208,9 +208,9 @@
         </div>
 
         {{-- Secondary stat mini-cards --}}
-        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="mt-5 grid gap-3 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ($secondaryCards as $card)
-                <a href="{{ route($card['route']) }}" class="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-card-sm transition hover:border-blue-200 hover:bg-blue-50/40 hover:shadow-card-md">
+                <a href="{{ route($card['route']) }}" class="group flex flex-col sm:flex-row gap-4 sm: sm: rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-card-sm transition hover:border-blue-200 hover:bg-blue-50/40 hover:shadow-card-md">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 group-hover:text-blue-600">{{ $card['label'] }}</p>
                     <p class="text-xl font-extrabold text-slate-900">{{ number_format($card['value']) }}</p>
                 </a>
@@ -220,7 +220,7 @@
         {{-- Charts Row 1: Placement & Attendance --}}
         <div class="mt-6 grid gap-6 xl:grid-cols-12">
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm xl:col-span-4">
-                <div class="flex items-start justify-between">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">Status Penempatan</h2>
                         <p class="mt-1 text-sm text-slate-500">Total penempatan PKL</p>
@@ -240,7 +240,7 @@
 
                 <div class="mt-8 space-y-3">
                     @foreach ($placementItems as $item)
-                        <div class="flex items-center justify-between text-sm">
+                        <div class="flex flex-col sm:flex-row gap-4 sm: sm: text-sm">
                             <div class="flex items-center gap-2.5 text-slate-600">
                                 <span class="h-2.5 w-2.5 rounded-full {{ $item['dot'] }}"></span>
                                 <span class="font-medium">{{ $item['label'] }}</span>
@@ -261,7 +261,7 @@
                 </div>
 
                 <div class="mt-8 grid gap-4 lg:grid-cols-[1fr_220px]">
-                    <div class="flex h-64 items-end gap-3 rounded-2xl bg-slate-50 px-4 py-5">
+                    <div class="flex h-64 items-end gap-3 rounded-2xl bg-slate-50 px-4 py-5 overflow-x-auto">
                         @forelse ($attendanceTrend as $day)
                             @php
                                 $segments = [
@@ -275,7 +275,7 @@
                                 $barHeight = $dayTotal > 0 ? max(10, round(($dayTotal / $maxAttendance) * 100)) : 4;
                                 $label = \Carbon\Carbon::parse($day['tanggal'])->format('d/m');
                             @endphp
-                            <div class="flex min-w-0 flex-1 flex-col items-center gap-2">
+                            <div class="flex min-w-0 shrink-0 flex-col items-center gap-2 w-10 sm:w-12 sm:flex-1">
                                 <div class="flex h-44 w-full items-end justify-center">
                                     <div class="flex w-8 flex-col-reverse overflow-hidden rounded-t-lg bg-slate-200" style="height: {{ $barHeight }}%;">
                                         @foreach ($segments as $segment)
@@ -296,7 +296,7 @@
                         <div class="mx-auto h-28 w-28 rounded-full" style="background: {{ $statusGradient }};"></div>
                         <div class="mt-5 space-y-2">
                             @forelse ($statusItems as $item)
-                                <div class="flex items-center justify-between text-xs">
+                                <div class="flex flex-col sm:flex-row gap-4 sm: sm: text-xs">
                                     <div class="flex items-center gap-2 text-slate-600">
                                         <span class="h-2.5 w-2.5 rounded-full {{ $item['dot'] }}"></span>
                                         <span class="font-medium">{{ $item['label'] }}</span>
@@ -325,7 +325,7 @@
                             $width = round(($total / $maxDudi) * 100);
                         @endphp
                         <div>
-                            <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                            <div class="mb-1.5 flex flex-col sm:flex-row gap-4 sm: sm: gap-3 text-sm">
                                 <span class="truncate font-semibold text-slate-700">{{ $item['nama_perusahaan'] ?? 'DUDI' }}</span>
                                 <span class="font-bold text-slate-900">{{ number_format($total) }}</span>
                             </div>
@@ -343,14 +343,14 @@
                 <h2 class="text-base font-bold text-slate-900">Tren Aktivitas</h2>
                 <p class="mt-1 text-sm text-slate-500">Aktivitas harian minggu ini</p>
 
-                <div class="mt-8 flex h-56 items-end gap-3 rounded-2xl bg-slate-50 px-4 py-5">
+                <div class="mt-8 flex h-56 items-end gap-3 rounded-2xl bg-slate-50 px-4 py-5 overflow-x-auto">
                     @forelse ($activityTrend as $day)
                         @php
                             $total = (int) ($day['total'] ?? 0);
                             $height = $total > 0 ? max(10, round(($total / $maxActivity) * 100)) : 4;
                             $label = \Carbon\Carbon::parse($day['tanggal'])->format('D');
                         @endphp
-                        <div class="flex min-w-0 flex-1 flex-col items-center gap-2">
+                        <div class="flex min-w-0 shrink-0 flex-col items-center gap-2 w-10 sm:w-12 sm:flex-1">
                             <div class="flex h-36 w-full items-end justify-center">
                                 <div class="w-8 rounded-t-lg bg-blue-600" style="height: {{ $height }}%;"></div>
                             </div>
@@ -373,7 +373,7 @@
                             $width = $gradeTotal > 0 ? round(($value / $gradeTotal) * 100) : 0;
                         @endphp
                         <div>
-                            <div class="mb-1.5 flex items-center justify-between text-sm">
+                            <div class="mb-1.5 flex flex-col sm:flex-row gap-4 sm: sm: text-sm">
                                 <span class="font-semibold text-slate-700">Predikat {{ $grade }}</span>
                                 <span class="font-bold text-slate-900">{{ number_format($value) }}</span>
                             </div>
@@ -407,7 +407,7 @@
                                 }
                                 : 'bg-emerald-50 text-emerald-700 ring-emerald-100';
                         @endphp
-                        <a href="{{ route($item['route']) }}" class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/40">
+                        <a href="{{ route($item['route']) }}" class="flex flex-col sm:flex-row gap-4 sm: sm: gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/40">
                             <span class="text-sm font-medium text-slate-600">{{ $item['label'] }}</span>
                             <span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $badgeClass }}">{{ number_format($item['value']) }}</span>
                         </a>
@@ -416,7 +416,7 @@
             </article>
 
             <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm xl:col-span-2">
-                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200 px-6 py-5">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">Aktivitas Terbaru</h2>
                         <p class="mt-1 text-sm text-slate-500">Gabungan check-in, check-out, aktivitas, dan penilaian</p>
@@ -426,7 +426,7 @@
 
                 @if (count($activities) > 0)
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200">
+                        <table class="w-full min-w-[800px] divide-y divide-slate-200">
                             <thead class="bg-slate-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Aktivitas</th>

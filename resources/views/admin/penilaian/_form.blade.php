@@ -16,7 +16,7 @@
                 <h3 class="text-base font-bold text-slate-900">Nilai Aspek PKL</h3>
                 <p class="mt-1 text-sm text-slate-500">Berikan nilai 0-100 untuk setiap aspek penilaian</p>
             </div>
-            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 {{-- Penempatan PKL --}}
                 @if(!isset($penilaian) || !$penilaian)
                 <div class="bg-white p-5 sm:col-span-2">

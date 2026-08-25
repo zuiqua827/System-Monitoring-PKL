@@ -1,8 +1,4 @@
 <x-guest-layout>
-<!-- Logo -->
-    <div class="mb-6 flex justify-center">
-<img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-16 w-16 object-contain">
-    </div>
 
     <div class="mb-6 text-center">
         <h2 class="text-xl font-bold text-slate-900">SIMONGAN Administrator</h2>
@@ -47,7 +43,7 @@
         </div>
 
         <!-- Remember Me -->
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row gap-4 sm: sm:">
             <label for="remember_me" class="inline-flex items-center gap-2">
                 <input
                     id="remember_me"

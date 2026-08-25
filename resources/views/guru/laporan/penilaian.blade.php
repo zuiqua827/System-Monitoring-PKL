@@ -3,9 +3,9 @@
 @section('title', 'Laporan Penilaian PKL')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl">
-        <div class="mb-8 flex items-center justify-between">
+        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">Laporan</p>
                 <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Penilaian Siswa Bimbingan</h1>
@@ -14,7 +14,7 @@
         </div>
 
         {{-- Summary Cards --}}
-        <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+        <div class="mb-6 grid gap-4 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm text-center xl:col-span-2">
                 <p class="text-xs font-semibold text-slate-500 uppercase">Siswa / Penilaian</p>
                 <p class="mt-1 text-xl font-bold text-slate-900">{{ number_format($stats['total_siswa'] ?? 0) }} / {{ number_format($stats['total_penilaian'] ?? 0) }}</p>
@@ -54,7 +54,7 @@
         {{-- Filter Form --}}
         <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
             <form action="{{ route('guru.laporan.penilaian') }}" method="GET">
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div class="grid gap-4 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     <div>
                         <label for="periode_id" class="block text-xs font-semibold text-slate-700">Periode</label>
                         <select name="periode_id" id="periode_id" class="mt-1 block w-full rounded-xl border-slate-200 text-sm focus:border-orange-500 focus:ring-orange-500">
@@ -113,7 +113,7 @@
         {{-- Table --}}
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
+                <table class="w-full min-w-[800px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">No</th>
@@ -139,13 +139,13 @@
                                     <p class="font-semibold">{{ $item->penempatanPKL->dudi->nama_perusahaan ?? '-' }}</p>
                                 </td>
                                 <td class="px-6 py-4 text-xs text-slate-600">
-                                    <div class="grid grid-cols-2 gap-x-4 gap-y-1">
-                                        <div class="flex justify-between"><span>Kehadiran:</span> <span class="font-bold">{{ $item->nilai_kehadiran ?? '-' }}</span></div>
-                                        <div class="flex justify-between"><span>Kerja Sama:</span> <span class="font-bold">{{ $item->nilai_kerjasama ?? '-' }}</span></div>
-                                        <div class="flex justify-between"><span>Komunikasi:</span> <span class="font-bold">{{ $item->nilai_komunikasi ?? '-' }}</span></div>
-                                        <div class="flex justify-between"><span>Problem Solv:</span> <span class="font-bold">{{ $item->nilai_problem_solving ?? '-' }}</span></div>
-                                        <div class="flex justify-between"><span>Teknis:</span> <span class="font-bold">{{ $item->nilai_teknis ?? '-' }}</span></div>
-                                        <div class="flex justify-between"><span>Inisiatif:</span> <span class="font-bold">{{ $item->nilai_inisiatif ?? '-' }}</span></div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                                        <div class="flex flex-col sm:flex-row gap-4 sm: sm:"><span>Kehadiran:</span> <span class="font-bold">{{ $item->nilai_kehadiran ?? '-' }}</span></div>
+                                        <div class="flex flex-col sm:flex-row gap-4 sm: sm:"><span>Kerja Sama:</span> <span class="font-bold">{{ $item->nilai_kerjasama ?? '-' }}</span></div>
+                                        <div class="flex flex-col sm:flex-row gap-4 sm: sm:"><span>Komunikasi:</span> <span class="font-bold">{{ $item->nilai_komunikasi ?? '-' }}</span></div>
+                                        <div class="flex flex-col sm:flex-row gap-4 sm: sm:"><span>Problem Solv:</span> <span class="font-bold">{{ $item->nilai_problem_solving ?? '-' }}</span></div>
+                                        <div class="flex flex-col sm:flex-row gap-4 sm: sm:"><span>Teknis:</span> <span class="font-bold">{{ $item->nilai_teknis ?? '-' }}</span></div>
+                                        <div class="flex flex-col sm:flex-row gap-4 sm: sm:"><span>Inisiatif:</span> <span class="font-bold">{{ $item->nilai_inisiatif ?? '-' }}</span></div>
                                     </div>
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4">

@@ -10,7 +10,7 @@
 @section('title', 'Detail Absensi')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-4xl space-y-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -28,7 +28,7 @@
             <div class="border-b border-slate-100 px-6 py-5">
                 <h3 class="text-base font-bold text-slate-900">Detail Absensi</h3>
             </div>
-            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 <div class="bg-white px-6 py-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Siswa</p>
                     <p class="mt-1 text-sm font-semibold text-slate-900">{{ $absensi->penempatanPKL?->siswa?->nama ?? '-' }}</p>
@@ -126,7 +126,7 @@
             <div class="p-6">
                 <form method="POST" action="{{ route('guru.absensi.verify', $absensi->id) }}" class="space-y-4">
                     @csrf
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
                         <div>
                             <label for="status" class="block text-sm font-semibold text-slate-700">Ubah Status <span class="text-red-500">*</span></label>
                             <select id="status" name="status" required

@@ -3,7 +3,7 @@
 @section('title', 'Penempatan PKL')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -50,7 +50,7 @@
                         <a href="{{ route('admin.penempatan-pkl.index') }}" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Reset</a>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-5">
                     <div>
                         <label for="jurusan_id" class="mb-1 block text-xs font-semibold text-slate-600">Jurusan</label>
                         <select name="jurusan_id" id="jurusan_id"
@@ -109,7 +109,7 @@
         {{-- Table --}}
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
+                <table class="w-full min-w-[800px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="w-14 px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">No</th>

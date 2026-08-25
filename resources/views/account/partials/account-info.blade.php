@@ -1,5 +1,5 @@
 <div>
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row gap-4 sm: sm:">
         <div>
             <h2 class="text-lg font-bold text-slate-900">Informasi Akun</h2>
             <p class="mt-1 text-sm text-slate-500">Perbarui informasi profil Anda.</p>
@@ -11,7 +11,7 @@
         @method('PATCH')
 
         {{-- Read-only identity fields --}}
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
             {{-- Email (read-only) --}}
             <div>
                 <x-input-label value="Email" />
@@ -29,7 +29,7 @@
 
         {{-- Role-specific read-only identifiers --}}
         @if ($role === 'Siswa' && $user->siswa)
-            <div class="grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
                 <div>
                     <x-input-label value="NIS" />
                     <input type="text" value="{{ $user->siswa->nis }}" disabled class="input bg-slate-50 text-slate-500">
@@ -58,7 +58,7 @@
         <hr class="border-slate-200">
 
         {{-- Editable profile fields --}}
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
             {{-- Full name --}}
             <div>
                 <x-input-label for="name" value="Nama Lengkap" />

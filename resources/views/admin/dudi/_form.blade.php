@@ -37,7 +37,7 @@
                 <h3 class="text-base font-bold text-slate-900">Data Perusahaan</h3>
                 <p class="mt-1 text-sm text-slate-500">Informasi mitra DUDI</p>
             </div>
-            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 <div class="bg-white p-5 sm:col-span-2">
                     <label for="nama_perusahaan" class="block text-sm font-semibold text-slate-700">
                         Nama Instansi/Perusahaan <span class="text-red-500">*</span>

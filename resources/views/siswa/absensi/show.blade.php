@@ -10,7 +10,7 @@
 @section('title', 'Detail Absensi')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-4xl">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -27,7 +27,7 @@
             <div class="border-b border-slate-100 px-6 py-5">
                 <h3 class="text-base font-bold text-slate-900">Detail Absensi</h3>
             </div>
-            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 <div class="bg-white px-6 py-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tanggal</p>
                     <p class="mt-1 text-sm font-medium text-slate-900">{{ $absensi->tanggal ? $absensi->tanggal->format('d/m/Y') : '-' }}</p>

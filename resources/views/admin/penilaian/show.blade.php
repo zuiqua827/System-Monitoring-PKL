@@ -9,7 +9,7 @@
 @section('title', 'Detail Penilaian PKL')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-5xl">
         {{-- Page header --}}
         <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -33,7 +33,7 @@
                     <h3 class="text-base font-bold text-slate-900">Informasi Penilaian</h3>
                     <p class="mt-1 text-sm text-slate-500">Data penilaian PKL</p>
                 </div>
-                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                     <div class="bg-white p-5">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Siswa</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $penilaian->penempatanPKL?->siswa?->nama ?? '-' }}</p>
@@ -87,28 +87,28 @@
                     <h3 class="text-base font-bold text-slate-900">Detail Nilai</h3>
                     <p class="mt-1 text-sm text-slate-500">Rincian nilai per komponen penilaian</p>
                 </div>
-                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
-                    <div class="flex items-center justify-between bg-white p-4">
+                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Kehadiran</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_kehadiran ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between bg-white p-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Kerja Sama</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_kerjasama ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between bg-white p-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Komunikasi</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_komunikasi ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between bg-white p-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Problem Solving</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_problem_solving ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between bg-white p-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: bg-white p-4">
                         <span class="text-sm font-medium text-slate-700">Inisiatif</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_inisiatif ?? '-' }}</span>
                     </div>
-                    <div class="flex items-center justify-between bg-white p-4 sm:col-span-2">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: bg-white p-4 sm:col-span-2">
                         <span class="text-sm font-medium text-slate-700">Teknis</span>
                         <span class="text-sm font-bold text-slate-900">{{ $penilaian->nilai_teknis ?? '-' }}</span>
                     </div>

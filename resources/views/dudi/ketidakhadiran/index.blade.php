@@ -9,7 +9,7 @@
 @section('title', 'Daftar Pengajuan Ketidakhadiran')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -30,7 +30,7 @@
 
         {{-- Filter --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm">
-            <form method="GET" action="{{ route('dudi.ketidakhadiran.index') }}" class="flex flex-wrap items-center gap-3">
+            <form method="GET" action="{{ route('dudi.ketidakhadiran.index') }}" class="flex flex-wrap items-center flex-wrap gap-3">
                 <div>
                     <select name="status" class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
                         <option value="">Semua Status</option>
@@ -49,7 +49,7 @@
         {{-- Tabel Pengajuan --}}
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
+                <table class="w-full min-w-[800px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="w-14 px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">No</th>

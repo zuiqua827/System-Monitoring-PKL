@@ -9,7 +9,7 @@
 @section('title', 'Detail Pengajuan Ketidakhadiran')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-3xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -39,7 +39,7 @@
 
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="border-b border-slate-100 bg-slate-50 px-6 py-5">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm:">
                     <div>
                         <h3 class="text-base font-bold text-slate-900">{{ $pengajuan->penempatanPKL->siswa->nama }}</h3>
                         <p class="text-sm text-slate-500">NIS: {{ $pengajuan->penempatanPKL->siswa->nis }}</p>

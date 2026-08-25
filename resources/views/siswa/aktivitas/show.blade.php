@@ -9,7 +9,7 @@
 @section('title', 'Detail Aktivitas')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-4xl space-y-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -25,7 +25,7 @@
         {{-- Informasi Aktivitas --}}
         <div class="rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="border-b border-slate-100 px-6 py-5">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm:">
                     <div>
                         <h3 class="text-base font-bold text-slate-900">Detail Aktivitas Harian</h3>
                         <p class="mt-1 text-sm text-slate-500">Informasi lengkap aktivitas PKL</p>
@@ -52,7 +52,7 @@
                     </span>
                 </div>
             </div>
-            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 <div class="bg-white px-6 py-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tanggal</p>
                     <p class="mt-1 text-sm font-semibold text-slate-900">{{ $aktivitas->tanggal ? $aktivitas->tanggal->format('d/m/Y') : '-' }}</p>

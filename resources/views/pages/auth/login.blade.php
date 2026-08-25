@@ -17,7 +17,7 @@
                         <p class="mt-4 max-w-xl text-sm leading-6 text-slate-300">Platform terintegrasi untuk mengelola program Praktik Kerja Lapangan dengan transparansi, efisiensi, dan kolaborasi antara industri dan akademisi.</p>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="grid gap-3 sm:grid-cols-1 sm:grid-cols-2">
                         <div class="rounded-3xl bg-white/10 p-5">
                             <p class="text-sm font-semibold text-slate-200">Dashboard Role</p>
                             <p class="mt-2 text-2xl font-bold">Siswa, Guru, Industri</p>

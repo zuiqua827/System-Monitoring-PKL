@@ -3,7 +3,7 @@
 @section('title', 'Detail Absensi Siswa')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -19,7 +19,7 @@
             </a>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        <div class="grid gap-6 lg:grid-cols-1 sm:grid-cols-2">
             {{-- Check In Card --}}
             <div class="rounded-2xl border border-slate-200 bg-white shadow-card-sm overflow-hidden">
                 <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-5">

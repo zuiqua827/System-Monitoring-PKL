@@ -3,7 +3,7 @@
 @section('title', 'Kelola Jurusan')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -32,7 +32,7 @@
 
         {{-- Search --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm">
-            <form method="GET" action="{{ route('admin.jurusan.index') }}" class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <form method="GET" action="{{ route('admin.jurusan.index') }}" class="flex flex-col gap-3 sm:flex-row sm:items-center flex-wrap">
                 <div class="flex-1">
                     <div class="relative">
                         <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3.5 text-slate-400">
@@ -56,7 +56,7 @@
         {{-- Table --}}
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
+                <table class="w-full min-w-[800px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="w-14 px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">No</th>

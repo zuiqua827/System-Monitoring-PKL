@@ -15,57 +15,53 @@
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="flex min-h-screen bg-[#F7F9FC] font-sans text-slate-900 antialiased">
+<body class="flex min-h-screen bg-cover bg-center bg-no-repeat bg-fixed font-sans text-slate-900 antialiased" style="background-image: url('{{ asset('asset/login/background-smk.png') }}');">
     <div class="flex min-h-screen w-full">
 {{-- Left: Brand panel (hidden on small screens) --}}
-        <div class="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-800 via-blue-700 to-blue-900 p-12 lg:flex">
-            {{-- Blue overlay over decorative background --}}
-            <div class="absolute inset-0 bg-gradient-to-br from-blue-800/90 via-blue-700/85 to-blue-900/90"></div>
-
-            {{-- Decorative blobs --}}
-            <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"></div>
-            <div class="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-blue-400/20 blur-3xl"></div>
+        <div class="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 lg:flex">
 
             <div class="relative">
                 <div class="flex items-center gap-3">
 <img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-12 w-12 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
                     <div>
-                        <h1 class="text-lg font-bold tracking-tight text-white">SIMONGAN</h1>
-                        <p class="text-xs text-blue-100">SMK Negeri 1 Bangsri</p>
+                        <h1 class="text-lg font-bold tracking-tight text-white drop-shadow-lg">SIMONGAN</h1>
+                        <p class="text-xs text-white drop-shadow-lg">SMK Negeri 1 Bangsri</p>
                     </div>
                 </div>
             </div>
 
             <div class="relative">
-<h2 class="text-3xl font-bold leading-tight text-white">
+<h2 class="text-3xl font-bold leading-tight text-white drop-shadow-lg">
                     Sistem Monitoring<br>
-                    <span class="text-blue-200">Lapangan</span>
+                    <span class="text-white">Lapangan</span>
                 </h2>
-                <p class="mt-4 max-w-md text-sm leading-relaxed text-blue-100">
+                <p class="mt-4 max-w-md text-sm leading-relaxed text-white drop-shadow-lg">
                     Platform terintegrasi untuk mengelola Praktik Kerja Lapangan (PKL)
                     secara digital, transparan, dan real-time.
                 </p>
             </div>
 
             <div class="relative">
-                <p class="text-xs font-semibold tracking-wide text-blue-100">SMK Negeri 1 Bangsri</p>
+                <p class="text-xs font-semibold tracking-wide text-white drop-shadow-lg">SMK Negeri 1 Bangsri</p>
             </div>
         </div>
 
         {{-- Right: Auth form --}}
         <div class="flex w-full items-center justify-center px-6 lg:w-1/2">
-            <div class="w-full max-w-md">
+            <div class="w-full max-w-md lg:max-w-[560px]">
                 <div class="mb-8 text-center lg:hidden">
 <img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="mx-auto h-14 w-14 object-contain">
                 </div>
 
-                <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-card">
+                <div class="rounded-2xl border border-slate-200 bg-white/60 backdrop-blur-md p-8 shadow-card">
                     {{ $slot }}
                 </div>
 
-                <p class="mt-6 text-center text-xs text-slate-400">
+                @if(!request()->routeIs('login') && !request()->routeIs('admin.login'))
+                <p class="mt-6 text-center text-xs text-slate-400 bg-white/80 lg:bg-transparent px-2 py-1 rounded inline-block lg:p-0">
 &copy; {{ date('Y') }} SIMONGAN {{ config('app.name', 'Sistem Monitoring Lapangan') }}. All rights reserved.
                 </p>
+                @endif
             </div>
         </div>
     </div>

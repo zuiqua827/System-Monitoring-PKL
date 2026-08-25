@@ -3,7 +3,7 @@
 @section('title', 'Pusat Laporan PKL - Guru Pembimbing')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl">
         <div class="mb-8">
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Pusat Laporan</p>
@@ -11,7 +11,7 @@
             <p class="mt-2 max-w-2xl text-sm text-slate-500">Rekapitulasi data Siswa, Absensi, Aktivitas, Penempatan, dan Penilaian khusus untuk siswa bimbingan Anda.</p>
         </div>
 
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid gap-6 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {{-- Laporan Siswa & Penempatan --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm flex flex-col justify-between transition hover:-translate-y-0.5 hover:shadow-card-md">
                 <div>

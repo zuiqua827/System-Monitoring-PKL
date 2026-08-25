@@ -3,7 +3,7 @@
 @section('title', 'Tambah Jurusan')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-3xl">
         <div class="mb-8">
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Jurusan</p>

@@ -3,7 +3,7 @@
 @section('title', 'Dashboard Guru')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl">
         <div class="mb-8">
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Dashboard Guru</p>
@@ -12,9 +12,9 @@
         </div>
 
         {{-- Statistics Cards --}}
-        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Siswa Bimbingan</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['total_siswa_bimbingan'] }}</p>
@@ -29,7 +29,7 @@
             </article>
 
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Absensi Hari Ini</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['absensi_hari_ini'] }}</p>
@@ -44,7 +44,7 @@
             </article>
 
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Menunggu Validasi</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['aktivitas_menunggu_validasi'] }}</p>
@@ -59,7 +59,7 @@
             </article>
 
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Penilaian Draft</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['penilaian_draft'] }}</p>
@@ -75,7 +75,7 @@
         </div>
 
         {{-- Charts --}}
-        <div class="mt-6 grid gap-6 lg:grid-cols-2">
+        <div class="mt-6 grid gap-6 lg:grid-cols-1 sm:grid-cols-2">
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
                 <h3 class="text-base font-bold text-slate-900">Kehadiran 7 Hari</h3>
                 <p class="mt-1 text-sm text-slate-500">Grafik kehadiran siswa bimbingan</p>
@@ -101,7 +101,7 @@
             </div>
             @if(count($charts['nilai_siswa']) > 0)
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
+                    <table class="w-full min-w-[800px] divide-y divide-slate-200">
                         <thead class="bg-slate-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Siswa</th>

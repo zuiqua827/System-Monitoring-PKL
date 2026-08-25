@@ -3,7 +3,7 @@
 @section('title', 'Dashboard Siswa')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl">
         <div class="mb-8">
             <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Dashboard Siswa</p>
@@ -13,9 +13,9 @@
 
         @if(isset($penempatanAktif) && $penempatanAktif)
             {{-- Status Cards --}}
-            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Status Check In</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight {{ $sudahCheckIn ? 'text-emerald-600' : 'text-amber-600' }}">{{ $sudahCheckIn ? 'Sudah' : 'Belum' }}</p>
@@ -34,7 +34,7 @@
                 </article>
 
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Total Absensi</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['total_absensi'] ?? 0 }}</p>
@@ -49,7 +49,7 @@
                 </article>
 
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Total Aktivitas</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['total_aktivitas'] ?? 0 }}</p>
@@ -64,7 +64,7 @@
                 </article>
 
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Kehadiran</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight {{ ($stats['kehadiran_persen'] ?? 0) >= 75 ? 'text-emerald-600' : 'text-red-600' }}">{{ $stats['kehadiran_persen'] ?? 0 }}%</p>
@@ -86,7 +86,7 @@
                     <p class="mt-1 text-sm text-slate-500">Perkembangan PKL Anda</p>
                     @if(isset($stats['progress_persen']))
                         <div class="mt-6">
-                            <div class="flex items-center justify-between mb-2">
+                            <div class="flex flex-col sm:flex-row gap-4 sm: sm: mb-2">
                                 <span class="text-sm font-semibold text-slate-700">Progress</span>
                                 <span class="text-sm font-bold text-slate-900">{{ $stats['progress_persen'] }}%</span>
                             </div>
@@ -95,7 +95,7 @@
                             </div>
                         </div>
                     @endif
-                    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div class="mt-6 grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tanggal Mulai</p>
                             <p class="mt-1 text-sm font-bold text-slate-900">{{ $penempatanAktif->tanggal_mulai ? \Carbon\Carbon::parse($penempatanAktif->tanggal_mulai)->format('d/m/Y') : '-' }}</p>

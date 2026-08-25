@@ -7,7 +7,7 @@
 @section('title', 'Detail Aktivitas')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-4xl space-y-6">
         {{-- Header --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -23,7 +23,7 @@
 
         {{-- Informasi Aktivitas --}}
         <div class="card p-6">
-            <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200 pb-4">
                 <h3 class="section-heading">Informasi Aktivitas</h3>
                 @php
                     $statusClass = match($aktivitas->status) {
@@ -39,7 +39,7 @@
                 </span>
             </div>
 
-            <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-1 sm:grid-cols-2">
                 <div>
                     <p class="input-label">Siswa</p>
                     <p class="text-sm font-semibold text-slate-800">{{ $aktivitas->penempatanPKL?->siswa?->nama ?? '-' }}</p>

@@ -3,7 +3,7 @@
 @section('title', 'Pemetaan Kelas SiPintu')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -49,7 +49,7 @@
 
         {{-- Existing mappings --}}
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
-            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200 px-6 py-5">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Pemetaan Tersimpan ({{ $mappings->count() }})</h2>
                     <p class="mt-1 text-sm text-slate-500">Daftar classroom_id yang sudah dipetakan ke kelas lokal</p>
@@ -68,7 +68,7 @@
                 </div>
             @else
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
+                    <table class="w-full min-w-[800px] divide-y divide-slate-200">
                         <thead class="bg-slate-50">
                             <tr>
                                 <th class="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Classroom ID</th>
@@ -99,7 +99,7 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
+                    <table class="w-full min-w-[800px] divide-y divide-slate-200">
                         <thead class="bg-slate-50">
                             <tr>
                                 <th class="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Classroom ID</th>
@@ -128,7 +128,7 @@
                                         {{ $existing ? $existing->kelas->nama : '—' }}
                                     </td>
                                     <td class="whitespace-nowrap px-6 py-4 text-right">
-                                        <form method="POST" action="{{ route('admin.sipintu-classroom-mapping.store') }}" class="inline-flex items-center gap-2">
+                                        <form method="POST" action="{{ route('admin.sipintu-classroom-mapping.store') }}" class="inline-flex items-center flex-wrap gap-2">
                                             @csrf
                                             <input type="hidden" name="classroom_id" value="{{ $classroom['classroom_id'] }}">
                                             <select name="kelas_id" class="rounded-lg border-slate-300 text-sm text-slate-700 focus:border-blue-500 focus:ring-blue-500">

@@ -19,7 +19,7 @@
                 <h3 class="text-base font-bold text-slate-900">Informasi Penempatan PKL</h3>
                 <p class="mt-1 text-sm text-slate-500">Data penempatan siswa PKL</p>
             </div>
-            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 <div class="bg-white p-5" x-data="{
                     query: '',
                     open: false,
@@ -119,7 +119,7 @@
                     {{-- Selected student card --}}
                     <template x-if="selected">
                         <div class="mt-1.5 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                            <div class="flex items-start justify-between gap-3">
+                            <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-3">
                                 <div class="min-w-0">
                                     <p class="text-sm font-bold text-slate-900" x-text="selected.nama"></p>
                                     <p class="mt-1 text-xs text-slate-600">

@@ -260,7 +260,7 @@ new #[Title('Security settings')] class extends Component {
                 <div class="mt-6 flex flex-col w-full mx-auto space-y-6 text-sm" wire:cloak>
                     <div class="border rounded-lg border-zinc-200 overflow-hidden">
                         @forelse ($passkeys as $passkey)
-                            <div class="flex items-center justify-between p-4 {{ ! $loop->last ? 'border-b border-zinc-200' : '' }}">
+                            <div class="flex flex-col sm:flex-row gap-4 sm: sm: p-4 {{ ! $loop->last ? 'border-b border-zinc-200' : '' }}">
                                 <div class="flex items-center gap-4">
                                     <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
                                         <flux:icon.key class="size-5 text-zinc-500" />

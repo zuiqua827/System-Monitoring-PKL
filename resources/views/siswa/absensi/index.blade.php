@@ -16,7 +16,7 @@
 @section('title', 'Absensi Saya')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -91,7 +91,7 @@
                     {{-- Camera Section --}}
                     @if($todayAbsensi === null || ($sudahCheckIn && !$sudahCheckOut))
                         <div class="mt-6 border-t border-slate-100 pt-6">
-                            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-6 lg:grid-cols-1 sm:grid-cols-2">
                                 {{-- Left: Camera Preview --}}
                                 <div>
                                     <div class="relative overflow-hidden rounded-2xl bg-slate-900" style="min-height: 300px;">
@@ -138,7 +138,7 @@
                                             <span id="gps-status" class="text-slate-400">Mendeteksi lokasi...</span>
                                         </div>
 
-                                        <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                                             <div class="rounded-xl border border-slate-200 bg-white p-3">
                                                 <span class="text-slate-500">Latitude</span>
                                                 <p id="gps-lat" class="mt-1 font-mono font-semibold text-slate-700">-</p>
@@ -177,7 +177,7 @@
 
                                         <div id="file-upload-fallback" class="border-t border-slate-200 pt-3" style="display: none;">
                                             <p class="mb-1 text-xs font-medium text-red-500">Kamera tidak tersedia. Upload foto manual:</p>
-                                            <form method="POST" action="{{ $todayAbsensi === null ? route('siswa.absensi.check-in') : route('siswa.absensi.check-out') }}" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+                                            <form method="POST" action="{{ $todayAbsensi === null ? route('siswa.absensi.check-in') : route('siswa.absensi.check-out') }}" enctype="multipart/form-data" class="flex flex-wrap items-center flex-wrap gap-2">
                                                 @csrf
                                                 <input type="file" name="{{ $todayAbsensi === null ? 'foto_masuk' : 'foto_pulang' }}" accept="image/*" class="text-sm text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
                                                 <button type="submit" class="inline-flex items-center rounded-lg bg-{{ $todayAbsensi === null ? 'emerald' : 'orange' }}-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-{{ $todayAbsensi === null ? 'emerald' : 'orange' }}-700">
@@ -230,7 +230,7 @@
 
         {{-- Filter --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm">
-            <form method="GET" action="{{ route('siswa.absensi.index') }}" class="flex flex-wrap items-center gap-3">
+            <form method="GET" action="{{ route('siswa.absensi.index') }}" class="flex flex-wrap items-center flex-wrap gap-3">
                 <div>
                     <input type="date" name="tanggal" value="{{ request('tanggal') }}"
                            class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
@@ -258,7 +258,7 @@
                 <h3 class="text-base font-bold text-slate-900">Riwayat Absensi</h3>
             </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
+                <table class="w-full min-w-[800px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="w-14 px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">No</th>

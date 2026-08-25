@@ -3,7 +3,7 @@
 @section('title', 'Detail Penempatan PKL')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-5xl">
         {{-- Page header --}}
         <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -27,7 +27,7 @@
                     <h3 class="text-base font-bold text-slate-900">Informasi Penempatan PKL</h3>
                     <p class="mt-1 text-sm text-slate-500">Data lengkap penempatan PKL</p>
                 </div>
-                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-2">
+                <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                     <div class="bg-white p-5">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Siswa</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $penempatanPkl->siswa?->nama ?? '-' }}</p>

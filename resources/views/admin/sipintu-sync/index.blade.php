@@ -3,7 +3,7 @@
 @section('title', 'Sinkronisasi SiPintu')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8" x-data="{ syncing: false }">
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8" x-data="{ syncing: false }">
     <div class="mx-auto max-w-7xl space-y-6">
         {{-- Flash Messages --}}
         @if (session('success'))
@@ -64,10 +64,10 @@
             };
         @endphp
 
-        <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             {{-- Connection Status --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <div class="flex items-start justify-between">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start">
                     <p class="text-sm font-semibold text-slate-500">Status Koneksi</p>
                     <span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $connBadge['class'] }}">{{ $connBadge['label'] }}</span>
                 </div>
@@ -144,7 +144,7 @@
         {{-- Preview Result --}}
         @if ($preview)
             <div class="rounded-2xl border {{ $preview['success'] ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50' }} shadow-card-sm">
-                <div class="flex items-center justify-between border-b border-slate-200/60 px-6 py-5">
+                <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200/60 px-6 py-5">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">Hasil Preview (Dry Run)</h2>
                         <p class="mt-1 text-sm text-slate-500">
@@ -159,11 +159,11 @@
                 </div>
 
                 @if ($preview['success'])
-                    <div class="grid gap-6 p-6 lg:grid-cols-2">
+                    <div class="grid gap-6 p-6 lg:grid-cols-1 sm:grid-cols-2">
                         {{-- Student Preview --}}
                         <div>
                             <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Siswa</h3>
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 @php
                                     $studentItems = [
                                         'Baru (Akan Ditambah)' => $preview['students']['baru'] ?? 0,
@@ -188,7 +188,7 @@
                         {{-- Teacher Preview --}}
                         <div>
                             <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Guru</h3>
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 @php
                                     $teacherItems = [
                                         'Baru (Akan Ditambah)' => $preview['teachers']['baru'] ?? 0,
@@ -216,7 +216,7 @@
 
         {{-- History Table --}}
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
-            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200 px-6 py-5">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Riwayat Sinkronisasi</h2>
                     <p class="mt-1 text-sm text-slate-500">Log aktivitas sinkronisasi data siswa</p>
@@ -224,7 +224,7 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
+                <table class="w-full min-w-[800px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
                             <th class="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Waktu</th>

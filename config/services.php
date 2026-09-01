@@ -48,14 +48,19 @@ return [
     |
     */
 
-'sipintu' => [
+    'sipintu' => [
         'api_url' => env('SIPINTU_API_URL', 'http://localhost:8000'),
+        // A Bearer token takes priority when configured. Otherwise the client
+        // credentials below are sent as X-Client-ID and X-Client-Secret.
+        'api_token' => env('SIPINTU_API_TOKEN'),
         'client_id' => env('SIPINTU_CLIENT_ID'),
         'client_secret' => env('SIPINTU_CLIENT_SECRET'),
         'timeout' => (int) env('SIPINTU_TIMEOUT', 15),
+        'connect_timeout' => (int) env('SIPINTU_CONNECT_TIMEOUT', 10),
         // Verify the SSL certificate when calling the SiPintu Gateway.
         // Set SIPINTU_VERIFY_SSL=false in .env for local/development when
         // the server uses a self-signed cert or PHP lacks the CA bundle.
+        // Production should keep this true after its CA bundle is configured.
         'verify_ssl' => env('SIPINTU_VERIFY_SSL', true),
     ],
 

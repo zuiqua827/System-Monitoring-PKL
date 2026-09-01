@@ -545,23 +545,75 @@ class DashboardRepository implements DashboardRepositoryInterface
 
         $totalAktivitas = Aktivitas::where('penempatan_pkl_id', $penempatan->id)->count();
 
-        $totalAbsensi = Absensi::where('penempatan_pkl_id', $penempatan->id)->count();
+        // Calculate total expected days and current elapsed days based on weekdays
+        $tanggalMulai = $penempatan->tanggal_mulai;
+        $tanggalSelesai = $penempatan->tanggal_selesai;
+        
+        $totalHari = 0;
+        $hariBerjalan = 0;
+        $progress = 0;
+        
+        $timezone = config('app.timezone');
+        $today = \Illuminate\Support\Carbon::today($timezone);
+
+        if (!$tanggalMulai || !$tanggalSelesai || $tanggalMulai->gt($tanggalSelesai)) {
+            return [
+                'has_penempatan' => true,
+                'penempatan' => $penempatan,
+                'todayAbsensi' => $todayAbsensi,
+                'sudahCheckIn' => $todayAbsensi && $todayAbsensi->jam_masuk !== null,
+                'sudahCheckOut' => $todayAbsensi && $todayAbsensi->jam_keluar !== null,
+                'aktivitasHariIni' => $aktivitasHariIni,
+                'totalAktivitas' => $totalAktivitas,
+                'totalAbsensi' => 0,
+                'persentaseKehadiran' => 0,
+                'progress' => 0,
+                'hariBerjalan' => 0,
+                'totalHari' => 0,
+                'tanggalMulai' => $tanggalMulai,
+                'tanggalSelesai' => $tanggalSelesai,
+            ];
+        }
+
+        $currentDate = clone $tanggalMulai;
+        $endCalc = $today->lt($tanggalSelesai) ? clone $today : clone $tanggalSelesai;
+        $dudi = $penempatan->dudi;
+            
+        // Hari berjalan
+            while ($currentDate->lte($endCalc)) {
+                if ($dudi && $dudi->isHariOperasional($currentDate)) {
+                    $hariBerjalan++;
+                } elseif (!$dudi && $currentDate->isWeekday()) {
+                    $hariBerjalan++;
+                }
+                $currentDate = $currentDate->addDay();
+            }
+
+            // Total hari
+            $currentDate = clone $tanggalMulai;
+            while ($currentDate->lte($tanggalSelesai)) {
+                if ($dudi && $dudi->isHariOperasional($currentDate)) {
+                    $totalHari++;
+                } elseif (!$dudi && $currentDate->isWeekday()) {
+                    $totalHari++;
+                }
+                $currentDate = $currentDate->addDay();
+            }
+            
+            if ($totalHari > 0) {
+                $progress = min(100, round(($hariBerjalan / $totalHari) * 100, 1));
+            }
+
+        // We use hariBerjalan as the denominator for attendance since that's how many days they *should* have been present up to today.
+        $totalAbsensi = $hariBerjalan; // Override total absensi to mean expected days elapsed
+        
         $hadirCount = Absensi::where('penempatan_pkl_id', $penempatan->id)
             ->whereIn('status', ['hadir', 'terlambat'])
             ->count();
+            
         $persentaseKehadiran = $totalAbsensi > 0 ? round(($hadirCount / $totalAbsensi) * 100, 1) : 0;
-
-        // Progress PKL
-        $tanggalMulai = $penempatan->tanggal_mulai;
-        $tanggalSelesai = $penempatan->tanggal_selesai;
-        $progress = 0;
-        $hariBerjalan = 0;
-        $totalHari = 0;
-        if ($tanggalMulai && $tanggalSelesai) {
-            $totalHari = $tanggalMulai->diffInDays($tanggalSelesai) ?: 1;
-            $hariBerjalan = max(0, $tanggalMulai->diffInDays(now(), false));
-            $progress = min(100, round(($hariBerjalan / $totalHari) * 100, 1));
-        }
+        // Cap to 100% just in case they checked in on weekends
+        $persentaseKehadiran = min(100, $persentaseKehadiran);
 
         return [
             'has_penempatan' => true,

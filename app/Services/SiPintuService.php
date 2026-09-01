@@ -7,16 +7,18 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Models\Guru;
 use App\Models\Kelas;
+use App\Models\SipintuClassroomMapping;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Repositories\Interfaces\GuruRepositoryInterface;
 use App\Repositories\Interfaces\SiPintuRepositoryInterface;
 use App\Repositories\Interfaces\SiswaRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
-use App\Services\Interfaces\SiPintuServiceInterface;
 use App\Services\Interfaces\SipintuClassroomMappingServiceInterface;
+use App\Services\Interfaces\SiPintuServiceInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service layer for the SiPintu Gateway integration.
@@ -27,8 +29,8 @@ use Illuminate\Support\Str;
  *    (teachers) tables.
  *
  * Business rules (SAFETY-FIRST):
- *  - Students: NIS is the primary unique identifier; NISN is used as a
- *    fallback when NIS does not match locally.
+ *  - Students: NIS is the primary unique identifier; a NISN collision is
+ *    reported as a conflict and never rewrites the local NIS.
  *  - Teachers: NIP is the unique identifier.
  *  - Student email is always auto-generated: {NIS}@smk1bangsri.sch.id.
  *  - Teacher email uses the API email if available, otherwise
@@ -54,6 +56,98 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         private readonly SipintuClassroomMappingServiceInterface $classroomMappingService,
     ) {}
 
+    private ?Collection $localStudentsCache = null;
+
+    private ?Collection $localTeachersCache = null;
+
+    /** @var array<string, Siswa>|null NIS → Siswa hashmap for O(1) lookups */
+    private ?array $siswaByNis = null;
+
+    /** @var array<string, Siswa>|null NISN → Siswa hashmap for O(1) lookups */
+    private ?array $siswaByNisn = null;
+
+    /** @var array<string, Guru>|null NIP → Guru hashmap for O(1) lookups */
+    private ?array $guruByNip = null;
+
+    /** @var array<int, User>|null user_id → User hashmap for O(1) lookups */
+    private ?array $usersById = null;
+
+    /** @var array<string, User>|null email → User hashmap for O(1) lookups */
+    private ?array $usersByEmail = null;
+
+    /** @var array<int, Kelas>|null id → Kelas hashmap */
+    private ?array $kelasById = null;
+
+    /** @var array<int, int>|null SiPintu classroom_id → local kelas_id */
+    private ?array $kelasIdBySipintuClassroomId = null;
+
+    /**
+     * Preload all reference data into O(1) lookup hashmaps.
+     *
+     * This eliminates N+1 queries by loading all students, users, and kelas
+     * once upfront and building associative arrays for instant lookups.
+     */
+    public function preloadCaches(): void
+    {
+        if ($this->siswaByNis !== null) {
+            return; // Already preloaded
+        }
+
+        // Load all students with their user relationship eager-loaded
+        $this->localStudentsCache = Siswa::query()->withTrashed()->with('user')->get();
+
+        // Build NIS → Siswa hashmap
+        $this->siswaByNis = [];
+        $this->siswaByNisn = [];
+        foreach ($this->localStudentsCache as $siswa) {
+            $nis = trim((string) $siswa->nis);
+            if ($nis !== '') {
+                $this->siswaByNis[$nis] = $siswa;
+            }
+            $nisn = trim((string) $siswa->nisn);
+            if ($nisn !== '') {
+                $this->siswaByNisn[$nisn] = $siswa;
+            }
+        }
+
+        $this->localTeachersCache = Guru::query()->withTrashed()->with('user')->get();
+        $this->guruByNip = [];
+        foreach ($this->localTeachersCache as $guru) {
+            $nip = trim((string) $guru->nip);
+            if ($nip !== '') {
+                $this->guruByNip[$nip] = $guru;
+            }
+        }
+
+        // Build user lookups from the eager-loaded relations
+        $this->usersById = [];
+        $this->usersByEmail = [];
+        foreach ($this->localStudentsCache as $siswa) {
+            if ($siswa->relationLoaded('user') && $siswa->user !== null) {
+                $this->usersById[$siswa->user->id] = $siswa->user;
+                $this->usersByEmail[strtolower($siswa->user->email)] = $siswa->user;
+            }
+        }
+        foreach ($this->localTeachersCache as $guru) {
+            if ($guru->relationLoaded('user') && $guru->user !== null) {
+                $this->usersById[$guru->user->id] = $guru->user;
+                $this->usersByEmail[strtolower($guru->user->email)] = $guru->user;
+            }
+        }
+
+        // Load all kelas and build normalized name → Kelas hashmap
+        $localKelas = Kelas::query()->get();
+        $this->kelasById = [];
+        foreach ($localKelas as $kelas) {
+            $this->kelasById[$kelas->id] = $kelas;
+        }
+
+        $this->kelasIdBySipintuClassroomId = SipintuClassroomMapping::query()
+            ->pluck('kelas_id', 'classroom_id')
+            ->mapWithKeys(static fn (mixed $kelasId, mixed $classroomId): array => [(int) $classroomId => (int) $kelasId])
+            ->all();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -71,6 +165,23 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function fetchSyncPayload(): array
+    {
+        $students = $this->fetchStudents();
+        Log::info('SiPintu students fetched', ['count' => count($students)]);
+
+        $teachers = $this->fetchTeachers();
+        Log::info('SiPintu teachers fetched', ['count' => count($teachers)]);
+
+        return [
+            'students' => $students,
+            'teachers' => $teachers,
+        ];
+    }
+
+    /**
      * Read-only preview: classify remote students into 7 categories without
      * writing anything to the database.
      *
@@ -81,37 +192,12 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     public function previewStudents(): array
     {
-        $students = $this->fetchStudents();
+        $this->preloadCaches();
 
-        $stats = $this->emptyPreview();
-
-        $remoteNisSet = [];
-        $remoteNisnSet = [];
-
-        /** @var array<string, mixed> $remote */
-        foreach ($students as $remote) {
-            $nis = (string) ($remote['nis'] ?? '');
-
-            if ($nis === '') {
-                $stats['error']++;
-
-                continue;
-            }
-
-            $remoteNisSet[$nis] = true;
-
-            $nisn = (string) ($remote['nisn'] ?? '');
-            if ($nisn !== '') {
-                $remoteNisnSet[$nisn] = true;
-            }
-
-            $stats[$this->outcomeToPreviewLabel($this->classifyStudent($remote))]++;
-        }
-
-        $stats['total_remote'] = count($students);
-        $stats['tidak_ditemukan'] = $this->countLocalStudentsMissingFrom($remoteNisSet, $remoteNisnSet);
-
-        return $stats;
+        return $this->processStudentRecords($this->fetchStudents(), [
+            'dry_run' => true,
+            'stats' => $this->emptyPreview(),
+        ]);
     }
 
     /**
@@ -122,149 +208,245 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     public function previewTeachers(): array
     {
-        $teachers = $this->fetchTeachers();
+        $this->preloadCaches();
 
-        $stats = $this->emptyPreview();
+        return $this->processTeacherRecords($this->fetchTeachers(), [
+            'dry_run' => true,
+            'stats' => $this->emptyPreview(),
+        ]);
+    }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return array{
+     *     created: int,
+     *     updated: int,
+     *     deleted: int,
+     *     skipped: int,
+     *     unchanged: int,
+     *     conflicts: int,
+     *     needs_mapping: int,
+     *     errors: int
+     * }
+     */
+    public function syncStudents(?array $students = null): array
+    {
+        $this->preloadCaches();
+
+        return $this->processStudentRecords($students ?? $this->fetchStudents(), [
+            'dry_run' => false,
+            'stats' => $this->emptySyncStats(),
+        ]);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return array{
+     *     created: int,
+     *     updated: int,
+     *     deleted: int,
+     *     skipped: int,
+     *     unchanged: int,
+     *     conflicts: int,
+     *     needs_mapping: int,
+     *     errors: int
+     * }
+     */
+    public function syncTeachers(?array $teachers = null): array
+    {
+        $this->preloadCaches();
+
+        return $this->processTeacherRecords($teachers ?? $this->fetchTeachers(), [
+            'dry_run' => false,
+            'stats' => $this->emptySyncStats(),
+        ]);
+    }
+
+    /**
+     * Process student records for both preview and live synchronization.
+     * The structured context keeps the dry-run flag and accumulator named,
+     * avoiding fragile positional argument lists.
+     *
+     * @param  array<int, mixed>  $students
+     * @param  array{dry_run: bool, stats: array<string, int>}  $context
+     * @return array<string, int>
+     */
+    private function processStudentRecords(array $students, array $context): array
+    {
+        $dryRun = $context['dry_run'];
+        $stats = $context['stats'];
+        $seenNis = [];
+        $remoteNisSet = [];
+        $remoteNisnSet = [];
+
+        foreach ($students as $index => $remote) {
+            if (! is_array($remote)) {
+                $this->recordInvalidRemote($stats, $dryRun, 'student', $index, null, 'record is not an object');
+
+                continue;
+            }
+
+            $nis = $this->identifier($remote['nis'] ?? null);
+            if ($nis === null) {
+                $this->recordInvalidRemote($stats, $dryRun, 'student', $index, null, 'NIS is missing');
+
+                continue;
+            }
+
+            if (isset($seenNis[$nis])) {
+                Log::warning('Student skipped during SiPintu sync', [
+                    'reason' => 'duplicate_nis_in_response',
+                    'nis' => $nis,
+                    'record_index' => $index,
+                    'dry_run' => $dryRun,
+                ]);
+                $this->applyRecordOutcome($stats, $dryRun, 'conflict');
+
+                continue;
+            }
+
+            $seenNis[$nis] = true;
+            $remote['nis'] = $nis;
+            $remoteNisSet[$nis] = true;
+
+            $nisn = $this->identifier($remote['nisn'] ?? null);
+            if ($nisn !== null) {
+                $remote['nisn'] = $nisn;
+                $remoteNisnSet[$nisn] = true;
+            }
+
+            $outcome = $dryRun
+                ? $this->classifyStudent($remote)
+                : $this->syncOneStudent($remote);
+
+            if ($outcome === 'needs_mapping') {
+                Log::warning('Student skipped during SiPintu sync', [
+                    'reason' => 'missing_classroom_mapping',
+                    'nis' => $nis,
+                    'classroom_id' => $this->classroomId($remote),
+                    'dry_run' => $dryRun,
+                ]);
+            }
+
+            $this->applyRecordOutcome($stats, $dryRun, $outcome);
+        }
+
+        if ($dryRun) {
+            $stats['total_remote'] = count($students);
+            $stats['tidak_ditemukan'] = $this->countLocalStudentsMissingFrom($remoteNisSet, $remoteNisnSet);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  array<int, mixed>  $teachers
+     * @param  array{dry_run: bool, stats: array<string, int>}  $context
+     * @return array<string, int>
+     */
+    private function processTeacherRecords(array $teachers, array $context): array
+    {
+        $dryRun = $context['dry_run'];
+        $stats = $context['stats'];
+        $seenNip = [];
         $remoteNipSet = [];
 
-        /** @var array<string, mixed> $remote */
-        foreach ($teachers as $remote) {
-            $nip = (string) ($remote['nip'] ?? '');
-
-            if ($nip === '') {
-                $stats['error']++;
+        foreach ($teachers as $index => $remote) {
+            if (! is_array($remote)) {
+                $this->recordInvalidRemote($stats, $dryRun, 'teacher', $index, null, 'record is not an object');
 
                 continue;
             }
 
+            $nip = $this->identifier($remote['nip'] ?? null);
+            if ($nip === null) {
+                $this->recordInvalidRemote($stats, $dryRun, 'teacher', $index, null, 'NIP is missing');
+
+                continue;
+            }
+
+            if (isset($seenNip[$nip])) {
+                Log::warning('Teacher skipped during SiPintu sync', [
+                    'reason' => 'duplicate_nip_in_response',
+                    'nip' => $nip,
+                    'record_index' => $index,
+                    'dry_run' => $dryRun,
+                ]);
+                $this->applyRecordOutcome($stats, $dryRun, 'conflict');
+
+                continue;
+            }
+
+            $seenNip[$nip] = true;
+            $remote['nip'] = $nip;
             $remoteNipSet[$nip] = true;
 
-            $stats[$this->outcomeToPreviewLabel($this->classifyTeacher($remote))]++;
+            $this->applyRecordOutcome(
+                $stats,
+                $dryRun,
+                $dryRun ? $this->classifyTeacher($remote) : $this->syncOneTeacher($remote),
+            );
         }
 
-        $stats['total_remote'] = count($teachers);
-        $stats['tidak_ditemukan'] = $this->countLocalTeachersMissingFrom($remoteNipSet);
+        if ($dryRun) {
+            $stats['total_remote'] = count($teachers);
+            $stats['tidak_ditemukan'] = $this->countLocalTeachersMissingFrom($remoteNipSet);
+        }
 
         return $stats;
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * @return array{
-     *     created: int,
-     *     updated: int,
-     *     deleted: int,
-     *     skipped: int,
-     *     unchanged: int,
-     *     conflicts: int,
-     *     needs_mapping: int,
-     *     errors: int
-     * }
+     * @param  array<string, int>  $stats
      */
-    public function syncStudents(): array
+    private function recordInvalidRemote(array &$stats, bool $dryRun, string $entity, int|string $index, ?string $identifier, string $reason): void
     {
-        $students = $this->fetchStudents();
+        Log::warning(ucfirst($entity).' skipped during SiPintu sync', [
+            'reason' => $reason,
+            'record_index' => $index,
+            'identifier' => $identifier,
+            'dry_run' => $dryRun,
+        ]);
 
-        $stats = [
-            'created' => 0,
-            'updated' => 0,
-            'deleted' => 0,
-            'skipped' => 0,
-            'unchanged' => 0,
-            'conflicts' => 0,
-            'needs_mapping' => 0,
-            'errors' => 0,
-        ];
-
-        /** @var array<string, mixed> $remote */
-        foreach ($students as $remote) {
-            $nis = (string) ($remote['nis'] ?? '');
-
-            if ($nis === '') {
-                $stats['errors']++;
-                $stats['skipped']++;
-
-                continue;
-            }
-
-            try {
-                $outcome = $this->syncOneStudent($remote);
-            } catch (\Throwable $e) {
-                $outcome = 'error';
-
-                logger()->error("SiPintu sync siswa NIS={$nis} gagal: {$e->getMessage()}");
-            }
-
-            $this->applyOutcome($stats, $outcome);
-        }
-
-        // Penghapusan otomatis NONAKTIF: siswa lokal yang tidak ada di SiPintu
-        // TIDAK pernah dihapus. Hanya dilaporkan sebagai "Tidak Ditemukan".
-
-        return $stats;
+        $this->applyRecordOutcome($stats, $dryRun, 'error');
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * @return array{
-     *     created: int,
-     *     updated: int,
-     *     deleted: int,
-     *     skipped: int,
-     *     unchanged: int,
-     *     conflicts: int,
-     *     needs_mapping: int,
-     *     errors: int
-     * }
+     * @param  array<string, int>  $stats
      */
-    public function syncTeachers(): array
+    private function applyRecordOutcome(array &$stats, bool $dryRun, string $outcome): void
     {
-        $teachers = $this->fetchTeachers();
+        if ($dryRun) {
+            $stats[$this->outcomeToPreviewLabel($outcome)]++;
 
-        $stats = [
-            'created' => 0,
-            'updated' => 0,
-            'deleted' => 0,
-            'skipped' => 0,
-            'unchanged' => 0,
-            'conflicts' => 0,
-            'needs_mapping' => 0,
-            'errors' => 0,
-        ];
-
-        /** @var array<string, mixed> $remote */
-        foreach ($teachers as $remote) {
-            $nip = (string) ($remote['nip'] ?? '');
-
-            if ($nip === '') {
-                $stats['errors']++;
-                $stats['skipped']++;
-
-                continue;
-            }
-
-            try {
-                $outcome = $this->syncOneTeacher($remote);
-            } catch (\Throwable $e) {
-                $outcome = 'error';
-
-                logger()->error("SiPintu sync guru NIP={$nip} gagal: {$e->getMessage()}");
-            }
-
-            $this->applyOutcome($stats, $outcome);
+            return;
         }
 
-        return $stats;
+        $this->applyOutcome($stats, $outcome);
+    }
+
+    private function identifier(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_int($value)) {
+            return null;
+        }
+
+        $identifier = trim((string) $value);
+
+        return $identifier === '' ? null : $identifier;
     }
 
     /**
-     * Find a local siswa by NIS (including trashed).
+     * Find a local siswa by NIS (including trashed). O(1) via hashmap.
      */
     private function findSiswaByNis(string $nis): ?Siswa
     {
+        if ($this->siswaByNis !== null) {
+            return $this->siswaByNis[trim($nis)] ?? null;
+        }
+
         /** @var Siswa|null $siswa */
         $siswa = Siswa::query()->withTrashed()->where('nis', $nis)->first();
 
@@ -272,7 +454,20 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     }
 
     /**
+     * Find a local guru by NIP (including trashed). O(1) via hashmap.
+     */
+    private function findGuruByNip(string $nip): ?Guru
+    {
+        if ($this->guruByNip !== null) {
+            return $this->guruByNip[trim($nip)] ?? null;
+        }
+
+        return $this->guruRepository->findByNip($nip);
+    }
+
+    /**
      * Resolve the best local match for a remote student, with NISN fallback.
+     * Uses O(1) hashmap lookups when caches are preloaded.
      *
      * @param  array<string, mixed>  $remote
      * @return array{status: string, siswa: Siswa|null}
@@ -288,24 +483,35 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             return ['status' => $byNis === null ? 'new' : 'matched', 'siswa' => $byNis];
         }
 
-        /** @var Siswa|null $byNisn */
-        $byNisn = Siswa::query()
-            ->withTrashed()
-            ->where('nisn', $nisn)
-            ->where('nis', '!=', $nis)
-            ->first();
+        // O(1) NISN lookup via hashmap
+        if ($this->siswaByNisn !== null) {
+            $byNisn = $this->siswaByNisn[trim($nisn)] ?? null;
+            // Ensure NISN match is actually a different student (not same NIS)
+            if ($byNisn !== null && trim((string) $byNisn->nis) === trim($nis)) {
+                $byNisn = null;
+            }
+        } else {
+            /** @var Siswa|null $byNisn */
+            $byNisn = Siswa::query()
+                ->withTrashed()
+                ->where('nisn', $nisn)
+                ->where('nis', '!=', $nis)
+                ->first();
+        }
 
         // Ambiguous: NIS and NISN point to two different local records.
         if ($byNis !== null && $byNisn !== null && (int) $byNisn->id !== (int) $byNis->id) {
             return ['status' => 'conflict', 'siswa' => null];
         }
 
-        if ($byNis !== null) {
-            return ['status' => 'matched', 'siswa' => $byNis];
+        if ($byNisn !== null) {
+            // NIS remains the primary identity. A matching NISN with another
+            // NIS is not enough to rewrite a local student's identity.
+            return ['status' => 'conflict', 'siswa' => null];
         }
 
-        if ($byNisn !== null) {
-            return ['status' => 'matched', 'siswa' => $byNisn];
+        if ($byNis !== null) {
+            return ['status' => 'matched', 'siswa' => $byNis];
         }
 
         return ['status' => 'new', 'siswa' => null];
@@ -327,13 +533,21 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $kelas = $this->resolveKelas($remote);
 
         if ($resolved['siswa'] === null) {
+            if ($this->personName($remote) === '') {
+                return 'error';
+            }
+
             // New student cannot be created without a valid kelas.
             return $kelas === null ? 'needs_mapping' : 'created';
         }
 
+        if ($this->hasProtectedUser($resolved['siswa']->user_id)) {
+            return 'conflict';
+        }
+
         // Existing student: if the remote carries a classroom that cannot be
         // mapped, we must NOT change anything (avoid guessing class_id).
-        $hasClassroom = (int) ($remote['classroom_id'] ?? 0) > 0;
+        $hasClassroom = $this->classroomId($remote) > 0;
         if ($hasClassroom && $kelas === null) {
             return 'needs_mapping';
         }
@@ -360,17 +574,24 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $existing = $resolved['siswa'];
 
         if ($existing === null) {
+            if ($this->personName($remote) === '') {
+                return 'error';
+            }
+
             // New student requires a mapped kelas before it can be created.
             if ($kelas === null) {
                 return 'needs_mapping';
             }
 
-            $this->createStudent($remote, $kelas);
-
-            return 'created';
+            return $this->createStudent($remote, $kelas);
         }
 
-        $hasClassroom = (int) ($remote['classroom_id'] ?? 0) > 0;
+        if ($this->hasProtectedUser($existing->user_id)
+            || $this->userEmailBelongsToAnotherAccount(Siswa::generateEmail((string) $remote['nis']), $existing->user_id)) {
+            return 'conflict';
+        }
+
+        $hasClassroom = $this->classroomId($remote) > 0;
         if ($hasClassroom && $kelas === null) {
             return 'needs_mapping';
         }
@@ -389,9 +610,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @param  array<string, mixed>  $remote
      */
-    private function createStudent(array $remote, Kelas $kelas): void
+    private function createStudent(array $remote, Kelas $kelas): string
     {
-        $nama = (string) ($remote['nama'] ?? '');
+        $nama = $this->personName($remote);
         $nis = (string) $remote['nis'];
 
         $tanggalLahir = $this->parseTanggalLahir($remote);
@@ -403,13 +624,20 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         if ($existingByEmail !== null) {
             $existingSiswa = Siswa::query()->withTrashed()->where('user_id', $existingByEmail->id)->first();
             if ($existingSiswa !== null) {
+                if ($this->hasProtectedUser($existingSiswa->user_id)) {
+                    return 'conflict';
+                }
+
                 $this->updateStudent($existingSiswa, $remote, $kelas);
+
+                return 'updated';
             }
 
-            return;
+            return 'conflict';
         }
 
-        $this->transaction(function () use ($remote, $nama, $nis, $tanggalLahir, $email, $kelas): void {
+        /** @var Siswa $siswa */
+        $siswa = $this->transaction(function () use ($remote, $nama, $nis, $tanggalLahir, $email, $kelas): Siswa {
             /** @var User $user */
             $user = $this->userRepository->create([
                 'name' => $nama,
@@ -421,7 +649,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
             $user->assignRole(UserRole::SISWA->value);
 
-            $this->siswaRepository->create([
+            /** @var Siswa $siswa */
+            $siswa = $this->siswaRepository->create([
                 'user_id' => $user->id,
                 'class_id' => $kelas->id,
                 'nis' => $nis,
@@ -432,7 +661,13 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 'no_telepon' => $remote['no_telepon'] ?? $remote['hp'] ?? null,
                 'alamat' => $remote['alamat'] ?? null,
             ]);
+
+            return $siswa;
         });
+
+        $this->rememberSiswa($siswa);
+
+        return 'created';
     }
 
     /**
@@ -442,7 +677,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     private function updateStudent(Siswa $siswa, array $remote, ?Kelas $kelas): void
     {
-        $nama = (string) ($remote['nama'] ?? $siswa->nama);
+        $nama = $this->personName($remote, $siswa->nama);
         $nis = (string) $remote['nis'];
         $tanggalLahir = $this->parseTanggalLahir($remote);
         $email = Siswa::generateEmail($nis);
@@ -452,7 +687,17 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 $siswa->restore();
             }
 
-            $user = $siswa->user()->withTrashed()->first();
+            $user = null;
+            if ($this->usersById !== null && $siswa->user_id !== null) {
+                $user = $this->usersById[$siswa->user_id] ?? null;
+            }
+
+            if ($user === null) {
+                $user = $siswa->user()->withTrashed()->first();
+                if ($user !== null && $this->usersById !== null) {
+                    $this->usersById[$user->id] = $user;
+                }
+            }
 
             if ($user === null) {
                 $user = $this->userRepository->create([
@@ -465,7 +710,11 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
                 $user->assignRole(UserRole::SISWA->value);
 
-                $this->siswaRepository->update($siswa, ['user_id' => $user->id]);
+                if ($this->usersById !== null) {
+                    $this->usersById[$user->id] = $user;
+                }
+
+                $siswa->user_id = $user->id;
             } elseif ($user->trashed()) {
                 $user->restore();
             }
@@ -476,12 +725,16 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 );
             }
 
-            $this->userRepository->update($user, [
+            // O(1) update with dirty checking to prevent unnecessary queries
+            $user->forceFill([
                 'name' => $nama,
                 'email' => $email,
             ]);
+            if ($user->isDirty()) {
+                $user->save();
+            }
 
-            $this->siswaRepository->update($siswa, [
+            $siswa->forceFill([
                 'nis' => $nis,
                 'nisn' => $remote['nisn'] ?? $siswa->nisn,
                 'nama' => $nama,
@@ -491,6 +744,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 'alamat' => $remote['alamat'] ?? $siswa->alamat,
                 'class_id' => $kelas?->id ?? $siswa->class_id,
             ]);
+            if ($siswa->isDirty()) {
+                $siswa->save();
+            }
         });
     }
 
@@ -503,10 +759,15 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $nip = (string) $remote['nip'];
 
-        $existing = $this->guruRepository->findByNip($nip);
+        $existing = $this->findGuruByNip($nip);
 
         if ($existing === null) {
-            return 'created';
+            return $this->personName($remote) === '' ? 'error' : 'created';
+        }
+
+        if ($this->hasProtectedUser($existing->user_id)
+            || $this->userEmailBelongsToAnotherAccount($this->teacherEmail($remote, $nip), $existing->user_id)) {
+            return 'conflict';
         }
 
         return $this->teacherUnchanged($existing, $remote) ? 'unchanged' : 'updated';
@@ -521,12 +782,19 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $nip = (string) $remote['nip'];
 
-        $existing = $this->guruRepository->findByNip($nip);
+        $existing = $this->findGuruByNip($nip);
 
         if ($existing === null) {
-            $this->createTeacher($remote);
+            if ($this->personName($remote) === '') {
+                return 'error';
+            }
 
-            return 'created';
+            return $this->createTeacher($remote);
+        }
+
+        if ($this->hasProtectedUser($existing->user_id)
+            || $this->userEmailBelongsToAnotherAccount($this->teacherEmail($remote, $nip), $existing->user_id)) {
+            return 'conflict';
         }
 
         if ($this->teacherUnchanged($existing, $remote)) {
@@ -543,9 +811,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @param  array<string, mixed>  $remote
      */
-    private function createTeacher(array $remote): void
+    private function createTeacher(array $remote): string
     {
-        $nama = (string) ($remote['nama'] ?? $remote['nama_panggilan'] ?? '');
+        $nama = $this->personName($remote);
         $nip = (string) $remote['nip'];
         $email = $this->teacherEmail($remote, $nip);
 
@@ -553,13 +821,20 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         if ($existingByEmail !== null) {
             $existingGuru = Guru::query()->withTrashed()->where('user_id', $existingByEmail->id)->first();
             if ($existingGuru !== null) {
+                if ($this->hasProtectedUser($existingGuru->user_id)) {
+                    return 'conflict';
+                }
+
                 $this->updateTeacher($existingGuru, $remote);
+
+                return 'updated';
             }
 
-            return;
+            return 'conflict';
         }
 
-        $this->transaction(function () use ($remote, $nama, $nip, $email): void {
+        /** @var Guru $guru */
+        $guru = $this->transaction(function () use ($remote, $nama, $nip, $email): Guru {
             /** @var User $user */
             $user = $this->userRepository->create([
                 'name' => $nama,
@@ -571,7 +846,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
             $user->assignRole(UserRole::GURU->value);
 
-            $this->guruRepository->create([
+            /** @var Guru $guru */
+            $guru = $this->guruRepository->create([
                 'user_id' => $user->id,
                 'nip' => $nip,
                 'nama' => $nama,
@@ -579,7 +855,13 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 'no_hp' => $remote['no_hp'] ?? $remote['hp'] ?? null,
                 'alamat' => $remote['alamat'] ?? null,
             ]);
+
+            return $guru;
         });
+
+        $this->rememberGuru($guru);
+
+        return 'created';
     }
 
     /**
@@ -589,7 +871,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     private function updateTeacher(Guru $guru, array $remote): void
     {
-        $nama = (string) ($remote['nama'] ?? $guru->nama);
+        $nama = $this->personName($remote, $guru->nama);
         $nip = (string) $remote['nip'];
         $email = $this->teacherEmail($remote, $nip);
 
@@ -598,7 +880,18 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 $guru->restore();
             }
 
-            $user = $guru->user()->withTrashed()->first();
+            $user = null;
+            if ($this->usersById !== null && $guru->user_id !== null) {
+                $user = $this->usersById[$guru->user_id] ?? null;
+            }
+
+            if ($user === null) {
+                $user = $guru->user()->withTrashed()->first();
+                if ($user !== null && $this->usersById !== null) {
+                    $this->usersById[$user->id] = $user;
+                    $this->usersByEmail[strtolower($user->email)] = $user;
+                }
+            }
 
             if ($user === null) {
                 $user = $this->userRepository->create([
@@ -611,7 +904,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
                 $user->assignRole(UserRole::GURU->value);
 
-                $this->guruRepository->update($guru, ['user_id' => $user->id]);
+                $guru->user_id = $user->id;
             } elseif ($user->trashed()) {
                 $user->restore();
             }
@@ -623,18 +916,24 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 );
             }
 
-            $this->userRepository->update($user, [
+            $user->forceFill([
                 'name' => $nama,
                 'email' => $email,
             ]);
+            if ($user->isDirty()) {
+                $user->save();
+            }
 
-            $this->guruRepository->update($guru, [
+            $guru->forceFill([
                 'nip' => $nip,
                 'nama' => $nama,
                 'jenis_kelamin' => $this->mapJenisKelamin($remote) ?? $guru->jenis_kelamin,
                 'no_hp' => $remote['no_hp'] ?? $remote['hp'] ?? $guru->no_hp,
                 'alamat' => $remote['alamat'] ?? $guru->alamat,
             ]);
+            if ($guru->isDirty()) {
+                $guru->save();
+            }
         });
     }
 
@@ -766,22 +1065,93 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     private function resolveKelas(array $remote): ?Kelas
     {
-        $classroomId = (int) ($remote['classroom_id'] ?? 0);
+        $classroomId = $this->classroomId($remote);
 
         if ($classroomId <= 0) {
             return null;
         }
 
-        $kelasId = $this->classroomMappingService->resolveKelasId($classroomId);
+        $kelasId = $this->kelasIdBySipintuClassroomId !== null
+            ? $this->kelasIdBySipintuClassroomId[$classroomId] ?? null
+            : $this->classroomMappingService->resolveKelasId($classroomId);
 
         if ($kelasId === null) {
             return null;
+        }
+
+        if ($this->kelasById !== null) {
+            return $this->kelasById[$kelasId] ?? null;
         }
 
         /** @var Kelas|null $kelas */
         $kelas = Kelas::query()->find($kelasId);
 
         return $kelas;
+    }
+
+    /**
+     * @param  array<string, mixed>  $remote
+     */
+    private function classroomId(array $remote): int
+    {
+        $value = $remote['classroom_id'] ?? $remote['classroom']['id'] ?? null;
+
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+            return 0;
+        }
+
+        return max(0, (int) $value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $remote
+     */
+    private function personName(array $remote, string $fallback = ''): string
+    {
+        $value = $remote['nama'] ?? $remote['nama_panggilan'] ?? $fallback;
+
+        return is_string($value) ? trim($value) : $fallback;
+    }
+
+    private function hasProtectedUser(?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        $user = $this->usersById[$userId] ?? User::query()->withTrashed()->find($userId);
+
+        return $user instanceof User
+            && ($user->hasRole(UserRole::SUPER_ADMIN->value) || $user->hasRole(UserRole::DUDI->value));
+    }
+
+    private function userEmailBelongsToAnotherAccount(string $email, ?int $userId): bool
+    {
+        $normalizedEmail = strtolower(trim($email));
+        $user = $this->usersByEmail[$normalizedEmail] ?? User::query()
+            ->withTrashed()
+            ->where('email', $normalizedEmail)
+            ->first();
+
+        return $user instanceof User && (int) $user->id !== (int) $userId;
+    }
+
+    private function rememberSiswa(Siswa $siswa): void
+    {
+        if ($this->siswaByNis !== null) {
+            $this->siswaByNis[(string) $siswa->nis] = $siswa;
+        }
+
+        if ($this->siswaByNisn !== null && $siswa->nisn !== null && $siswa->nisn !== '') {
+            $this->siswaByNisn[$siswa->nisn] = $siswa;
+        }
+    }
+
+    private function rememberGuru(Guru $guru): void
+    {
+        if ($this->guruByNip !== null && $guru->nip !== null && $guru->nip !== '') {
+            $this->guruByNip[$guru->nip] = $guru;
+        }
     }
 
     /**
@@ -795,7 +1165,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $missing = 0;
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Siswa> $locals */
+        /** @var Collection<int, Siswa> $locals */
         $locals = Siswa::query()->withoutTrashed()->get(['id', 'nis', 'nisn']);
 
         foreach ($locals as $siswa) {
@@ -817,7 +1187,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $missing = 0;
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Guru> $locals */
+        /** @var Collection<int, Guru> $locals */
         $locals = Guru::query()->withoutTrashed()->get(['id', 'nip']);
 
         foreach ($locals as $guru) {
@@ -890,5 +1260,29 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             'total_remote' => 0,
         ];
     }
-}
 
+    /**
+     * @return array<string, int>
+     */
+    private function emptySyncStats(): array
+    {
+        return [
+            'created' => 0,
+            'updated' => 0,
+            'deleted' => 0,
+            'skipped' => 0,
+            'unchanged' => 0,
+            'conflicts' => 0,
+            'needs_mapping' => 0,
+            'errors' => 0,
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function testConnection(): array
+    {
+        return $this->siPintuRepository->testConnection();
+    }
+}

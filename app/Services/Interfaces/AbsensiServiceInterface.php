@@ -111,4 +111,12 @@ interface AbsensiServiceInterface
      * @param array<string, mixed> $data
      */
     public function validateAbsensi(Absensi $absensi, array $data): Absensi;
+
+    /**
+     * Get Rekap Presensi based on PKL period.
+     * 
+     * @param int $penempatanPklId
+     * @return array<string, mixed>
+     */
+    public function getRekapPresensi(int $penempatanPklId): array;
 }

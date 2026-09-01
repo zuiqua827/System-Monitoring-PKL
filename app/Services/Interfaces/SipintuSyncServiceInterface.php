@@ -21,6 +21,9 @@ interface SipintuSyncServiceInterface
      * @return array{
      *     connection_status: string,
      *     connection_message: string,
+     *     connection_success: bool,
+     *     connection_http_status: int|null,
+     *     connection_error_type: string|null,
      *     last_sync: array<string, mixed>|null,
      *     sipintu_student_count: int,
      *     sipintu_teacher_count: int,
@@ -30,6 +33,13 @@ interface SipintuSyncServiceInterface
      * }
      */
     public function getDashboardData(): array;
+
+    /**
+     * Test the live SiPintu connection without reading cached dashboard data.
+     *
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     */
+    public function testConnection(): array;
 
 /**
      * Run a READ-ONLY preview / dry-run of the sync.

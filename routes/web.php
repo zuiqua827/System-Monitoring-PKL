@@ -104,6 +104,7 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
 // Sinkronisasi SiPintu
     Route::get('/sipintu-sync', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'index'])->name('sipintu-sync.index');
     Route::get('/sipintu-sync/preview', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'preview'])->name('sipintu-sync.preview');
+    Route::post('/sipintu-sync/test-connection', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'testConnection'])->name('sipintu-sync.test-connection');
     Route::post('/sipintu-sync', [\App\Http\Controllers\Admin\SipintuSyncController::class, 'sync'])->name('sipintu-sync.sync');
 
     // Pemetaan Kelas SiPintu
@@ -202,6 +203,10 @@ Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi
     Route::get('/penilaian/{id}/edit', [\App\Http\Controllers\Dudi\PenilaianController::class, 'edit'])->name('penilaian.edit');
     Route::put('/penilaian/{id}', [\App\Http\Controllers\Dudi\PenilaianController::class, 'update'])->name('penilaian.update');
     Route::post('/penilaian/{id}/finalize', [\App\Http\Controllers\Dudi\PenilaianController::class, 'finalize'])->name('penilaian.finalize');
+
+    // Pengaturan Operasional DUDI
+    Route::get('/pengaturan-operasional', [\App\Http\Controllers\Dudi\OperasionalController::class, 'edit'])->name('operasional.edit');
+    Route::put('/pengaturan-operasional', [\App\Http\Controllers\Dudi\OperasionalController::class, 'update'])->name('operasional.update');
 
     // Pusat Laporan
     Route::get('/laporan', [\App\Http\Controllers\Dudi\Laporan\LaporanController::class, 'index'])->name('laporan.index');

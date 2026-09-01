@@ -60,7 +60,7 @@ $adminSections = [
             'label' => 'MENU UTAMA',
             'items' => [
                 ['label' => 'Dashboard', 'route' => 'siswa.dashboard', 'active' => ['siswa.dashboard'], 'icon' => 'dashboard'],
-                ['label' => 'Absensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
+                ['label' => 'Presensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
                 ['label' => 'Ketidakhadiran', 'route' => 'siswa.ketidakhadiran.index', 'active' => ['siswa.ketidakhadiran.*'], 'icon' => 'calendar'],
                 ['label' => 'Aktivitas', 'route' => 'siswa.aktivitas.index', 'active' => ['siswa.aktivitas.*'], 'icon' => 'activity'],
 ['label' => 'Penilaian', 'route' => 'siswa.penilaian.index', 'active' => ['siswa.penilaian.*'], 'icon' => 'grade'],
@@ -79,6 +79,12 @@ $adminSections = [
                 ['label' => 'Ketidakhadiran', 'route' => 'dudi.ketidakhadiran.index', 'active' => ['dudi.ketidakhadiran.*'], 'icon' => 'calendar'],
                 ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
 ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
+            ],
+        ],
+        [
+            'label' => 'PENGATURAN',
+            'items' => [
+                ['label' => 'Pengaturan Operasional', 'route' => 'dudi.operasional.edit', 'active' => ['dudi.operasional.*'], 'icon' => 'classes'],
                 ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
             ],
         ],

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 
 /**
  * @property int $id
@@ -32,6 +33,9 @@ use Illuminate\Support\Carbon;
  * @property string $jam_masuk
  * @property string $jam_pulang
  * @property int $toleransi_keterlambatan
+ * @property string|null $batas_terlambat
+ * @property string|null $batas_sangat_terlambat
+ * @property array|null $hari_operasional
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -44,6 +48,26 @@ class Dudi extends Model
     use HasFactory, SoftDeletes;
 
     protected $table = 'dudi';
+
+    /**
+     * Default operational days (Mon-Fri) used when hari_operasional is null.
+     */
+    public const DEFAULT_HARI_OPERASIONAL = [
+        'senin', 'selasa', 'rabu', 'kamis', 'jumat',
+    ];
+
+    /**
+     * Mapping from Indonesian day names to Carbon day-of-week constants.
+     */
+    public const HARI_MAP = [
+        'senin'  => Carbon::MONDAY,
+        'selasa' => Carbon::TUESDAY,
+        'rabu'   => Carbon::WEDNESDAY,
+        'kamis'  => Carbon::THURSDAY,
+        'jumat'  => Carbon::FRIDAY,
+        'sabtu'  => Carbon::SATURDAY,
+        'minggu' => Carbon::SUNDAY,
+    ];
 
     /**
      * @var list<string>
@@ -67,6 +91,9 @@ class Dudi extends Model
         'jam_masuk',
         'jam_pulang',
         'toleransi_keterlambatan',
+        'batas_terlambat',
+        'batas_sangat_terlambat',
+        'hari_operasional',
     ];
 
     /**
@@ -87,8 +114,68 @@ class Dudi extends Model
             'jam_masuk' => 'datetime:H:i:s',
             'jam_pulang' => 'datetime:H:i:s',
             'toleransi_keterlambatan' => 'integer',
+            'batas_terlambat' => 'datetime:H:i:s',
+            'batas_sangat_terlambat' => 'datetime:H:i:s',
+            'hari_operasional' => 'array',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Get the effective operational days, falling back to Mon-Fri.
+     *
+     * @return list<string>
+     */
+    public function getEffectiveHariOperasional(): array
+    {
+        $hari = $this->hari_operasional;
+
+        if (empty($hari) || !is_array($hari)) {
+            return self::DEFAULT_HARI_OPERASIONAL;
+        }
+
+        return $hari;
+    }
+
+    /**
+     * Check if a given Carbon date falls on an operational day for this DUDI.
+     */
+    public function isHariOperasional(CarbonInterface $date): bool
+    {
+        $activeDays = $this->getEffectiveHariOperasional();
+        $dayOfWeek = $date->dayOfWeek;
+
+        foreach ($activeDays as $hari) {
+            if (isset(self::HARI_MAP[$hari]) && self::HARI_MAP[$hari] === $dayOfWeek) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get effective batas_terlambat time string (H:i:s), with fallback.
+     */
+    public function getEffectiveBatasTerlambat(): string
+    {
+        $val = $this->batas_terlambat;
+        if ($val instanceof \DateTimeInterface) {
+            return $val->format('H:i:s');
+        }
+        return $val ? (string) $val : '08:15:00';
+    }
+
+    /**
+     * Get effective batas_sangat_terlambat time string (H:i:s), with fallback.
+     */
+    public function getEffectiveBatasSangatTerlambat(): string
+    {
+        $val = $this->batas_sangat_terlambat;
+        if ($val instanceof \DateTimeInterface) {
+            return $val->format('H:i:s');
+        }
+        return $val ? (string) $val : '09:00:00';
     }
 
     /** @return BelongsTo<User, $this> */

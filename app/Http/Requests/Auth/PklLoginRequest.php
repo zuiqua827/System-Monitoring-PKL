@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Requests\Auth;
 
 use App\Enums\UserRole;
-use App\Models\Siswa;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -20,9 +19,7 @@ use Illuminate\Validation\ValidationException;
  *
  * This is the shared entry point for Siswa, Guru, and DUDI on the /login page.
  * The role is determined by the selected tab:
- *  - "siswa": NIS + password. The initial password is the student's
- *    tanggal_lahir. After the student changes their password, the new
- *    password is used instead.
+ *  - "siswa": email sekolah ([NIS]@smkn1bangsri.sch.id) + password
  *  - "guru":  email + password
  *  - "dudi":  email + password
  *
@@ -50,17 +47,27 @@ class PklLoginRequest extends FormRequest
 
         $rules = [
             'role' => ['required', 'string', 'in:siswa,guru,dudi'],
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
         ];
 
         if ($role === 'siswa') {
-            $rules['nis'] = ['required', 'string'];
-        } else {
-            $rules['email'] = ['required', 'string', 'email'];
+            $rules['email'][] = 'regex:/^[0-9]+@smkn1bangsri\.sch\.id$/';
         }
 
-        $rules['password'] = ['required', 'string'];
-
         return $rules;
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.regex' => 'Format email siswa harus menggunakan NIS (contoh: 1234@smkn1bangsri.sch.id).',
+        ];
     }
 
     /**
@@ -84,38 +91,36 @@ class PklLoginRequest extends FormRequest
     }
 
     /**
-     * Authenticate a Siswa using NIS + password.
+     * Authenticate a Siswa using email sekolah + password.
      *
      * @throws ValidationException
      */
     private function authenticateSiswa(): void
     {
-        $nis = (string) $this->input('nis');
+        $email = (string) $this->input('email');
         $password = (string) $this->input('password');
 
-        /** @var Siswa|null $siswa */
-        $siswa = Siswa::query()
-            ->where('nis', $nis)
-            ->with('user')
+        /** @var User|null $user */
+        $user = User::query()
+            ->where('email', $email)
+            ->with('siswa')
             ->first();
 
-        if ($siswa === null || $siswa->user === null) {
-            $this->throwFailedLogin('nis');
+        if ($user === null || $user->siswa === null) {
+            $this->throwFailedLogin('email');
         }
 
-        $user = $siswa->user;
-
         if (! $user->hasRole(UserRole::SISWA->value)) {
-            $this->throwCrossRole('nis');
+            $this->throwCrossRole('email');
         }
 
         $authenticated = Auth::attempt(
-            ['email' => $user->email, 'password' => $password],
+            ['email' => $email, 'password' => $password],
             $this->boolean('remember'),
         );
 
         if (! $authenticated) {
-            $this->throwFailedLogin('nis');
+            $this->throwFailedLogin('email');
         }
 
         RateLimiter::clear($this->throttleKey());
@@ -212,7 +217,7 @@ class PklLoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        $identifier = (string) ($this->input('nis') ?? $this->input('email'));
+        $identifier = (string) $this->input('email');
 
         return Str::transliterate(Str::lower($identifier).'|'.$this->ip());
     }

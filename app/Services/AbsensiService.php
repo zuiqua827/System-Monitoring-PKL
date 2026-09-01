@@ -10,11 +10,12 @@ use App\Models\PenempatanPKL;
 use App\Repositories\Interfaces\AbsensiRepositoryInterface;
 use App\Services\Interfaces\AbsensiServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -33,6 +34,12 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      * Maximum allowed radius in meters (100m as per requirement).
      */
     private const MAX_RADIUS_METERS = 100;
+
+    /**
+     * Stored in the existing keterangan field because the attendance status
+     * column cannot be changed without a database migration.
+     */
+    private const SANGAT_TERLAMBAT = 'Sangat Terlambat';
 
 
     public function __construct(
@@ -78,7 +85,7 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         /** @var Absensi $absensi */
         $absensi = $this->transaction(function () use ($data): Model {
             if (!isset($data['tanggal'])) {
-                $data['tanggal'] = now()->toDateString();
+                $data['tanggal'] = Carbon::today(config('app.timezone'))->toDateString();
             }
 
 // Handle base64 photo if present
@@ -193,13 +200,18 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      * Business logic:
      * - Check only one check-in per day
      * - Validate GPS radius (max 100m from DUDI)
-     * - Auto-determine status: Hadir or Terlambat
+     * - Auto-determine status from DUDI's scheduled start time and tolerance
      * - Handle base64 camera photo
      */
     public function checkIn(int $penempatanPklId, array $data): Absensi
     {
+        $waktuPresensi = Carbon::now(config('app.timezone'));
+
         // Check if already checked in today
-        $existing = $this->absensiRepository->findTodayByPenempatan($penempatanPklId);
+        $existing = $this->absensiRepository->findByPenempatanAndTanggal(
+            $penempatanPklId,
+            $waktuPresensi->toDateString(),
+        );
 
         if ($existing !== null) {
             throw new \RuntimeException('Anda sudah melakukan Check In hari ini.');
@@ -208,58 +220,72 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         // Validate GPS radius against DUDI location
         $this->validateGpsRadius($penempatanPklId, $data);
 
-        // Get penempatan and dudi settings
+        // Get penempatan and DUDI's configured schedule.
         /** @var PenempatanPKL $penempatan */
         $penempatan = PenempatanPKL::with('dudi')->find($penempatanPklId);
-        $dudiJamMasuk = $penempatan?->dudi?->jam_masuk ?? '07:00:00';
-        $toleransiMinutes = $penempatan?->dudi?->toleransi_keterlambatan ?? 15;
+        if ($penempatan === null || $penempatan->dudi === null) {
+            throw new \RuntimeException('Jadwal masuk DUDI tidak ditemukan.');
+        }
 
-        /** @var Absensi $absensi */
-        $absensi = $this->transaction(function () use ($penempatanPklId, $data, $dudiJamMasuk, $toleransiMinutes): Model {
-            $tanggal = now()->toDateString();
-            $jamMasuk = $data['jam_masuk'] ?? now()->format('H:i:s');
+        $dudi = $penempatan->dudi;
+        
+        [$status, $keterangan] = $this->determineCheckInStatus(
+            $waktuPresensi,
+            $dudi->jam_masuk,
+            $dudi->getEffectiveBatasTerlambat(),
+            $dudi->getEffectiveBatasSangatTerlambat(),
+        );
 
-            // Auto-determine status based on time
-            $status = AbsensiStatus::HADIR->value;
-            
-            // Calculate batas jam masuk = jam masuk DUDI + toleransi
-            if ($dudiJamMasuk instanceof \DateTimeInterface) {
-                $batasJam = \Carbon\Carbon::instance($dudiJamMasuk)->addMinutes($toleransiMinutes);
-            } else {
-                $batasJam = \Carbon\Carbon::createFromTimeString((string) $dudiJamMasuk)->addMinutes($toleransiMinutes);
-            }
+        $fotoPath = null;
 
-            if ($jamMasuk instanceof \DateTimeInterface) {
-                $jamMasukCarbon = \Carbon\Carbon::instance($jamMasuk);
-            } else {
-                $jamMasukCarbon = \Carbon\Carbon::createFromTimeString((string) $jamMasuk);
-            }
+        try {
+            /** @var Absensi $absensi */
+            $absensi = $this->transaction(function () use (
+                $penempatanPklId,
+                $data,
+                $waktuPresensi,
+                $status,
+                $keterangan,
+                &$fotoPath,
+            ): Model {
+                // Recheck immediately before saving to give a clear response
+                // during normal repeated submissions.
+                if ($this->absensiRepository->findByPenempatanAndTanggal(
+                    $penempatanPklId,
+                    $waktuPresensi->toDateString(),
+                ) !== null) {
+                    throw new \RuntimeException('Anda sudah melakukan Check In hari ini.');
+                }
 
-            if ($jamMasukCarbon !== false && $jamMasukCarbon->gt($batasJam)) {
-                $status = AbsensiStatus::TERLAMBAT->value;
-            }
+                // Store the photo only after all validation has passed. If the
+                // database transaction fails, the catch block removes it again.
+                $fotoPath = $this->storePresensiPhoto($data, 'foto_masuk', 'absensi/foto_masuk');
 
-            // Handle base64 photo from camera
-            $fotoPath = null;
-            if (!empty($data['foto_base64'])) {
-                $fotoPath = $this->saveBase64Photo($data['foto_base64'], 'absensi/foto_masuk');
-            } elseif (!empty($data['foto_masuk']) && is_string($data['foto_masuk'])) {
-                $fotoPath = $data['foto_masuk'];
-            }
+                return $this->absensiRepository->create([
+                    'penempatan_pkl_id' => $penempatanPklId,
+                    'tanggal' => $waktuPresensi->toDateString(),
+                    'jam_masuk' => $waktuPresensi->format('H:i:s'),
+                    'status' => $status,
+                    'keterangan' => $keterangan,
+                    'lokasi_masuk' => $data['lokasi_masuk'] ?? null,
+                    'foto_masuk' => $fotoPath,
+                    'latitude_masuk' => $data['latitude'] ?? null,
+                    'longitude_masuk' => $data['longitude'] ?? null,
+                    'accuracy' => $data['accuracy'] ?? null,
+                    'device' => $data['device'] ?? request()->userAgent(),
+                ]);
+            });
+        } catch (QueryException $e) {
+            $this->deletePhoto($fotoPath);
 
-            return $this->absensiRepository->create([
-                'penempatan_pkl_id' => $penempatanPklId,
-                'tanggal' => $tanggal,
-                'jam_masuk' => $jamMasuk,
-                'status' => $status,
-                'lokasi_masuk' => $data['lokasi_masuk'] ?? null,
-                'foto_masuk' => $fotoPath,
-                'latitude_masuk' => $data['latitude'] ?? null,
-                'longitude_masuk' => $data['longitude'] ?? null,
-                'accuracy' => $data['accuracy'] ?? null,
-                'device' => $data['device'] ?? request()->userAgent(),
-            ]);
-        });
+            // The unique index on (penempatan_pkl_id, tanggal) is the final
+            // protection against simultaneous duplicate Check In submissions.
+            throw new \RuntimeException('Anda sudah melakukan Check In hari ini.', previous: $e);
+        } catch (\Throwable $e) {
+            $this->deletePhoto($fotoPath);
+
+            throw $e;
+        }
 
         return $absensi;
     }
@@ -274,35 +300,39 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      */
     public function checkOut(int $penempatanPklId, array $data): Absensi
     {
-        $todayAbsensi = $this->absensiRepository->findTodayByPenempatan($penempatanPklId);
+        $fotoPath = null;
 
-        if ($todayAbsensi === null) {
-            throw new \RuntimeException('Anda belum melakukan Check In hari ini.');
+        try {
+            /** @var Absensi $updated */
+            $updated = $this->transaction(function () use ($penempatanPklId, $data, &$fotoPath): Model {
+                // Locking makes two concurrent Check Out attempts run one at a
+                // time, so the second attempt receives the correct message.
+                $todayAbsensi = $this->absensiRepository->lockTodayByPenempatan($penempatanPklId);
+
+                if ($todayAbsensi === null) {
+                    throw new \RuntimeException('Silakan lakukan Check In terlebih dahulu.');
+                }
+
+                if ($todayAbsensi->jam_keluar !== null) {
+                    throw new \RuntimeException('Anda sudah melakukan Check Out hari ini.');
+                }
+
+                $fotoPath = $this->storePresensiPhoto($data, 'foto_pulang', 'absensi/foto_pulang');
+
+                return $this->absensiRepository->update($todayAbsensi, [
+                    'jam_keluar' => Carbon::now(config('app.timezone'))->format('H:i:s'),
+                    'lokasi_pulang' => $data['lokasi_pulang'] ?? null,
+                    'foto_pulang' => $fotoPath,
+                    'latitude_keluar' => $data['latitude'] ?? null,
+                    'longitude_keluar' => $data['longitude'] ?? null,
+                    'accuracy' => $data['accuracy'] ?? $todayAbsensi->accuracy,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            $this->deletePhoto($fotoPath);
+
+            throw $e;
         }
-
-        if ($todayAbsensi->jam_keluar !== null) {
-            throw new \RuntimeException('Anda sudah melakukan Check Out hari ini.');
-        }
-
-        /** @var Absensi $updated */
-        $updated = $this->transaction(function () use ($todayAbsensi, $data): Model {
-            $updateData = [
-                'jam_keluar' => $data['jam_keluar'] ?? now()->format('H:i:s'),
-                'lokasi_pulang' => $data['lokasi_pulang'] ?? null,
-                'latitude_keluar' => $data['latitude'] ?? null,
-                'longitude_keluar' => $data['longitude'] ?? null,
-                'accuracy' => $data['accuracy'] ?? $todayAbsensi->accuracy,
-            ];
-
-            // Handle base64 photo from camera
-            if (!empty($data['foto_base64'])) {
-                $updateData['foto_pulang'] = $this->saveBase64Photo($data['foto_base64'], 'absensi/foto_pulang');
-            } elseif (!empty($data['foto_pulang']) && is_string($data['foto_pulang'])) {
-                $updateData['foto_pulang'] = $data['foto_pulang'];
-            }
-
-            return $this->absensiRepository->update($todayAbsensi, $updateData);
-        });
 
         return $updated;
     }
@@ -390,7 +420,14 @@ class AbsensiService extends Service implements AbsensiServiceInterface
     private function validateGpsRadius(int $penempatanPklId, array $data): void
     {
         // If no GPS data provided, skip validation (allow Check In)
-        if (empty($data['latitude']) || empty($data['longitude'])) {
+        if (
+            !array_key_exists('latitude', $data) ||
+            !array_key_exists('longitude', $data) ||
+            $data['latitude'] === null ||
+            $data['longitude'] === null ||
+            $data['latitude'] === '' ||
+            $data['longitude'] === ''
+        ) {
             return;
         }
 
@@ -452,6 +489,68 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         return $earthRadius * $c;
     }
 
+    private function determineCheckInStatus(CarbonInterface $waktuPresensi, mixed $jamMasukDudi, string $batasTerlambatStr, string $batasSangatTerlambatStr): array
+    {
+        $timezone = config('app.timezone');
+        $jamMasuk = $jamMasukDudi instanceof \DateTimeInterface
+            ? $jamMasukDudi->format('H:i:s')
+            : Carbon::parse((string) $jamMasukDudi, $timezone)->format('H:i:s');
+
+        // On time is <= batas terlambat
+        $batasTerlambat = Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $waktuPresensi->toDateString() . ' ' . $batasTerlambatStr,
+            $timezone,
+        );
+        
+        $batasSangatTerlambat = Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $waktuPresensi->toDateString() . ' ' . $batasSangatTerlambatStr,
+            $timezone,
+        );
+
+        if ($waktuPresensi->lte($batasTerlambat)) {
+            return [AbsensiStatus::HADIR->value, null];
+        }
+
+        if ($waktuPresensi->lte($batasSangatTerlambat)) {
+            return [AbsensiStatus::TERLAMBAT->value, null];
+        }
+
+        return [AbsensiStatus::TERLAMBAT->value, self::SANGAT_TERLAMBAT];
+    }
+
+    /**
+     * Store a camera or fallback-upload photo only after attendance validation.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function storePresensiPhoto(array $data, string $fileField, string $directory): ?string
+    {
+        if (!empty($data['foto_base64']) && is_string($data['foto_base64'])) {
+            return $this->saveBase64Photo($data['foto_base64'], $directory);
+        }
+
+        $file = $data[$fileField] ?? null;
+        if (!$file instanceof UploadedFile) {
+            return null;
+        }
+
+        $path = $file->store($directory, 'public');
+        if ($path === false) {
+            throw new \RuntimeException('Gagal menyimpan foto Presensi.');
+        }
+
+        return $path;
+    }
+
+    private function deletePhoto(?string $path): void
+    {
+        if ($path !== null) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
     /**
      * Save a base64 encoded photo to storage.
      *
@@ -466,17 +565,117 @@ class AbsensiService extends Service implements AbsensiServiceInterface
             $base64Data = substr($base64Data, strpos($base64Data, 'base64,') + 7);
         }
 
-        $imageData = base64_decode($base64Data);
+        $imageData = base64_decode($base64Data, true);
 
-        if ($imageData === false) {
+        if ($imageData === false || @getimagesizefromstring($imageData) === false) {
             throw new \RuntimeException('Gagal mendekode foto.');
         }
 
         $filename = uniqid('absensi_', true) . '.jpg';
         $filePath = $path . '/' . $filename;
 
-        Storage::disk('public')->put($filePath, $imageData);
+        if (!Storage::disk('public')->put($filePath, $imageData)) {
+            throw new \RuntimeException('Gagal menyimpan foto Presensi.');
+        }
 
         return $filePath;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRekapPresensi(int $penempatanPklId): array
+    {
+        $penempatan = \App\Models\PenempatanPKL::find($penempatanPklId);
+        $emptyRekap = [
+            'total_hari' => 0,
+            'hari_berjalan' => 0,
+            'hadir' => [],
+            'terlambat' => [],
+            'sangat_terlambat' => [],
+            'izin' => [],
+            'sakit' => [],
+            'alpha' => [],
+            'bolos' => [],
+        ];
+
+        if (!$penempatan) {
+            return $emptyRekap;
+        }
+
+        $tanggalMulai = $penempatan->tanggal_mulai;
+        $tanggalSelesai = $penempatan->tanggal_selesai;
+
+        if (!$tanggalMulai || !$tanggalSelesai || $tanggalMulai->gt($tanggalSelesai)) {
+            return $emptyRekap;
+        }
+
+        $timezone = config('app.timezone');
+        $today = Carbon::today($timezone);
+        $endCalculationDate = $today->lt($tanggalSelesai) ? clone $today : clone $tanggalSelesai;
+        $startCalculationDate = clone $tanggalMulai;
+
+        $dudi = $penempatan->dudi;
+        
+        $expectedDays = [];
+        while ($startCalculationDate->lte($endCalculationDate)) {
+            if ($dudi && $dudi->isHariOperasional($startCalculationDate)) {
+                $expectedDays[] = $startCalculationDate->format('Y-m-d');
+            } elseif (!$dudi && $startCalculationDate->isWeekday()) {
+                $expectedDays[] = $startCalculationDate->format('Y-m-d');
+            }
+            $startCalculationDate = $startCalculationDate->addDay();
+        }
+
+        $absensis = \App\Models\Absensi::where('penempatan_pkl_id', $penempatanPklId)
+            ->get()
+            ->keyBy(function($item) {
+                return $item->tanggal->format('Y-m-d');
+            });
+
+        $rekap = $emptyRekap;
+
+        // Total hari PKL should be from tanggal_mulai to tanggal_selesai
+        $totalStart = clone $tanggalMulai;
+        $totalEnd = clone $tanggalSelesai;
+        $totalExpectedDays = 0;
+        while ($totalStart->lte($totalEnd)) {
+            if ($dudi && $dudi->isHariOperasional($totalStart)) {
+                $totalExpectedDays++;
+            } elseif (!$dudi && $totalStart->isWeekday()) {
+                $totalExpectedDays++;
+            }
+            $totalStart = $totalStart->addDay();
+        }
+        $rekap['total_hari'] = $totalExpectedDays;
+        $rekap['hari_berjalan'] = count($expectedDays);
+
+        foreach ($absensis as $date => $ab) {
+            if ($ab->status === \App\Enums\AbsensiStatus::HADIR->value) {
+                $rekap['hadir'][] = $ab;
+            } elseif ($ab->status === \App\Enums\AbsensiStatus::TERLAMBAT->value) {
+                if ($ab->keterangan === self::SANGAT_TERLAMBAT) {
+                    $rekap['sangat_terlambat'][] = $ab;
+                } else {
+                    $rekap['terlambat'][] = $ab;
+                }
+            } elseif ($ab->status === \App\Enums\AbsensiStatus::IZIN->value) {
+                $rekap['izin'][] = $ab;
+            } elseif ($ab->status === \App\Enums\AbsensiStatus::SAKIT->value) {
+                $rekap['sakit'][] = $ab;
+            } elseif ($ab->status === \App\Enums\AbsensiStatus::ALPHA->value) {
+                $rekap['alpha'][] = $ab;
+            }
+        }
+
+        foreach ($expectedDays as $date) {
+            if (!$absensis->has($date)) {
+                if (Carbon::parse($date, $timezone)->lt($today)) {
+                    $rekap['bolos'][] = $date;
+                }
+            }
+        }
+
+        return $rekap;
     }
 }

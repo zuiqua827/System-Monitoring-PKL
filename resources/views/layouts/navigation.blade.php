@@ -62,7 +62,7 @@
                 'label' => 'Utama',
                 'items' => [
                     ['label' => 'Dashboard', 'route' => 'siswa.dashboard', 'active' => ['siswa.dashboard'], 'icon' => 'dashboard'],
-                    ['label' => 'Absensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Presensi', 'route' => 'siswa.absensi.index', 'active' => ['siswa.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Ketidakhadiran', 'route' => 'siswa.ketidakhadiran.index', 'active' => ['siswa.ketidakhadiran.*'], 'icon' => 'calendar'],
                     ['label' => 'Aktivitas', 'route' => 'siswa.aktivitas.index', 'active' => ['siswa.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'siswa.penilaian.index', 'active' => ['siswa.penilaian.*'], 'icon' => 'grade'],
@@ -82,6 +82,12 @@
                     ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Penilaian', 'route' => 'dudi.penilaian.index', 'active' => ['dudi.penilaian.*'], 'icon' => 'grade'],
                     ['label' => 'Laporan PKL', 'route' => 'dudi.laporan.index', 'active' => ['dudi.laporan.*'], 'icon' => 'report'],
+                ],
+            ],
+            [
+                'label' => 'Pengaturan',
+                'items' => [
+                    ['label' => 'Pengaturan Operasional', 'route' => 'dudi.operasional.edit', 'active' => ['dudi.operasional.*'], 'icon' => 'classes'],
                     ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
                 ],
             ],
@@ -102,8 +108,7 @@
         };
     @endphp
 
-    <div x-data="{ sidebarOpen: false, profileOpen: false }" @keydown.escape.window="sidebarOpen = false">
-        {{-- Mobile overlay --}}
+    {{-- Mobile overlay --}}
         <div
             x-show="sidebarOpen"
             x-transition.opacity
@@ -233,7 +238,7 @@
         </aside>
 
         {{-- Header --}}
-        <header class="fixed inset-x-0 top-0 z-30 flex h-[72px] items-center gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-lg lg:left-[280px] sm:px-6">
+        <header class="sticky top-0 z-30 flex w-full shrink-0 h-[72px] items-center gap-4 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-lg sm:px-6">
             <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 lg:hidden" @click="sidebarOpen = true">
                 <span class="sr-only">Buka menu</span>
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -296,5 +301,4 @@
                 </div>
             </div>
 </header>
-    </div>
 @endauth

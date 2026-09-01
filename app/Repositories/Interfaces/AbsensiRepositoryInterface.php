@@ -42,6 +42,11 @@ interface AbsensiRepositoryInterface extends BaseRepositoryInterface
     public function findTodayByPenempatan(int $penempatanPklId): ?Absensi;
 
     /**
+     * Find and lock today's attendance row for a check-out transaction.
+     */
+    public function lockTodayByPenempatan(int $penempatanPklId): ?Absensi;
+
+    /**
      * Find absensi for a given penempatan and specific date.
      */
     public function findByPenempatanAndTanggal(int $penempatanPklId, string|\DateTimeInterface $tanggal): ?Absensi;

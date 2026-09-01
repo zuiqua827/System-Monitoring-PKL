@@ -23,6 +23,12 @@
 
         {{-- Sync / Preview Buttons --}}
             <div class="flex flex-col gap-3 sm:flex-row">
+                <form method="POST" action="{{ route('admin.sipintu-sync.test-connection') }}">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        Test Connection
+                    </button>
+                </form>
                 <a href="{{ route('admin.sipintu-sync.preview') }}"
                    class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

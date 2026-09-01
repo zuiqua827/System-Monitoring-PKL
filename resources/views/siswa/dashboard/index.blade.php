@@ -15,7 +15,7 @@
             {{-- Status Cards --}}
             <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                    <div class="flex flex-col sm:flex-row items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Status Check In</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight {{ $sudahCheckIn ? 'text-emerald-600' : 'text-amber-600' }}">{{ $sudahCheckIn ? 'Sudah' : 'Belum' }}</p>
@@ -34,9 +34,9 @@
                 </article>
 
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                    <div class="flex flex-col sm:flex-row items-start gap-4">
                         <div>
-                            <p class="text-sm font-semibold text-slate-500">Total Absensi</p>
+                            <p class="text-sm font-semibold text-slate-500">Total Presensi</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['total_absensi'] ?? 0 }}</p>
                         </div>
                         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -49,7 +49,7 @@
                 </article>
 
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                    <div class="flex flex-col sm:flex-row items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Total Aktivitas</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['total_aktivitas'] ?? 0 }}</p>
@@ -64,7 +64,7 @@
                 </article>
 
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                    <div class="flex flex-col sm:flex-row items-start gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">Kehadiran</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight {{ ($stats['kehadiran_persen'] ?? 0) >= 75 ? 'text-emerald-600' : 'text-red-600' }}">{{ $stats['kehadiran_persen'] ?? 0 }}%</p>
@@ -86,7 +86,7 @@
                     <p class="mt-1 text-sm text-slate-500">Perkembangan PKL Anda</p>
                     @if(isset($stats['progress_persen']))
                         <div class="mt-6">
-                            <div class="flex flex-col sm:flex-row gap-4 sm: sm: mb-2">
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-2">
                                 <span class="text-sm font-semibold text-slate-700">Progress</span>
                                 <span class="text-sm font-bold text-slate-900">{{ $stats['progress_persen'] }}%</span>
                             </div>
@@ -132,8 +132,8 @@
             <article class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
                 <h3 class="text-base font-bold text-slate-900">Nilai PKL</h3>
                 <p class="mt-1 text-sm text-slate-500">Nilai akhir PKL Anda</p>
-                <div class="mt-6 flex items-center gap-6">
-                    <div class="flex h-24 w-24 items-center justify-center rounded-2xl bg-blue-50">
+                <div class="mt-6 flex flex-wrap sm:flex-nowrap items-center gap-6">
+                    <div class="inline-flex h-24 min-w-[6rem] px-6 items-center justify-center whitespace-nowrap rounded-2xl bg-blue-50">
                         <span class="text-4xl font-extrabold text-blue-600">{{ $stats['nilai_akhir'] }}</span>
                     </div>
                     <div>

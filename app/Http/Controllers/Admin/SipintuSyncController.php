@@ -97,6 +97,23 @@ class SipintuSyncController extends Controller
     }
 
     /**
+     * Run a live connection test without starting a synchronization.
+     */
+    public function testConnection(): RedirectResponse
+    {
+        $result = $this->syncService->testConnection();
+        $message = $result['message'];
+
+        if ($result['http_status'] !== null) {
+            $message .= ' (HTTP '.$result['http_status'].').';
+        }
+
+        return redirect()
+            ->route('admin.sipintu-sync.index')
+            ->with($result['success'] ? 'success' : 'error', $message);
+    }
+
+    /**
      * Trigger a manual synchronization.
      */
     public function sync(Request $request): RedirectResponse

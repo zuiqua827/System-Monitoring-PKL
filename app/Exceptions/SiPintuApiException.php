@@ -24,9 +24,9 @@ class SiPintuApiException extends RuntimeException
         return new self('Permintaan ke SiPintu melebihi batas waktu. Silakan coba lagi.');
     }
 
-    public static function invalidCredentials(): self
+    public static function invalidCredentials(?string $message = null): self
     {
-        return new self('Kredensial SiPintu tidak valid. Periksa konfigurasi aplikasi.');
+        return new self($message ?? 'Kredensial SiPintu tidak valid. Periksa konfigurasi aplikasi.');
     }
 
     public static function apiError(string $message): self

@@ -13,7 +13,7 @@
 
 @extends('layouts.app')
 
-@section('title', 'Absensi Saya')
+@section('title', 'Presensi Saya')
 
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
@@ -30,7 +30,7 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Siswa</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Absensi Saya</h1>
+                <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Presensi Saya</h1>
                 <p class="mt-2 text-sm text-slate-500">Lakukan check-in dan check-out harian Anda</p>
             </div>
         </div>
@@ -78,19 +78,39 @@
                                         'sakit' => 'bg-orange-100 text-orange-800',
                                         'alpha' => 'bg-red-100 text-red-800',
                                     ];
+                                    $statusLabel = $todayAbsensi->status === 'terlambat' && $todayAbsensi->keterangan === 'Sangat Terlambat'
+                                        ? 'Sangat Terlambat'
+                                        : $sEnum?->label();
+                                    $statusColor = $statusLabel === 'Sangat Terlambat'
+                                        ? 'bg-red-100 text-red-800'
+                                        : ($sColors[$todayAbsensi->status] ?? 'bg-slate-100 text-slate-800');
                                 @endphp
                                 @if($sEnum)
-                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold {{ $sColors[$todayAbsensi->status] ?? 'bg-slate-100 text-slate-800' }}">
-                                        {{ $sEnum->label() }}
+                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold {{ $statusColor }}">
+                                        {{ $statusLabel }}
                                     </span>
                                 @endif
                             @endif
                         </div>
                     </div>
 
-                    {{-- Camera Section --}}
+                    {{-- Pilih jenis Presensi sebelum membuka kamera --}}
                     @if($todayAbsensi === null || ($sudahCheckIn && !$sudahCheckOut))
                         <div class="mt-6 border-t border-slate-100 pt-6">
+                            <div id="presensi-type-selection" class="rounded-2xl bg-slate-50 p-5">
+                                <h4 class="text-sm font-bold text-slate-700">Pilih Jenis Presensi</h4>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <button type="button" id="select-checkin" class="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50" @disabled($sudahCheckIn)>Check In</button>
+                                    <button type="button" id="select-checkout" class="inline-flex items-center rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50" @disabled(!$sudahCheckIn || $sudahCheckOut)>Check Out</button>
+                                </div>
+                                @if(!$sudahCheckIn)
+                                    <p class="mt-3 text-xs text-slate-500">Silakan lakukan Check In terlebih dahulu sebelum Check Out.</p>
+                                @else
+                                    <p class="mt-3 text-xs text-slate-500">Anda sudah melakukan Check In hari ini. Pilih Check Out untuk melanjutkan.</p>
+                                @endif
+                            </div>
+
+                            <div id="camera-workspace" class="mt-6" style="display: none;">
                             <div class="grid grid-cols-1 gap-6 lg:grid-cols-1 sm:grid-cols-2">
                                 {{-- Left: Camera Preview --}}
                                 <div>
@@ -99,7 +119,7 @@
                                         <canvas id="camera-canvas" class="w-full" style="display: none;"></canvas>
                                         <img id="photo-preview" class="h-full w-full object-cover" style="display: none;" alt="Preview Foto">
 
-                                        <div id="camera-placeholder" class="flex h-64 items-center justify-center">
+                                        <div id="camera-placeholder" class="flex h-64 items-center justify-center" style="display: none;">
                                             <div class="text-center text-gray-400">
                                                 <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
@@ -125,20 +145,21 @@
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                             Konfirmasi & {{ $todayAbsensi === null ? 'Check In' : 'Check Out' }}
                                         </button>
+                                        <button type="button" id="btn-cancel-camera" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Batal</button>
                                     </div>
                                 </div>
 
                                 {{-- Right: GPS Status & Info --}}
-                                <div>
+                                <div id="camera-fallback-container" style="display: none;">
                                     <div class="space-y-3 rounded-2xl bg-slate-50 p-5">
-                                        <h4 class="text-sm font-bold text-slate-700">Informasi Lokasi</h4>
+                                        <h4 class="text-sm font-bold text-slate-700" style="display: none;">Informasi Lokasi</h4>
 
-                                        <div class="flex items-center gap-2 text-sm">
+                                        <div class="flex items-center gap-2 text-sm" style="display: none;">
                                             <span class="font-medium text-slate-500">GPS:</span>
                                             <span id="gps-status" class="text-slate-400">Mendeteksi lokasi...</span>
                                         </div>
 
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs" style="display: none;">
                                             <div class="rounded-xl border border-slate-200 bg-white p-3">
                                                 <span class="text-slate-500">Latitude</span>
                                                 <p id="gps-lat" class="mt-1 font-mono font-semibold text-slate-700">-</p>
@@ -157,7 +178,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="border-t border-slate-200 pt-3">
+                                        <div class="border-t border-slate-200 pt-3" style="display: none;">
                                             <p class="text-xs font-medium text-slate-500">Lokasi DUDI:</p>
                                             <p class="mt-1 text-sm font-semibold text-slate-700">
                                                 {{ $penempatanAktif->dudi->latitude ?? '-' }}, {{ $penempatanAktif->dudi->longitude ?? '-' }}
@@ -165,7 +186,7 @@
                                             <p class="mt-1 text-xs text-slate-500">{{ $penempatanAktif->dudi->alamat ?? '-' }}</p>
                                         </div>
 
-                                        <div class="border-t border-slate-200 pt-3">
+                                        <div class="border-t border-slate-200 pt-3" style="display: none;">
                                             <p class="text-xs font-medium text-slate-500">Foto akan diberi watermark:</p>
                                             <ul class="mt-1 space-y-0.5 text-xs text-slate-600">
                                                 <li>• Nama: {{ $siswa->nama }}</li>
@@ -199,6 +220,7 @@
                                 <input type="hidden" name="lokasi_masuk" id="lokasi_masuk" value="">
                                 <input type="hidden" name="lokasi_pulang" id="lokasi_pulang" value="">
                             </form>
+                            </div>
                         </div>
                     @elseif($sudahCheckIn && $sudahCheckOut)
                         <div class="mt-6 border-t border-slate-100 pt-6">
@@ -208,7 +230,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 12.75l6 6 9-13.5"/>
                                     </svg>
                                 </div>
-                                <p class="mt-3 text-sm font-bold text-emerald-800">Absensi Hari Ini Sudah Lengkap</p>
+                                <p class="mt-3 text-sm font-bold text-emerald-800">Presensi Hari Ini Sudah Lengkap</p>
                                 <p class="mt-1 text-xs text-emerald-600">
                                     Check In: {{ $todayAbsensi->jam_masuk }} | Check Out: {{ $todayAbsensi->jam_keluar }}
                                 </p>
@@ -232,7 +254,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm">
             <form method="GET" action="{{ route('siswa.absensi.index') }}" class="flex flex-wrap items-center flex-wrap gap-3">
                 <div>
-                    <input type="date" name="tanggal" value="{{ request('tanggal') }}"
+                    <input type="date" name="tanggal" value="{{ $tanggalPresensi }}" readonly
                            class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
                 </div>
                 <div>
@@ -246,16 +268,72 @@
                     </select>
                 </div>
                 <button type="submit" class="inline-flex items-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">Filter</button>
-                @if(request('tanggal') || request('status'))
+                @if(request('status'))
                     <a href="{{ route('siswa.absensi.index') }}" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Reset</a>
                 @endif
             </form>
         </div>
 
-        {{-- Riwayat Absensi --}}
+        {{-- Rekap Presensi PKL --}}
+        @if(isset($rekapPresensi))
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="border-b border-slate-100 px-5 py-4">
-                <h3 class="text-base font-bold text-slate-900">Riwayat Absensi</h3>
+                <h3 class="text-base font-bold text-slate-900">Rekap Presensi Selama Periode PKL</h3>
+                <p class="mt-1 text-sm text-slate-500">Masa PKL: {{ $rekapPresensi['hari_berjalan'] }} hari berjalan dari total {{ $rekapPresensi['total_hari'] }} hari wajib.</p>
+            </div>
+            <div class="p-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
+                    <p class="text-sm font-semibold text-emerald-800">Hadir</p>
+                    <p class="mt-1 text-2xl font-bold text-emerald-600">{{ count($rekapPresensi['hadir']) }}</p>
+                    <div class="mt-2 space-y-1 text-xs text-emerald-700 max-h-32 overflow-y-auto">
+                        @forelse($rekapPresensi['hadir'] as $ab)
+                            <div>• {{ \Carbon\Carbon::parse($ab->tanggal)->format('d M Y') }}</div>
+                        @empty
+                            <div class="text-emerald-600/50 italic">-</div>
+                        @endforelse
+                    </div>
+                </div>
+                <div class="rounded-xl bg-amber-50 p-4 border border-amber-100">
+                    <p class="text-sm font-semibold text-amber-800">Terlambat</p>
+                    <p class="mt-1 text-2xl font-bold text-amber-600">{{ count($rekapPresensi['terlambat']) }}</p>
+                    <div class="mt-2 space-y-1 text-xs text-amber-700 max-h-32 overflow-y-auto">
+                        @forelse($rekapPresensi['terlambat'] as $ab)
+                            <div>• {{ \Carbon\Carbon::parse($ab->tanggal)->format('d M Y') }}</div>
+                        @empty
+                            <div class="text-amber-600/50 italic">-</div>
+                        @endforelse
+                    </div>
+                </div>
+                <div class="rounded-xl bg-red-50 p-4 border border-red-100">
+                    <p class="text-sm font-semibold text-red-800">Sangat Terlambat</p>
+                    <p class="mt-1 text-2xl font-bold text-red-600">{{ count($rekapPresensi['sangat_terlambat']) }}</p>
+                    <div class="mt-2 space-y-1 text-xs text-red-700 max-h-32 overflow-y-auto">
+                        @forelse($rekapPresensi['sangat_terlambat'] as $ab)
+                            <div>• {{ \Carbon\Carbon::parse($ab->tanggal)->format('d M Y') }}</div>
+                        @empty
+                            <div class="text-red-600/50 italic">-</div>
+                        @endforelse
+                    </div>
+                </div>
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-200">
+                    <p class="text-sm font-semibold text-slate-800">Tidak Hadir (Bolos)</p>
+                    <p class="mt-1 text-2xl font-bold text-slate-600">{{ count($rekapPresensi['bolos']) }}</p>
+                    <div class="mt-2 space-y-1 text-xs text-slate-600 max-h-32 overflow-y-auto">
+                        @forelse($rekapPresensi['bolos'] as $date)
+                            <div>• {{ \Carbon\Carbon::parse($date)->format('d M Y') }}</div>
+                        @empty
+                            <div class="text-slate-500/50 italic">-</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        {{-- Riwayat Presensi --}}
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
+            <div class="border-b border-slate-100 px-5 py-4">
+                <h3 class="text-base font-bold text-slate-900">Riwayat Presensi</h3>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[800px] divide-y divide-slate-200">
@@ -287,10 +365,16 @@
                                             'sakit' => 'bg-orange-100 text-orange-800',
                                             'alpha' => 'bg-red-100 text-red-800',
                                         ];
+                                        $statusLabel = $absensi->status === 'terlambat' && $absensi->keterangan === 'Sangat Terlambat'
+                                            ? 'Sangat Terlambat'
+                                            : $sEnum?->label();
+                                        $statusColor = $statusLabel === 'Sangat Terlambat'
+                                            ? 'bg-red-100 text-red-800'
+                                            : ($sColors[$absensi->status] ?? 'bg-slate-100 text-slate-800');
                                     @endphp
                                     @if($sEnum)
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold {{ $sColors[$absensi->status] ?? 'bg-slate-100 text-slate-800' }}">
-                                            {{ $sEnum->label() }}
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold {{ $statusColor }}">
+                                            {{ $statusLabel }}
                                         </span>
                                     @else
                                         <span class="text-slate-400">{{ $absensi->status }}</span>
@@ -319,10 +403,10 @@
                                             </svg>
                                         </div>
                                         <p class="text-sm font-semibold text-slate-700">
-                                            @if(request('tanggal') || request('status'))
+                                            @if(request('status'))
                                                 Tidak ada hasil untuk filter yang dipilih.
                                             @else
-                                                Belum ada data absensi.
+                                                Belum ada data Presensi.
                                             @endif
                                         </p>
                                     </div>
@@ -346,10 +430,15 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const hasAction = document.getElementById('btn-capture');
-        if (!hasAction) return;
+        const typeSelection = document.getElementById('presensi-type-selection');
+        const cameraWorkspace = document.getElementById('camera-workspace');
+        if (!typeSelection || !cameraWorkspace) return;
 
-        const camera = new AbsensiCamera({
+        let camera = null;
+        const startCamera = function(mode) {
+            typeSelection.style.display = 'none';
+            cameraWorkspace.style.display = 'block';
+            camera = new AbsensiCamera({
             videoId: 'camera-preview',
             canvasId: 'camera-canvas',
             photoInputId: 'foto_base64',
@@ -362,7 +451,8 @@
             confirmBtnId: 'btn-confirm',
             photoPreviewId: 'photo-preview',
             fileUploadId: 'file-upload-fallback',
-            mode: '{{ $todayAbsensi === null ? "checkin" : "checkout" }}',
+            fileUploadContainerId: 'camera-fallback-container',
+            mode: mode,
             watermarkData: @json($watermarkData ?? []),
             onComplete: function(data) {
                 document.getElementById('foto_base64').value = data.foto_base64;
@@ -370,7 +460,7 @@
                 document.getElementById('longitude').value = data.longitude || '';
                 document.getElementById('accuracy').value = data.accuracy || '';
 
-                const lokasiField = '{{ $todayAbsensi === null ? "lokasi_masuk" : "lokasi_pulang" }}';
+                const lokasiField = mode === 'checkin' ? 'lokasi_masuk' : 'lokasi_pulang';
                 const lokasiValue = data.latitude && data.longitude
                     ? `${data.latitude}, ${data.longitude}`
                     : '';
@@ -378,7 +468,8 @@
 
                 document.getElementById('camera-form').submit();
             }
-        });
+            });
+        };
 
         const gpsStatus = document.getElementById('gps-status');
         const gpsLat = document.getElementById('gps-lat');
@@ -386,6 +477,8 @@
         const gpsAccuracy = document.getElementById('gps-accuracy');
 
         setInterval(function() {
+            if (!camera) return;
+
             const lat = document.getElementById('latitude').value;
             const lng = document.getElementById('longitude').value;
             const acc = document.getElementById('accuracy').value;
@@ -398,6 +491,39 @@
                 gpsStatus.className = 'font-medium text-emerald-600';
             }
         }, 2000);
+
+        function closeCamera() {
+            if (camera) {
+                camera.destroy();
+                camera = null;
+            }
+
+            ['foto_base64', 'latitude', 'longitude', 'accuracy', 'lokasi_masuk', 'lokasi_pulang'].forEach(function(id) {
+                document.getElementById(id).value = '';
+            });
+
+            document.getElementById('photo-preview').style.display = 'none';
+            document.getElementById('camera-preview').style.display = 'none';
+            document.getElementById('camera-canvas').style.display = 'none';
+            document.getElementById('btn-capture').style.display = 'none';
+            document.getElementById('btn-retake').style.display = 'none';
+            document.getElementById('btn-confirm').style.display = 'none';
+            document.getElementById('file-upload-fallback').style.display = 'none';
+            document.getElementById('camera-fallback-container').style.display = 'none';
+        }
+
+        document.getElementById('select-checkin').addEventListener('click', function() {
+            startCamera('checkin');
+        });
+        document.getElementById('select-checkout').addEventListener('click', function() {
+            startCamera('checkout');
+        });
+        document.getElementById('btn-cancel-camera').addEventListener('click', function() {
+            closeCamera();
+            cameraWorkspace.style.display = 'none';
+            typeSelection.style.display = 'block';
+        });
+        window.addEventListener('pagehide', closeCamera);
     });
 </script>
 @endpush

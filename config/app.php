@@ -81,7 +81,7 @@ return [
     |
     */
 
-    'student_email_domain' => env('STUDENT_EMAIL_DOMAIN', 'smk1bangsri.sch.id'),
+    'student_email_domain' => env('STUDENT_EMAIL_DOMAIN', 'smkn1bangsri.sch.id'),
 
     /*
     |--------------------------------------------------------------------------
@@ -94,7 +94,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'Asia/Jakarta',
 
     /*
     |--------------------------------------------------------------------------

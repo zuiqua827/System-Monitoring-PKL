@@ -9,6 +9,7 @@ use App\Http\Requests\CheckInRequest;
 use App\Http\Requests\CheckOutRequest;
 use App\Models\PenempatanPKL;
 use App\Services\Interfaces\AbsensiServiceInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -72,14 +73,22 @@ class AbsensiController extends Controller
         $sudahCheckIn = $todayAbsensi !== null && $todayAbsensi->jam_masuk !== null;
         $sudahCheckOut = $todayAbsensi !== null && $todayAbsensi->jam_keluar !== null;
 
+        // Tanggal Presensi selalu mengikuti hari ini dalam zona waktu sekolah.
+        $tanggalPresensi = Carbon::today(config('app.timezone'))->toDateString();
+
         // Get paginated absensi history
         $absensis = $this->absensiService->getSiswaAbsensiPaginated($siswa->id, [
-            'tanggal' => $request->query('tanggal'),
+            'tanggal' => $tanggalPresensi,
             'status' => $request->query('status'),
             'sort_by' => $request->query('sort', 'tanggal'),
             'sort_direction' => $request->query('direction', 'desc'),
             'per_page' => (int) $request->query('per_page', '15'),
         ]);
+
+        $rekapPresensi = null;
+        if ($penempatanAktif !== null) {
+            $rekapPresensi = $this->absensiService->getRekapPresensi($penempatanAktif->id);
+        }
 
         return view('siswa.absensi.index', compact(
             'absensis',
@@ -88,7 +97,9 @@ class AbsensiController extends Controller
             'siswa',
             'watermarkData',
             'sudahCheckIn',
-            'sudahCheckOut'
+            'sudahCheckOut',
+            'tanggalPresensi',
+            'rekapPresensi'
         ));
     }
 
@@ -125,19 +136,11 @@ class AbsensiController extends Controller
         try {
             $data = $request->validated();
 
-            // Handle file upload (fallback if camera not supported)
-            if ($request->hasFile('foto_masuk')) {
-                $data['foto_masuk'] = $request->file('foto_masuk')->store('absensi/foto_masuk', 'public');
-            }
-
-            // If base64 from camera, keep it in data for service to process
-            // If file upload, keep it in data
-
             $this->absensiService->checkIn($penempatanAktif->id, $data);
 
             return redirect()
                 ->route('siswa.absensi.index')
-                ->with('success', 'Check In berhasil!');
+                ->with('success', '✓ Presensi Check In berhasil');
         } catch (\RuntimeException $e) {
             return redirect()
                 ->back()
@@ -187,16 +190,11 @@ class AbsensiController extends Controller
         try {
             $data = $request->validated();
 
-            // Handle file upload (fallback if camera not supported)
-            if ($request->hasFile('foto_pulang')) {
-                $data['foto_pulang'] = $request->file('foto_pulang')->store('absensi/foto_pulang', 'public');
-            }
-
             $this->absensiService->checkOut($penempatanAktif->id, $data);
 
             return redirect()
                 ->route('siswa.absensi.index')
-                ->with('success', 'Check Out berhasil!');
+                ->with('success', '✓ Presensi Check Out berhasil');
         } catch (\RuntimeException $e) {
             return redirect()
                 ->back()

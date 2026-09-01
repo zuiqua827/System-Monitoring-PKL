@@ -22,49 +22,54 @@
         @stack('head')
     </head>
     <body class="font-sans antialiased text-slate-900">
-        <div class="min-h-screen bg-background">
-            @php
-                // Derive a page title from common sources:
-                // 1. $pageTitle prop (explicitly passed)
-                // 2. $title variable
-                // 3. $header slot (x-app-layout child views)
-                // 4. @yield('title') (layouts.app @extends child views)
-                $__pageTitle = $pageTitle ?? null;
-                if (!$__pageTitle && isset($title)) {
-                    $__pageTitle = $title;
-                }
-                if (!$__pageTitle && isset($header)) {
-                    $__pageTitle = trim(strip_tags((string) $header));
-                }
-                if (!$__pageTitle) {
-                    $__pageTitle = trim(strip_tags((string) $__env->yieldContent('title')));
-                }
-                if (!$__pageTitle || trim($__pageTitle) === '') {
-                    $__pageTitle = 'Dashboard';
-                }
-            @endphp
+        @php
+            // Derive a page title from common sources:
+            // 1. $pageTitle prop (explicitly passed)
+            // 2. $title variable
+            // 3. $header slot (x-app-layout child views)
+            // 4. @yield('title') (layouts.app @extends child views)
+            $__pageTitle = $pageTitle ?? null;
+            if (!$__pageTitle && isset($title)) {
+                $__pageTitle = $title;
+            }
+            if (!$__pageTitle && isset($header)) {
+                $__pageTitle = trim(strip_tags((string) $header));
+            }
+            if (!$__pageTitle) {
+                $__pageTitle = trim(strip_tags((string) $__env->yieldContent('title')));
+            }
+            if (!$__pageTitle || trim($__pageTitle) === '') {
+                $__pageTitle = 'Dashboard';
+            }
+        @endphp
 
-            @include('layouts.navigation')
+        <div x-data="{ sidebarOpen: false, profileOpen: false }" @keydown.escape.window="sidebarOpen = false" class="min-h-screen flex bg-slate-50">
+            
+            {{-- Main Content --}}
+            <div class="flex-1 min-w-0 flex flex-col lg:pl-[280px]">
+                
+                @include('layouts.navigation')
 
-            {{-- Page Heading (only for @extends layouts usage) --}}
-            @isset($header)
-                <header class="lg:pl-[280px] pt-[72px]">
-                    <div class="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-                        {{ $header }}
+                {{-- Page Content --}}
+                <main class="flex-1 overflow-x-hidden">
+                    <div class="mx-auto w-full max-w-[1600px]">
+                        {{-- Page Heading (only for @extends layouts usage) --}}
+                        @isset($header)
+                            <div class="px-4 pt-8 sm:px-6 lg:px-8">
+                                {{ $header }}
+                            </div>
+                        @endisset
+
+                        @isset($slot)
+                            <div class="p-4 sm:p-6 lg:p-8">
+                                {{ $slot }}
+                            </div>
+                        @else
+                            @yield('content')
+                        @endisset
                     </div>
-                </header>
-            @endisset
-
-            {{-- Page Content --}}
-            <main class="lg:pl-[280px] pt-[72px]">
-                @isset($slot)
-                    <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
-                        {{ $slot }}
-                    </div>
-                @else
-                    @yield('content')
-                @endisset
-            </main>
+                </main>
+            </div>
         </div>
         @stack('scripts')
     </body>

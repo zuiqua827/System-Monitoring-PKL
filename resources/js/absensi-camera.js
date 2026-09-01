@@ -44,6 +44,9 @@ class AbsensiCamera {
         this.fileUpload = document.getElementById(
             options.fileUploadId || "file-upload",
         );
+        this.fileUploadContainer = document.getElementById(
+            options.fileUploadContainerId || "file-upload-container",
+        );
         this.photoPreview = document.getElementById(
             options.photoPreviewId || "photo-preview",
         );
@@ -53,8 +56,6 @@ class AbsensiCamera {
         this.currentPosition = null;
         this.watermarkData = options.watermarkData || {};
         this.onComplete = options.onComplete || null;
-        this.mode = options.mode || "checkin"; // 'checkin' or 'checkout'
-
         this.mode = options.mode || "checkin"; // 'checkin' or 'checkout'
 
         this._bindEvents();
@@ -75,19 +76,23 @@ class AbsensiCamera {
 
     async init() {
         try {
-            // Try to get GPS position first
             await this.getGPSPosition();
+        } catch (error) {
+            this.showStatus("Lokasi tidak tersedia. Pastikan izin lokasi aktif.", "warning");
+        }
 
-            // Try to start camera
+        try {
             await this.startCamera();
         } catch (error) {
-            console.warn("Camera init warning:", error.message);
             this.showStatus(
-                "Camera tidak tersedia, gunakan upload file",
+                "Kamera tidak tersedia. Gunakan unggah foto.",
                 "warning",
             );
             if (this.fileUpload) {
                 this.fileUpload.style.display = "block";
+            }
+            if (this.fileUploadContainer) {
+                this.fileUploadContainer.style.display = "block";
             }
         }
     }
@@ -115,10 +120,6 @@ class AbsensiCamera {
                     if (this.accuracyInput)
                         this.accuracyInput.value = position.coords.accuracy;
 
-                    this.showStatus(
-                        `GPS: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`,
-                        "success",
-                    );
                     resolve(position);
                 },
                 (error) => {
@@ -147,6 +148,8 @@ class AbsensiCamera {
         }
 
         try {
+            this.stopCamera();
+
             this.stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: "user",
@@ -165,12 +168,8 @@ class AbsensiCamera {
             if (this.captureBtn) this.captureBtn.style.display = "inline-flex";
             if (this.canvasElement) this.canvasElement.style.display = "none";
             if (this.fileUpload) this.fileUpload.style.display = "none";
+            if (this.fileUploadContainer) this.fileUploadContainer.style.display = "none";
 
-            this.showStatus(
-                "Kamera siap. Ambil foto untuk Check " +
-                    (this.mode === "checkin" ? "In" : "Out"),
-                "success",
-            );
         } catch (error) {
             if (error.name === "NotAllowedError") {
                 throw new Error(
@@ -190,6 +189,11 @@ class AbsensiCamera {
         const context = this.canvasElement.getContext("2d");
         const width = this.videoElement.videoWidth;
         const height = this.videoElement.videoHeight;
+
+        if (width === 0 || height === 0) {
+            this.showStatus("Kamera belum siap. Silakan coba lagi.", "error");
+            return;
+        }
 
         this.canvasElement.width = width;
         this.canvasElement.height = height;
@@ -223,7 +227,6 @@ class AbsensiCamera {
         if (this.retakeBtn) this.retakeBtn.style.display = "inline-flex";
         if (this.confirmBtn) this.confirmBtn.style.display = "inline-flex";
 
-        this.showStatus("Foto berhasil diambil dengan watermark", "success");
     }
 
     addWatermark(context, width, height) {
@@ -245,11 +248,13 @@ class AbsensiCamera {
             year: "numeric",
             month: "long",
             day: "numeric",
+            timeZone: "Asia/Jakarta",
         });
         const timeStr = now.toLocaleTimeString("id-ID", {
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
+            timeZone: "Asia/Jakarta",
         });
 
         let y = height - 100;
@@ -301,7 +306,7 @@ class AbsensiCamera {
         }
         if (this.retakeBtn) this.retakeBtn.style.display = "none";
 
-        this.showStatus("Mengirim data...", "success");
+        this.stopCamera();
 
         if (typeof this.onComplete === "function") {
             this.onComplete({
@@ -333,6 +338,10 @@ class AbsensiCamera {
         if (this.stream) {
             this.stream.getTracks().forEach((track) => track.stop());
             this.stream = null;
+        }
+
+        if (this.videoElement) {
+            this.videoElement.srcObject = null;
         }
     }
 

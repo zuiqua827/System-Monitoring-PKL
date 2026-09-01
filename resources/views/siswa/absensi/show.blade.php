@@ -7,15 +7,15 @@
 
 @extends('layouts.app')
 
-@section('title', 'Detail Absensi')
+@section('title', 'Detail Presensi')
 
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-4xl">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Absensi</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Detail Absensi</h1>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Presensi</p>
+                <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Detail Presensi</h1>
             </div>
             <a href="{{ route('siswa.absensi.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-card-sm transition hover:bg-slate-50">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -25,7 +25,7 @@
 
         <div class="mt-6 rounded-2xl border border-slate-200 bg-white shadow-card-sm">
             <div class="border-b border-slate-100 px-6 py-5">
-                <h3 class="text-base font-bold text-slate-900">Detail Absensi</h3>
+                <h3 class="text-base font-bold text-slate-900">Detail Presensi</h3>
             </div>
             <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
                 <div class="bg-white px-6 py-4">
@@ -37,6 +37,9 @@
                     <div class="mt-1">
                         @php
                             $statusEnum = AbsensiStatus::tryFrom($absensi->status);
+                            $statusLabel = $absensi->status === 'terlambat' && $absensi->keterangan === 'Sangat Terlambat'
+                                ? 'Sangat Terlambat'
+                                : $statusEnum?->label();
                         @endphp
                         @if($statusEnum)
                             <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold
@@ -57,7 +60,7 @@
                                         @case('alpha') bg-red-500 @break
                                         @default bg-slate-500
                                     @endswitch"></span>
-                                {{ $statusEnum->label() }}
+                                {{ $statusLabel }}
                             </span>
                         @else
                             <span class="text-slate-400">{{ $absensi->status }}</span>

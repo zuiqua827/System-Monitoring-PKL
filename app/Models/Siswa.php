@@ -82,7 +82,7 @@ class Siswa extends Model
      */
     public static function emailDomain(): string
     {
-        return (string) config('app.student_email_domain', 'smk1bangsri.sch.id');
+        return (string) config('app.student_email_domain', 'smkn1bangsri.sch.id');
     }
 
     /**

@@ -27,7 +27,15 @@ interface SiPintuServiceInterface
      */
     public function fetchTeachers(?string $nip = null, ?string $search = null): array;
 
-/**
+    /**
+     * Fetch and validate the complete remote dataset before a live database
+     * transaction is opened.
+     *
+     * @return array{students: array<int, array<string, mixed>>, teachers: array<int, array<string, mixed>>}
+     */
+    public function fetchSyncPayload(): array;
+
+    /**
      * Read-only preview of a student sync. Classifies remote students into
      * categories WITHOUT writing/inserting/updating/deleting anything.
      *
@@ -61,7 +69,7 @@ interface SiPintuServiceInterface
      *     unchanged: int, conflicts: int, needs_mapping: int, errors: int
      * }
      */
-    public function syncStudents(): array;
+    public function syncStudents(?array $students = null): array;
 
     /**
      * Synchronize real teachers from SiPintu into the local Guru module.
@@ -72,7 +80,17 @@ interface SiPintuServiceInterface
      * - Never creates duplicates.
      * - Never overwrites passwords the user has already changed.
      *
-     * @return array{created: int, updated: int, deleted: int, skipped: int}
+     * @return array{
+     *     created: int, updated: int, deleted: int, skipped: int,
+     *     unchanged: int, conflicts: int, needs_mapping: int, errors: int
+     * }
      */
-    public function syncTeachers(): array;
+    public function syncTeachers(?array $teachers = null): array;
+
+    /**
+     * Test connection to the SiPintu API.
+     *
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     */
+    public function testConnection(): array;
 }

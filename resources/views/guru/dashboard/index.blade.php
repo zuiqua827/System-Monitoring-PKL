@@ -14,7 +14,7 @@
         {{-- Statistics Cards --}}
         <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                <div class="flex flex-col sm:flex-row items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Siswa Bimbingan</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['total_siswa_bimbingan'] }}</p>
@@ -29,7 +29,7 @@
             </article>
 
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                <div class="flex flex-col sm:flex-row items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Absensi Hari Ini</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['absensi_hari_ini'] }}</p>
@@ -44,7 +44,7 @@
             </article>
 
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                <div class="flex flex-col sm:flex-row items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Menunggu Validasi</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['aktivitas_menunggu_validasi'] }}</p>
@@ -59,7 +59,7 @@
             </article>
 
             <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                <div class="flex flex-col sm:flex-row items-start gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Penilaian Draft</p>
                         <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ $stats['penilaian_draft'] }}</p>
@@ -79,16 +79,16 @@
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
                 <h3 class="text-base font-bold text-slate-900">Kehadiran 7 Hari</h3>
                 <p class="mt-1 text-sm text-slate-500">Grafik kehadiran siswa bimbingan</p>
-                <div class="mt-6">
-                    <canvas id="attendanceChart" height="200"></canvas>
+                <div class="mt-6 relative h-[250px] sm:h-[300px] lg:h-[380px]">
+                    <canvas id="attendanceChart"></canvas>
                 </div>
             </article>
 
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
                 <h3 class="text-base font-bold text-slate-900">Status Aktivitas</h3>
                 <p class="mt-1 text-sm text-slate-500">Distribusi status aktivitas siswa</p>
-                <div class="mt-6">
-                    <canvas id="aktivitasChart" height="200"></canvas>
+                <div class="mt-6 relative h-[220px] sm:h-[260px] lg:h-[350px] flex items-center justify-center">
+                    <canvas id="aktivitasChart"></canvas>
                 </div>
             </article>
         </div>
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 {label: 'Terlambat', data: {!! json_encode(array_map(fn($d) => $d['terlambat'], $charts['attendance_7_hari'])) !!}, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.4}
             ]
         },
-        options: {responsive: true, plugins: {legend: {position: 'bottom'}}, scales: {y: {beginAtZero: true}}}
+        options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {position: 'bottom'}}, scales: {y: {beginAtZero: true}}}
     });
 
     var ctx2 = document.getElementById('aktivitasChart').getContext('2d');
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
             labels: {!! json_encode(array_keys($charts['status_aktivitas'])) !!},
             datasets: [{data: {!! json_encode(array_values($charts['status_aktivitas'])) !!}, backgroundColor: ['#6b7280', '#f59e0b', '#10b981', '#ef4444']}]
         },
-        options: {responsive: true, plugins: {legend: {position: 'bottom'}}}
+        options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {position: 'bottom'}}}
     });
 });
 </script>

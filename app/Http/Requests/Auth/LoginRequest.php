@@ -29,9 +29,28 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'role' => ['nullable', 'string', 'in:siswa,guru,dudi'],
+        ];
+
+        if ($this->input('role') === 'siswa') {
+            $rules['email'][] = 'regex:/^[0-9]+@smkn1bangsri\.sch\.id$/';
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.regex' => 'Format email siswa harus menggunakan NIS (contoh: 1234@smkn1bangsri.sch.id).',
         ];
     }
 
@@ -47,6 +66,15 @@ class LoginRequest extends FormRequest
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
+            throw ValidationException::withMessages([
+                'email' => trans('auth.failed'),
+            ]);
+        }
+        
+        // After authentication, ensure the user has the correct role
+        $user = Auth::user();
+        if ($this->input('role') && $user->role !== $this->input('role')) {
+            Auth::logout();
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);

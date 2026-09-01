@@ -29,7 +29,7 @@ class StoreAktivitasRequest extends FormRequest
     {
         return [
             'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id'],
-            'tanggal' => ['required', 'date'],
+            'tanggal' => ['required', 'date', 'date_equals:today'],
             'jam_mulai' => ['nullable'],
             'jam_selesai' => ['nullable', 'after_or_equal:jam_mulai'],
             'judul' => ['required', 'string', 'max:255'],

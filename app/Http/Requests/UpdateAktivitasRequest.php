@@ -30,7 +30,8 @@ class UpdateAktivitasRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tanggal' => ['required', 'date'],
+            // Tanggal is intentionally excluded — it is set once at creation
+            // and must never be changed via the edit form.
             'jam_mulai' => ['nullable'],
             'jam_selesai' => ['nullable', 'after_or_equal:jam_mulai'],
             'judul' => ['required', 'string', 'max:255'],

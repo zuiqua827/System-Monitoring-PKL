@@ -78,7 +78,9 @@ class KelasController extends Controller
         $kela->load('jurusan');
         $kela->loadCount('siswa');
 
-        return view('admin.kelas.show', compact('kela'));
+        $kelas = $kela;
+
+        return view('admin.kelas.show', compact('kelas'));
     }
 
     /**
@@ -90,7 +92,9 @@ class KelasController extends Controller
 
         $kela->load('jurusan');
 
-        return view('admin.kelas.edit', compact('kela'));
+        $kelas = $kela;
+
+        return view('admin.kelas.edit', compact('kelas'));
     }
 
     /**

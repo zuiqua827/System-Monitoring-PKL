@@ -18,7 +18,7 @@ interface SiPintuRepositoryInterface
     /**
      * Fetch the list of students from the SiPintu SIJUNA endpoint.
      *
-     * @return array<int, array<string, mixed>> The decoded JSON "data" array of students.
+     * @return array<int, mixed> The decoded JSON "data" array of students.
      *
      * @throws SiPintuApiException On connection error, invalid credentials, timeout,
      *                             or any non-2xx API response.
@@ -28,10 +28,17 @@ interface SiPintuRepositoryInterface
     /**
      * Fetch the list of teachers from the SiPintu SIJUNA endpoint.
      *
-     * @return array<int, array<string, mixed>> The decoded JSON "data" array of teachers.
+     * @return array<int, mixed> The decoded JSON "data" array of teachers.
      *
      * @throws SiPintuApiException On connection error, invalid credentials, timeout,
      *                             or any non-2xx API response.
      */
     public function fetchTeachers(?string $nip = null, ?string $search = null): array;
+
+    /**
+     * Test connection to the SiPintu API.
+     *
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     */
+    public function testConnection(): array;
 }

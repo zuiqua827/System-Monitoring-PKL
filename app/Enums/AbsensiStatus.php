@@ -28,11 +28,11 @@ enum AbsensiStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::HADIR => 'Hadir',
+            self::HADIR => 'Tepat Waktu',
             self::TERLAMBAT => 'Terlambat',
             self::IZIN => 'Izin',
             self::SAKIT => 'Sakit',
-            self::ALPHA => 'Alpha',
+            self::ALPHA => 'Tidak Hadir',
         };
     }
 

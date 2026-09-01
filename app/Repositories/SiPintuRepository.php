@@ -7,8 +7,10 @@ namespace App\Repositories;
 use App\Exceptions\SiPintuApiException;
 use App\Repositories\Interfaces\SiPintuRepositoryInterface;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * SiPintu Gateway repository (Server-to-Server method).
@@ -19,20 +21,38 @@ use Illuminate\Support\Facades\Http;
  */
 class SiPintuRepository implements SiPintuRepositoryInterface
 {
-    /**
-     * The dashboard fetches the student and teacher endpoints sequentially.
-     * Keep each upstream request comfortably below the usual PHP web request
-     * limit so an unavailable gateway cannot turn the dashboard into HTTP 500.
-     */
-    private const MAX_SAFE_TIMEOUT_SECONDS = 10;
-
-    private int $timeout;
-
-    public function __construct()
+    private function httpClient(): PendingRequest
     {
-        $configuredTimeout = (int) config('services.sipintu.timeout', 15);
+        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
+        $apiToken = trim((string) config('services.sipintu.api_token', ''));
+        $clientId = trim((string) config('services.sipintu.client_id', ''));
+        $clientSecret = trim((string) config('services.sipintu.client_secret', ''));
+        $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
 
-        $this->timeout = max(1, min($configuredTimeout, self::MAX_SAFE_TIMEOUT_SECONDS));
+        if ($baseUrl === '') {
+            throw new \RuntimeException('Base URL SiPintu belum dikonfigurasi.');
+        }
+
+        if ($apiToken === '' && ($clientId === '' || $clientSecret === '')) {
+            throw new \RuntimeException('Client ID atau Client Secret SiPintu belum dikonfigurasi.');
+        }
+
+        $http = Http::acceptJson()
+            ->connectTimeout(max(1, (int) config('services.sipintu.connect_timeout', 10)))
+            ->timeout(max(1, (int) config('services.sipintu.timeout', 15)));
+
+        if (! $verifySsl) {
+            $http = $http->withoutVerifying();
+        }
+
+        if ($apiToken !== '') {
+            return $http->withToken($apiToken);
+        }
+
+        return $http->withHeaders([
+            'X-Client-ID' => $clientId,
+            'X-Client-Secret' => $clientSecret,
+        ]);
     }
 
     /**
@@ -41,13 +61,6 @@ class SiPintuRepository implements SiPintuRepositoryInterface
     public function fetchStudents(?string $nis = null, ?string $search = null): array
     {
         $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
-        $clientId = (string) config('services.sipintu.client_id');
-        $clientSecret = (string) config('services.sipintu.client_secret');
-
-        if ($baseUrl === '' || $clientId === '' || $clientSecret === '') {
-            throw SiPintuApiException::invalidCredentials();
-        }
-
         $query = [];
 
         if ($nis !== null && $nis !== '') {
@@ -58,25 +71,24 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
-
         try {
-            $client = Http::withHeaders([
-                'X-Client-ID' => $clientId,
-                'X-Client-Secret' => $clientSecret,
-                'Accept' => 'application/json',
-            ])
-                ->connectTimeout(min($this->timeout, 5))
-                ->timeout($this->timeout);
-
-            if (! $verifySsl) {
-                $client = $client->withoutVerifying();
-            }
-
+            $client = $this->httpClient();
             $response = $client->get($baseUrl.'/api/v1/sijuna/students', $query);
-        } catch (ConnectionException) {
+        } catch (\RuntimeException $e) {
+            throw SiPintuApiException::invalidCredentials($e->getMessage());
+        } catch (ConnectionException $e) {
+            Log::error('SiPintu API connection error (students)', [
+                'url' => $baseUrl.'/api/v1/sijuna/students',
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
             throw SiPintuApiException::connectionError();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::error('SiPintu API unexpected exception (students)', [
+                'url' => $baseUrl.'/api/v1/sijuna/students',
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
             throw SiPintuApiException::timeout();
         }
 
@@ -89,13 +101,6 @@ class SiPintuRepository implements SiPintuRepositoryInterface
     public function fetchTeachers(?string $nip = null, ?string $search = null): array
     {
         $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
-        $clientId = (string) config('services.sipintu.client_id');
-        $clientSecret = (string) config('services.sipintu.client_secret');
-
-        if ($baseUrl === '' || $clientId === '' || $clientSecret === '') {
-            throw SiPintuApiException::invalidCredentials();
-        }
-
         $query = [];
 
         if ($nip !== null && $nip !== '') {
@@ -106,32 +111,31 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
-
         try {
-            $client = Http::withHeaders([
-                'X-Client-ID' => $clientId,
-                'X-Client-Secret' => $clientSecret,
-                'Accept' => 'application/json',
-            ])
-                ->connectTimeout(min($this->timeout, 5))
-                ->timeout($this->timeout);
-
-            if (! $verifySsl) {
-                $client = $client->withoutVerifying();
-            }
-
+            $client = $this->httpClient();
             $response = $client->get($baseUrl.'/api/v1/sijuna/teachers', $query);
-        } catch (ConnectionException) {
+        } catch (\RuntimeException $e) {
+            throw SiPintuApiException::invalidCredentials($e->getMessage());
+        } catch (ConnectionException $e) {
+            Log::error('SiPintu API connection error (teachers)', [
+                'url' => $baseUrl.'/api/v1/sijuna/teachers',
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
             throw SiPintuApiException::connectionError();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::error('SiPintu API unexpected exception (teachers)', [
+                'url' => $baseUrl.'/api/v1/sijuna/teachers',
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
             throw SiPintuApiException::timeout();
         }
 
         return $this->parseResponse($response);
     }
 
-/**
+    /**
      * Parse the Gateway response with proper error handling.
      *
      * Validates the response envelope and each record's required fields so a
@@ -142,13 +146,43 @@ class SiPintuRepository implements SiPintuRepositoryInterface
      */
     private function parseResponse(Response $response): array
     {
-        if ($response->unauthorized() || $response->forbidden()) {
-            throw SiPintuApiException::invalidCredentials();
+        if ($response->unauthorized()) {
+            Log::warning('SiPintu API auth error (401)', [
+                'url' => $response->effectiveUri() ? (string) $response->effectiveUri() : 'unknown',
+            ]);
+            throw SiPintuApiException::invalidCredentials('Autentikasi SiPintu gagal. Periksa Client ID dan Client Secret.');
+        }
+
+        if ($response->forbidden()) {
+            Log::warning('SiPintu API forbidden error (403)', [
+                'url' => $response->effectiveUri() ? (string) $response->effectiveUri() : 'unknown',
+            ]);
+            throw SiPintuApiException::invalidCredentials('Akses ditolak (Forbidden). Credential valid tetapi tidak memiliki permission.');
+        }
+
+        if ($response->status() === 404) {
+            throw SiPintuApiException::apiError('Endpoint API SiPintu tidak ditemukan (HTTP 404).');
+        }
+
+        if ($response->status() === 422) {
+            throw SiPintuApiException::apiError('Request tidak sesuai (HTTP 422).');
+        }
+
+        if ($response->status() === 429) {
+            throw SiPintuApiException::apiError('Terlalu banyak request ke server SiPintu (Rate Limit).');
+        }
+
+        if ($response->serverError()) {
+            throw SiPintuApiException::apiError('Server SiPintu mengalami gangguan internal (HTTP '.$response->status().').');
         }
 
         if (! $response->successful()) {
+            Log::error('SiPintu API request failed', [
+                'status' => $response->status(),
+                'url' => $response->effectiveUri() ? (string) $response->effectiveUri() : 'unknown',
+            ]);
             throw SiPintuApiException::apiError(
-                (string) ($response->json('message') ?? 'Terjadi kesalahan pada server SiPintu.'),
+                'SiPintu mengembalikan respons gagal (HTTP '.$response->status().').',
             );
         }
 
@@ -173,7 +207,9 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             );
         }
 
-        // Validate each record is a well-formed item array.
+        // A malformed envelope is fatal. Invalid individual records are
+        // handled as skipped items by the sync service so one bad item never
+        // prevents otherwise valid data from being synchronized.
         if (! $this->isValidRecordList($data)) {
             throw SiPintuApiException::apiError(
                 'Respons SiPintu tidak valid: struktur item tidak sesuai. Sinkronisasi dibatalkan.'
@@ -184,20 +220,100 @@ class SiPintuRepository implements SiPintuRepositoryInterface
     }
 
     /**
-     * Ensure every item in the list is an associative array (not a scalar or
-     * null). A record list that is not a list of arrays indicates a changed
-     * API contract and must abort the sync before any DB write.
+     * Ensure the response is a JSON list. Individual item validation belongs
+     * to the service because invalid records are safely skipped and logged.
      *
      * @param  array<int, mixed>  $data
      */
     private function isValidRecordList(array $data): bool
     {
-        foreach ($data as $item) {
-            if (! is_array($item) || $item === []) {
-                return false;
-            }
-        }
+        return array_is_list($data);
+    }
 
-        return true;
+    /**
+     * {@inheritDoc}
+     */
+    public function testConnection(): array
+    {
+        $endpoint = rtrim((string) config('services.sipintu.api_url', ''), '/').'/api/v1/sijuna/students';
+
+        try {
+            $response = $this->httpClient()->get($endpoint);
+
+            Log::debug('SiPintu test connection response.', [
+                'endpoint' => '/api/v1/sijuna/students',
+                'http_status' => $response->status(),
+            ]);
+
+            if ($response->successful()) {
+                return $this->connectionResult(true, $response->status(), 'Koneksi ke SiPintu berhasil.');
+            }
+
+            return match ($response->status()) {
+                401 => $this->connectionResult(false, 401, 'Autentikasi SiPintu gagal.', 'authentication'),
+                403 => $this->connectionResult(false, 403, 'Akses SiPintu ditolak.', 'permission'),
+                404 => $this->connectionResult(false, 404, 'Endpoint SiPintu tidak ditemukan.', 'endpoint'),
+                422 => $this->connectionResult(false, 422, 'Request ke SiPintu tidak valid.', 'validation'),
+                429 => $this->connectionResult(false, 429, 'SiPintu membatasi terlalu banyak request.', 'rate_limit'),
+                default => $this->connectionResult(
+                    false,
+                    $response->status(),
+                    'SiPintu mengembalikan HTTP '.$response->status().'.',
+                    $response->serverError() ? 'server' : 'api',
+                ),
+            };
+        } catch (\RuntimeException $e) {
+            Log::warning('SiPintu test connection configuration error.', [
+                'endpoint' => '/api/v1/sijuna/students',
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->connectionResult(false, null, $e->getMessage(), 'configuration');
+        } catch (ConnectionException $e) {
+            $message = strtolower($e->getMessage());
+            $errorType = str_contains($message, 'ssl') ? 'ssl' : (str_contains($message, 'timed out') || str_contains($message, 'timeout') ? 'timeout' : 'network');
+
+            Log::warning('SiPintu test connection exception.', [
+                'endpoint' => '/api/v1/sijuna/students',
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+                'error_type' => $errorType,
+            ]);
+
+            return $this->connectionResult(
+                false,
+                null,
+                match ($errorType) {
+                    'ssl' => 'Koneksi SSL SiPintu gagal. Periksa konfigurasi sertifikat.',
+                    'timeout' => 'Koneksi ke SiPintu melebihi batas waktu.',
+                    default => 'Gagal terhubung ke server SiPintu.',
+                },
+                $errorType,
+            );
+        } catch (\Throwable $e) {
+            Log::error('SiPintu test connection unexpected exception.', [
+                'endpoint' => '/api/v1/sijuna/students',
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->connectionResult(false, null, 'Terjadi kesalahan saat menguji koneksi SiPintu.', 'unexpected');
+        }
+    }
+
+    /**
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     */
+    private function connectionResult(bool $success, ?int $httpStatus, string $message, ?string $errorType = null): array
+    {
+        return [
+            'success' => $success,
+            'status' => $success,
+            'connection' => $success,
+            'http_status' => $httpStatus,
+            'message' => $message,
+            'error_type' => $errorType,
+        ];
     }
 }

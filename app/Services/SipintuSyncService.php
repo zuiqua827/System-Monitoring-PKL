@@ -6,14 +6,17 @@ namespace App\Services;
 
 use App\Exceptions\SiPintuApiException;
 use App\Models\Guru;
-use App\Models\SiPintuSyncLog;
 use App\Models\SipintuClassroomMapping;
+use App\Models\SiPintuSyncLog;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Repositories\Interfaces\SipintuSyncLogRepositoryInterface;
 use App\Services\Interfaces\SiPintuServiceInterface;
 use App\Services\Interfaces\SipintuSyncServiceInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service layer for the Super Admin "Sinkronisasi SiPintu" feature.
@@ -47,6 +50,9 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
         return [
             'connection_status' => $remote['status'],
             'connection_message' => $remote['message'],
+            'connection_success' => $remote['connection'],
+            'connection_http_status' => $remote['http_status'],
+            'connection_error_type' => $remote['error_type'],
             'last_sync' => $lastLog ? $this->serializeLog($lastLog) : null,
             'sipintu_student_count' => $remote['student_count'],
             'sipintu_teacher_count' => $remote['teacher_count'],
@@ -81,9 +87,27 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
                 'teachers' => $teacherPreview,
             ];
         } catch (SiPintuApiException $e) {
+            Log::warning('SiPintu preview failed', [
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
+                'duration_ms' => 0,
+                'students' => $this->emptyPreview(),
+                'teachers' => $this->emptyPreview(),
+            ];
+        } catch (\Throwable $e) {
+            Log::error('SiPintu preview failed unexpectedly', [
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Preview SiPintu gagal diproses. Data lokal tidak diubah.',
                 'duration_ms' => 0,
                 'students' => $this->emptyPreview(),
                 'teachers' => $this->emptyPreview(),
@@ -95,66 +119,133 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
     {
         $start = hrtime(true);
 
+        Log::info('SiPintu sync started', ['admin_id' => $admin->id]);
+
         try {
-            $studentStats = $this->siPintuService->syncStudents();
-            $teacherStats = $this->siPintuService->syncTeachers();
+            // Network and response validation happen before the database
+            // transaction so a slow/failed API can never hold local locks.
+            $payload = $this->siPintuService->fetchSyncPayload();
 
-            $durationMs = (int) round((hrtime(true) - $start) / 1_000_000);
+            $result = DB::transaction(function () use ($admin, $payload, $start): array {
+                $studentStats = $this->siPintuService->syncStudents($payload['students']);
+                $teacherStats = $this->siPintuService->syncTeachers($payload['teachers']);
+                $durationMs = (int) round((hrtime(true) - $start) / 1_000_000);
+                $message = $this->buildSummaryMessage($studentStats, $teacherStats);
 
-            $message = $this->buildSummaryMessage($studentStats, $teacherStats);
-
-            $this->syncLogRepository->create([
-                'user_id' => $admin->id,
-                'admin_name' => $admin->name,
-                'status' => 'success',
-                'added' => $studentStats['created'],
-                'updated' => $studentStats['updated'],
-                'deleted' => $studentStats['deleted'],
-                'skipped' => $studentStats['skipped'],
-                'teacher_added' => $teacherStats['created'],
-                'teacher_updated' => $teacherStats['updated'],
-                'teacher_deleted' => $teacherStats['deleted'],
-                'teacher_skipped' => $teacherStats['skipped'],
-                'duration_ms' => $durationMs,
-                'message' => $message,
-            ]);
-
-            return [
-                'success' => true,
-                'message' => $message,
-                'stats' => [
+                $this->syncLogRepository->create($this->syncLogAttributes($admin, 'success', [
                     'students' => $studentStats,
                     'teachers' => $teacherStats,
-                ],
-            ];
-        } catch (SiPintuApiException $e) {
-            $durationMs = (int) round((hrtime(true) - $start) / 1_000_000);
+                    'duration_ms' => $durationMs,
+                    'message' => $message,
+                ]));
 
-            $this->syncLogRepository->create([
-                'user_id' => $admin->id,
-                'admin_name' => $admin->name,
-                'status' => 'failed',
-                'added' => 0,
-                'updated' => 0,
-                'deleted' => 0,
-                'skipped' => 0,
-                'teacher_added' => 0,
-                'teacher_updated' => 0,
-                'teacher_deleted' => 0,
-                'teacher_skipped' => 0,
-                'duration_ms' => $durationMs,
-                'message' => $e->getMessage(),
+                return [
+                    'success' => true,
+                    'message' => $message,
+                    'stats' => [
+                        'students' => $studentStats,
+                        'teachers' => $teacherStats,
+                    ],
+                ];
+            });
+
+            Cache::forget('sipintu_dashboard_remote_counts');
+            Log::info('SiPintu sync completed', [
+                'admin_id' => $admin->id,
+                'student_stats' => $result['stats']['students'],
+                'teacher_stats' => $result['stats']['teachers'],
             ]);
 
-            return [
-                'success' => false,
-                'message' => $e->getMessage(),
-                'stats' => [
-                    'students' => $this->emptySyncStats(),
-                    'teachers' => $this->emptySyncStats(),
-                ],
-            ];
+            return $result;
+        } catch (SiPintuApiException $e) {
+            return $this->failedSyncResult($admin, $start, $e->getMessage(), $e);
+        } catch (QueryException $e) {
+            return $this->failedSyncResult(
+                $admin,
+                $start,
+                'Sinkronisasi gagal disimpan. Semua perubahan data dibatalkan.',
+                $e,
+            );
+        } catch (\Throwable $e) {
+            return $this->failedSyncResult(
+                $admin,
+                $start,
+                'Sinkronisasi gagal diproses. Semua perubahan data dibatalkan.',
+                $e,
+            );
         }
+    }
+
+    public function testConnection(): array
+    {
+        Cache::forget('sipintu_dashboard_remote_counts');
+
+        return $this->siPintuService->testConnection();
+    }
+
+    /**
+     * @return array{success: false, message: string, stats: array{students: array<string, int>, teachers: array<string, int>}}
+     */
+    private function failedSyncResult(User $admin, int $start, string $message, \Throwable $exception): array
+    {
+        $durationMs = (int) round((hrtime(true) - $start) / 1_000_000);
+
+        Log::error('SiPintu sync failed', [
+            'admin_id' => $admin->id,
+            'exception_class' => $exception::class,
+            'message' => $exception->getMessage(),
+        ]);
+
+        try {
+            $this->syncLogRepository->create($this->syncLogAttributes($admin, 'failed', [
+                'students' => $this->emptySyncStats(),
+                'teachers' => $this->emptySyncStats(),
+                'duration_ms' => $durationMs,
+                'message' => $message,
+            ]));
+        } catch (QueryException $logException) {
+            Log::error('SiPintu failed sync history could not be recorded', [
+                'admin_id' => $admin->id,
+                'exception_class' => $logException::class,
+                'message' => $logException->getMessage(),
+            ]);
+        }
+
+        return [
+            'success' => false,
+            'message' => $message,
+            'stats' => [
+                'students' => $this->emptySyncStats(),
+                'teachers' => $this->emptySyncStats(),
+            ],
+        ];
+    }
+
+    /**
+     * @param  'success'|'failed'  $status
+     * @param  array{students: array<string, int>, teachers: array<string, int>, duration_ms: int, message: string}  $context
+     * @return array<string, int|string|null>
+     */
+    private function syncLogAttributes(User $admin, string $status, array $context): array
+    {
+        $studentStats = $context['students'];
+        $teacherStats = $context['teachers'];
+
+        return [
+            'user_id' => $admin->id,
+            'admin_name' => $admin->name,
+            'status' => $status,
+            'added' => (int) ($studentStats['created'] ?? 0),
+            'updated' => (int) ($studentStats['updated'] ?? 0),
+            'deleted' => (int) ($studentStats['deleted'] ?? 0),
+            'skipped' => (int) ($studentStats['skipped'] ?? 0),
+            'teacher_added' => (int) ($teacherStats['created'] ?? 0),
+            'teacher_updated' => (int) ($teacherStats['updated'] ?? 0),
+            'teacher_deleted' => (int) ($teacherStats['deleted'] ?? 0),
+            'teacher_skipped' => (int) ($teacherStats['skipped'] ?? 0),
+            'duration_ms' => $context['duration_ms'],
+            'message' => $context['message'],
+        ];
     }
 
     /**
@@ -165,126 +256,142 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
      */
     private function buildSummaryMessage(array $studentStats, array $teacherStats): string
     {
-        $s = $studentStats;
-        $t = $teacherStats;
+        $students = $this->summaryStats($studentStats);
+        $teachers = $this->summaryStats($teacherStats);
 
-        $processed = array_sum(array_map(
-            static fn (string $key): int => (int) ($s[$key] ?? 0) + (int) ($t[$key] ?? 0),
-            ['created', 'updated', 'skipped', 'unchanged', 'conflicts', 'needs_mapping', 'errors'],
-        ));
+        $processed = array_sum($students) + array_sum($teachers);
 
         if ($processed === 0) {
             return 'Sinkronisasi selesai. Tidak ada data baru yang ditemukan. Ditemukan: 0, ditambahkan: 0, diperbarui: 0, dilewati: 0, gagal: 0.';
         }
 
-        return sprintf(
-            'Siswa: %d baru, %d diperbarui, %d tidak berubah, %d konflik, %d perlu pemetaan, %d tidak ditemukan, %d error. '
-            .'Guru: %d baru, %d diperbarui, %d tidak berubah, %d error.',
-            $s['created'],
-            $s['updated'],
-            $s['unchanged'],
-            $s['conflicts'],
-            $s['needs_mapping'],
-            $s['errors'],
-            $t['created'],
-            $t['updated'],
-            $t['unchanged'],
-            $t['errors'],
-        );
+        return 'Siswa: '.$students['created'].' baru, '.$students['updated'].' diperbarui, '
+            .$students['unchanged'].' tidak berubah, '.$students['skipped'].' dilewati '
+            .'('.$students['needs_mapping'].' perlu pemetaan, '.$students['conflicts'].' konflik), '
+            .$students['errors'].' error. Guru: '.$teachers['created'].' baru, '
+            .$teachers['updated'].' diperbarui, '.$teachers['unchanged'].' tidak berubah, '
+            .$teachers['skipped'].' dilewati ('.$teachers['conflicts'].' konflik), '
+            .$teachers['errors'].' error.';
     }
 
     /**
-     * Fetch SiPintu student + teacher data once (cached for 5 minutes) and
-     * derive the connection status + remote counts from those results.
+     * @param  array<string, int>  $stats
+     * @return array{created: int, updated: int, skipped: int, unchanged: int, conflicts: int, needs_mapping: int, errors: int}
+     */
+    private function summaryStats(array $stats): array
+    {
+        return [
+            'created' => (int) ($stats['created'] ?? 0),
+            'updated' => (int) ($stats['updated'] ?? 0),
+            'skipped' => (int) ($stats['skipped'] ?? 0),
+            'unchanged' => (int) ($stats['unchanged'] ?? 0),
+            'conflicts' => (int) ($stats['conflicts'] ?? 0),
+            'needs_mapping' => (int) ($stats['needs_mapping'] ?? 0),
+            'errors' => (int) ($stats['errors'] ?? 0),
+        ];
+    }
+
+    /**
+     * Test the live connection first, then cache only successful remote counts.
+     * A past connection or API failure must never be retained as dashboard state.
      *
-     * @return array{status: string, message: string, student_count: int, teacher_count: int}
+     * @return array{success: bool, status: string, connection: bool, http_status: int|null, message: string, error_type: string|null, student_count: int, teacher_count: int}
      */
     private function fetchSiPintuData(): array
     {
-        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
-        $clientId = (string) config('services.sipintu.client_id');
-        $clientSecret = (string) config('services.sipintu.client_secret');
-
-        if ($baseUrl === '' || $clientId === '' || $clientSecret === '') {
-            return [
-                'status' => 'not_configured',
-                'message' => 'Kredensial SiPintu belum dikonfigurasi.',
-                'student_count' => 0,
-                'teacher_count' => 0,
-            ];
+        $connection = $this->siPintuService->testConnection();
+        if (! $connection['success']) {
+            return $this->connectionErrorData($connection);
         }
 
-        $remote = Cache::remember('sipintu_remote_data', now()->addMinutes(5), function (): array {
-            try {
+        try {
+            $remote = Cache::remember('sipintu_dashboard_remote_counts', now()->addMinutes(5), function (): array {
                 $students = $this->siPintuService->fetchStudents();
                 $teachers = $this->siPintuService->fetchTeachers();
 
                 return [
-                    'status' => 'connected',
-                    'message' => 'Terhubung ke gateway SiPintu.',
                     'student_count' => count($students),
                     'teacher_count' => count($teachers),
                 ];
-            } catch (SiPintuApiException $e) {
-                logger()->warning('Gagal memuat data dashboard SiPintu.', [
-                    'exception_class' => $e::class,
-                    'message' => $e->getMessage(),
-                ]);
+            });
+        } catch (SiPintuApiException $e) {
+            logger()->warning('Respons data dashboard SiPintu gagal setelah koneksi berhasil.', [
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
 
-                return $this->connectionErrorData($e->getMessage());
-            } catch (\Throwable $e) {
-                logger()->error('Kesalahan tak terduga saat memuat dashboard SiPintu.', [
-                    'exception_class' => $e::class,
-                    'message' => $e->getMessage(),
-                ]);
+            return $this->apiResponseErrorData($connection, $e->getMessage());
+        } catch (\Throwable $e) {
+            logger()->error('Kesalahan tak terduga saat memuat data dashboard SiPintu.', [
+                'exception_class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
 
-                return $this->connectionErrorData(
-                    'Gagal memuat data SiPintu. Periksa koneksi API dan log aplikasi.'
-                );
-            }
-        });
+            return $this->apiResponseErrorData($connection, 'Respons data SiPintu tidak dapat dimuat.');
+        }
 
-        return $this->normalizeDashboardRemoteData($remote);
+        return $this->normalizeDashboardRemoteData($connection, $remote);
     }
 
     /**
-     * Build a safe dashboard payload when the upstream API cannot be used.
-     *
-     * @return array{status: string, message: string, student_count: int, teacher_count: int}
+     * @param  array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}  $connection
+     * @return array{success: bool, status: string, connection: bool, http_status: int|null, message: string, error_type: string|null, student_count: int, teacher_count: int}
      */
-    private function connectionErrorData(string $message): array
+    private function connectionErrorData(array $connection): array
     {
         return [
-            'status' => 'error',
-            'message' => $message,
+            'success' => false,
+            'status' => $connection['error_type'] === 'configuration' ? 'not_configured' : 'error',
+            'connection' => false,
+            'http_status' => $connection['http_status'],
+            'message' => $connection['message'],
+            'error_type' => $connection['error_type'],
             'student_count' => 0,
             'teacher_count' => 0,
         ];
     }
 
     /**
-     * Cache data can outlive a deployment. Never let a malformed or stale
-     * cache value cause array-offset errors while rendering the dashboard.
-     *
-     * @return array{status: string, message: string, student_count: int, teacher_count: int}
+     * @param  array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}  $connection
+     * @return array{success: bool, status: string, connection: bool, http_status: int|null, message: string, error_type: string, student_count: int, teacher_count: int}
      */
-    private function normalizeDashboardRemoteData(mixed $remote): array
+    private function apiResponseErrorData(array $connection, string $message): array
+    {
+        return [
+            'success' => false,
+            'status' => 'connected',
+            'connection' => true,
+            'http_status' => $connection['http_status'],
+            'message' => 'Koneksi berhasil, tetapi respons data SiPintu gagal: '.$message,
+            'error_type' => 'response',
+            'student_count' => 0,
+            'teacher_count' => 0,
+        ];
+    }
+
+    /**
+     * @param  array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}  $connection
+     * @return array{success: bool, status: string, connection: bool, http_status: int|null, message: string, error_type: string|null, student_count: int, teacher_count: int}
+     */
+    private function normalizeDashboardRemoteData(array $connection, mixed $remote): array
     {
         if (! is_array($remote)
-            || ! is_string($remote['status'] ?? null)
-            || ! is_string($remote['message'] ?? null)
             || ! is_numeric($remote['student_count'] ?? null)
             || ! is_numeric($remote['teacher_count'] ?? null)) {
             logger()->warning('Cache dashboard SiPintu tidak valid; memakai status aman.', [
                 'cache_value_type' => get_debug_type($remote),
             ]);
 
-            return $this->connectionErrorData('Status data SiPintu belum tersedia. Silakan coba lagi.');
+            return $this->apiResponseErrorData($connection, 'Status data SiPintu belum tersedia. Silakan coba lagi.');
         }
 
         return [
-            'status' => $remote['status'],
-            'message' => $remote['message'],
+            'success' => true,
+            'status' => 'connected',
+            'connection' => true,
+            'http_status' => $connection['http_status'],
+            'message' => 'Autentikasi berhasil dan server SiPintu dapat dijangkau.',
+            'error_type' => null,
             'student_count' => max(0, (int) $remote['student_count']),
             'teacher_count' => max(0, (int) $remote['teacher_count']),
         ];

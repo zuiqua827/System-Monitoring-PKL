@@ -28,42 +28,23 @@
                  validation and show a misleading "credentials" error). --}}
             <input type="hidden" name="role" value="siswa" x-bind:value="tab">
 
-            {{-- Siswa fields --}}
-            <div x-show="tab === 'siswa'" x-cloak>
-                <div>
-                    <x-input-label for="nis" :value="__('NIS')" />
-                    <x-text-input
-                        id="nis"
-                        class="mt-1.5 block w-full"
-                        type="text"
-                        name="nis"
-                        :value="old('nis')"
-                        autofocus
-                        autocomplete="username"
-                        placeholder="Masukkan NIS"
-                        x-bind:required="tab === 'siswa'"
-                    />
-                    <x-input-error :messages="$errors->get('nis')" class="mt-2" />
-                </div>
-            </div>
-
-            {{-- Guru / DUDI email field --}}
-            <div x-show="tab !== 'siswa'" x-cloak>
-                <div>
-                    <x-input-label for="email" :value="__('Email')" />
-<x-text-input
-                        id="email"
-                        class="mt-1.5 block w-full"
-                        type="email"
-                        name="email"
-                        :value="old('email')"
-                        autofocus
-                        autocomplete="username"
-                        x-bind:placeholder="tab === 'guru' ? 'Masukkan Email Guru' : 'Masukkan Email Industri'"
-                        x-bind:required="tab !== 'siswa'"
-                    />
-                    <x-input-error :messages="$errors->get('email')" class="mt-2" />
-                </div>
+            {{-- Email field (shared for all roles) --}}
+            <div>
+                <x-input-label for="email" x-text="tab === 'siswa' ? 'Email ' : 'Email'" />
+                <x-text-input
+                    id="email"
+                    class="mt-1.5 block w-full"
+                    type="email"
+                    name="email"
+                    :value="old('email')"
+                    autofocus
+                    autocomplete="email"
+                    x-bind:placeholder="tab === 'siswa' ? 'Masukkan Nis' : (tab === 'guru' ? 'Masukkan Email Guru' : 'Masukkan Email Industri')"
+                    required
+                />
+                <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                {{-- Fallback error for legacy requests --}}
+                <x-input-error :messages="$errors->get('nis')" class="mt-2" />
             </div>
 
             {{-- Password field (shared) --}}

@@ -8,6 +8,7 @@ use App\Models\Absensi;
 use App\Repositories\Interfaces\AbsensiRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
 
 /**
  * @extends EloquentRepository<Absensi>
@@ -109,7 +110,22 @@ class AbsensiRepository extends EloquentRepository implements AbsensiRepositoryI
         /** @var Absensi|null $absensi */
         $absensi = $this->newQuery()
             ->where('penempatan_pkl_id', $penempatanPklId)
-            ->whereDate('tanggal', now()->toDateString())
+            ->whereDate('tanggal', Carbon::today(config('app.timezone'))->toDateString())
+            ->first();
+
+        return $absensi;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function lockTodayByPenempatan(int $penempatanPklId): ?Absensi
+    {
+        /** @var Absensi|null $absensi */
+        $absensi = $this->newQuery()
+            ->where('penempatan_pkl_id', $penempatanPklId)
+            ->whereDate('tanggal', Carbon::today(config('app.timezone'))->toDateString())
+            ->lockForUpdate()
             ->first();
 
         return $absensi;

@@ -30,7 +30,7 @@ class JurusanFactory extends Factory
         ]).' '.fake()->unique()->bothify('##');
 
         return [
-            'kode' => fake()->unique()->bothify('JRS-###'),
+            'kode' => 'JRS-' . fake()->unique()->numberBetween(100000, 999999),
             'nama' => $nama,
             'deskripsi' => fake()->optional()->sentence(),
         ];

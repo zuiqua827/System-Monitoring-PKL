@@ -73,13 +73,9 @@ class AbsensiController extends Controller
         $sudahCheckIn = $todayAbsensi !== null && $todayAbsensi->jam_masuk !== null;
         $sudahCheckOut = $todayAbsensi !== null && $todayAbsensi->jam_keluar !== null;
 
-        // Tanggal Presensi selalu mengikuti hari ini dalam zona waktu sekolah.
-        $tanggalPresensi = Carbon::today(config('app.timezone'))->toDateString();
-
         // Get paginated absensi history
         $absensis = $this->absensiService->getSiswaAbsensiPaginated($siswa->id, [
-            'tanggal' => $tanggalPresensi,
-            'status' => $request->query('status'),
+            'sort_by' => $request->query('sort', 'tanggal'),
             'sort_by' => $request->query('sort', 'tanggal'),
             'sort_direction' => $request->query('direction', 'desc'),
             'per_page' => (int) $request->query('per_page', '15'),
@@ -98,7 +94,6 @@ class AbsensiController extends Controller
             'watermarkData',
             'sudahCheckIn',
             'sudahCheckOut',
-            'tanggalPresensi',
             'rekapPresensi'
         ));
     }

@@ -48,7 +48,6 @@ class UpdatePenempatanPKLRequest extends FormRequest
                     ->ignore($penempatanPklId)
                     ->whereNull('deleted_at')
             ],
-            'nomor_surat' => ['nullable', 'string', 'max:100', Rule::unique('penempatan_pkl', 'nomor_surat')->ignore($penempatanPklId)],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
             'status' => ['required', 'string', 'in:pending,aktif,selesai,dibatalkan'],
@@ -68,7 +67,6 @@ class UpdatePenempatanPKLRequest extends FormRequest
             'guru_id' => 'Guru Pembimbing',
             'dudi_id' => 'Perusahaan/DUDI',
             'siswa_id' => 'Siswa',
-            'nomor_surat' => 'Nomor Surat',
             'tanggal_mulai' => 'Tanggal Mulai',
             'tanggal_selesai' => 'Tanggal Selesai',
             'status' => 'Status',

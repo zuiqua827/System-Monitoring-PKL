@@ -70,6 +70,44 @@
             };
         @endphp
 
+        {{-- Connection Diagnostics Alert (If connection failed or details available) --}}
+        @if ($connectionStatus !== 'connected' || !empty($connectionDetail) || !empty($connectionTroubleshooting))
+            <div class="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 shadow-sm">
+                <div class="flex items-start gap-3.5">
+                    <div class="rounded-xl bg-rose-100 p-2.5 text-rose-600 shrink-0">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-bold text-rose-900">Diagnosis Koneksi SiPintu</h3>
+                            <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 uppercase tracking-wider">
+                                Status: {{ $connBadge['label'] }}
+                            </span>
+                        </div>
+                        <p class="text-sm font-medium text-rose-800">{{ $connectionMessage }}</p>
+
+                        @if (!empty($connectionDetail))
+                            <div class="rounded-xl border border-rose-200/80 bg-white/80 p-3.5 text-xs text-rose-950 font-mono break-all">
+                                <span class="font-bold text-rose-900 font-sans block mb-1">Penyebab / Detail Error API:</span>
+                                {{ $connectionDetail }}
+                            </div>
+                        @endif
+
+                        @if (!empty($connectionTroubleshooting))
+                            <div class="flex items-start gap-2 text-xs font-medium text-rose-900 pt-1">
+                                <svg class="h-4 w-4 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 2.625a3.375 3.375 0 00-3.75-3.375m-3.75 3.375a3.375 3.375 0 013.75-3.375m0 0V9a2.25 2.25 0 012.25-2.25h.375m-2.625 0H9.375A2.25 2.25 0 007.125 9v1.875" />
+                                </svg>
+                                <span><strong>Saran Perbaikan:</strong> {{ $connectionTroubleshooting }}</span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             {{-- Connection Status --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
@@ -78,6 +116,11 @@
                     <span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $connBadge['class'] }}">{{ $connBadge['label'] }}</span>
                 </div>
                 <p class="mt-3 text-sm text-slate-600">{{ $connectionMessage }}</p>
+                @if (!empty($connectionDetail))
+                    <p class="mt-2 text-xs font-mono text-rose-600 truncate" title="{{ $connectionDetail }}">
+                        Detail: {{ $connectionDetail }}
+                    </p>
+                @endif
             </article>
 
             {{-- Last Sync --}}

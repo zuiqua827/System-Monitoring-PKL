@@ -174,10 +174,10 @@
         </div>
 
         {{-- Primary Stat Cards --}}
-        <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ($primaryCards as $card)
                 <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
-                    <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start gap-4">
+                    <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-sm font-semibold text-slate-500">{{ $card['label'] }}</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
@@ -208,9 +208,9 @@
         </div>
 
         {{-- Secondary stat mini-cards --}}
-        <div class="mt-5 grid gap-3 sm:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ($secondaryCards as $card)
-                <a href="{{ route($card['route']) }}" class="group flex flex-col sm:flex-row gap-4 sm: sm: rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-card-sm transition hover:border-blue-200 hover:bg-blue-50/40 hover:shadow-card-md">
+                <a href="{{ route($card['route']) }}" class="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-card-sm transition hover:border-blue-200 hover:bg-blue-50/40 hover:shadow-card-md">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 group-hover:text-blue-600">{{ $card['label'] }}</p>
                     <p class="text-xl font-extrabold text-slate-900">{{ number_format($card['value']) }}</p>
                 </a>
@@ -219,8 +219,8 @@
 
         {{-- Charts Row 1: Placement & Attendance --}}
         <div class="mt-6 grid gap-6 xl:grid-cols-12">
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm xl:col-span-4">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start">
+            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm xl:col-span-4 flex flex-col">
+                <div class="flex items-start justify-between gap-4">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">Status Penempatan</h2>
                         <p class="mt-1 text-sm text-slate-500">Total penempatan PKL</p>
@@ -240,7 +240,7 @@
 
                 <div class="mt-8 space-y-3">
                     @foreach ($placementItems as $item)
-                        <div class="flex flex-col sm:flex-row gap-4 sm: sm: text-sm">
+                        <div class="flex items-center justify-between gap-4 text-sm">
                             <div class="flex items-center gap-2.5 text-slate-600">
                                 <span class="h-2.5 w-2.5 rounded-full {{ $item['dot'] }}"></span>
                                 <span class="font-medium">{{ $item['label'] }}</span>
@@ -251,8 +251,8 @@
                 </div>
             </article>
 
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm xl:col-span-8">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm xl:col-span-8 flex flex-col">
+                <div class="flex items-start justify-between gap-4">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">Statistik Kehadiran PKL</h2>
                         <p class="mt-1 text-sm text-slate-500">7 hari terakhir dari data absensi</p>
@@ -292,11 +292,11 @@
                         @endforelse
                     </div>
 
-                    <div class="rounded-2xl border border-slate-200 p-4">
+                    <div class="flex h-full flex-col justify-center rounded-2xl border border-slate-200 p-4">
                         <div class="mx-auto h-28 w-28 rounded-full" style="background: {{ $statusGradient }};"></div>
                         <div class="mt-5 space-y-2">
                             @forelse ($statusItems as $item)
-                                <div class="flex flex-col sm:flex-row gap-4 sm: sm: text-xs">
+                                <div class="flex items-center justify-between gap-4 text-xs">
                                     <div class="flex items-center gap-2 text-slate-600">
                                         <span class="h-2.5 w-2.5 rounded-full {{ $item['dot'] }}"></span>
                                         <span class="font-medium">{{ $item['label'] }}</span>
@@ -314,7 +314,7 @@
 
         {{-- Charts Row 2: DUDI, Activity, Grade --}}
         <div class="mt-6 grid gap-6 xl:grid-cols-3">
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
+            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm flex flex-col">
                 <h2 class="text-base font-bold text-slate-900">Siswa per DUDI</h2>
                 <p class="mt-1 text-sm text-slate-500">Distribusi penempatan per mitra</p>
 
@@ -325,7 +325,7 @@
                             $width = round(($total / $maxDudi) * 100);
                         @endphp
                         <div>
-                            <div class="mb-1.5 flex flex-col sm:flex-row gap-4 sm: sm: gap-3 text-sm">
+                            <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
                                 <span class="truncate font-semibold text-slate-700">{{ $item['nama_perusahaan'] ?? 'DUDI' }}</span>
                                 <span class="font-bold text-slate-900">{{ number_format($total) }}</span>
                             </div>
@@ -339,11 +339,11 @@
                 </div>
             </article>
 
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
+            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm flex flex-col">
                 <h2 class="text-base font-bold text-slate-900">Tren Aktivitas</h2>
                 <p class="mt-1 text-sm text-slate-500">Aktivitas harian minggu ini</p>
 
-                <div class="mt-8 flex h-56 items-end gap-3 rounded-2xl bg-slate-50 px-4 py-5 overflow-x-auto">
+                <div class="mt-6 flex h-56 items-end gap-3 rounded-2xl bg-slate-50 px-4 py-5 overflow-x-auto">
                     @forelse ($activityTrend as $day)
                         @php
                             $total = (int) ($day['total'] ?? 0);
@@ -362,7 +362,7 @@
                 </div>
             </article>
 
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
+            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm flex flex-col">
                 <h2 class="text-base font-bold text-slate-900">Distribusi Nilai PKL</h2>
                 <p class="mt-1 text-sm text-slate-500">{{ number_format($gradeTotal) }} penilaian final</p>
 
@@ -373,7 +373,7 @@
                             $width = $gradeTotal > 0 ? round(($value / $gradeTotal) * 100) : 0;
                         @endphp
                         <div>
-                            <div class="mb-1.5 flex flex-col sm:flex-row gap-4 sm: sm: text-sm">
+                            <div class="mb-1.5 flex items-center justify-between gap-4 text-sm">
                                 <span class="font-semibold text-slate-700">Predikat {{ $grade }}</span>
                                 <span class="font-bold text-slate-900">{{ number_format($value) }}</span>
                             </div>
@@ -390,7 +390,7 @@
 
         {{-- Monitoring & Recent Activity --}}
         <div class="mt-6 grid gap-6 xl:grid-cols-3">
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
+            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm flex flex-col">
                 <h2 class="text-base font-bold text-slate-900">Ringkasan Monitoring</h2>
                 <p class="mt-1 text-sm text-slate-500">Item yang membutuhkan perhatian</p>
 
@@ -407,7 +407,7 @@
                                 }
                                 : 'bg-emerald-50 text-emerald-700 ring-emerald-100';
                         @endphp
-                        <a href="{{ route($item['route']) }}" class="flex flex-col sm:flex-row gap-4 sm: sm: gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/40">
+                        <a href="{{ route($item['route']) }}" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/40">
                             <span class="text-sm font-medium text-slate-600">{{ $item['label'] }}</span>
                             <span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $badgeClass }}">{{ number_format($item['value']) }}</span>
                         </a>
@@ -415,8 +415,8 @@
                 </div>
             </article>
 
-            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm xl:col-span-2">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200 px-6 py-5">
+            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm xl:col-span-2 flex flex-col">
+                <div class="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-5">
                     <div>
                         <h2 class="text-base font-bold text-slate-900">Aktivitas Terbaru</h2>
                         <p class="mt-1 text-sm text-slate-500">Gabungan check-in, check-out, aktivitas, dan penilaian</p>
@@ -425,7 +425,7 @@
                 </div>
 
                 @if (count($activities) > 0)
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto flex-1">
                         <table class="w-full min-w-[800px] divide-y divide-slate-200">
                             <thead class="bg-slate-50">
                                 <tr>
@@ -466,7 +466,7 @@
                         </table>
                     </div>
                 @else
-                    <div class="px-6 py-16 text-center">
+                    <div class="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
                         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                             <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />

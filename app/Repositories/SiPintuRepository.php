@@ -250,16 +250,53 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             }
 
             return match ($response->status()) {
-                401 => $this->connectionResult(false, 401, 'Autentikasi SiPintu gagal.', 'authentication'),
-                403 => $this->connectionResult(false, 403, 'Akses SiPintu ditolak.', 'permission'),
-                404 => $this->connectionResult(false, 404, 'Endpoint SiPintu tidak ditemukan.', 'endpoint'),
-                422 => $this->connectionResult(false, 422, 'Request ke SiPintu tidak valid.', 'validation'),
-                429 => $this->connectionResult(false, 429, 'SiPintu membatasi terlalu banyak request.', 'rate_limit'),
+                401 => $this->connectionResult(
+                    false,
+                    401,
+                    'Autentikasi SiPintu gagal.',
+                    'authentication',
+                    'Client ID atau Client Secret tidak cocok dengan server SiPintu.',
+                    'Periksa kembali SIPINTU_CLIENT_ID dan SIPINTU_CLIENT_SECRET di file .env.'
+                ),
+                403 => $this->connectionResult(
+                    false,
+                    403,
+                    'Akses SiPintu ditolak.',
+                    'permission',
+                    'Credential valid tetapi tidak memiliki hak akses (Forbidden).',
+                    'Pastikan kredensial memiliki hak akses ke modul SIJUNA di gateway SiPintu.'
+                ),
+                404 => $this->connectionResult(
+                    false,
+                    404,
+                    'Endpoint SiPintu tidak ditemukan.',
+                    'endpoint',
+                    'URL Endpoint (/api/v1/sijuna/students) mengembalikan HTTP 404.',
+                    'Periksa alamat SIPINTU_API_URL pada file .env, pastikan domain dan path base URL sudah benar.'
+                ),
+                422 => $this->connectionResult(
+                    false,
+                    422,
+                    'Request ke SiPintu tidak valid.',
+                    'validation',
+                    'Format permintaan tidak dapat diproses oleh server SiPintu.',
+                    'Periksa parameter permintaan ke gateway SiPintu.'
+                ),
+                429 => $this->connectionResult(
+                    false,
+                    429,
+                    'SiPintu membatasi terlalu banyak request.',
+                    'rate_limit',
+                    'Batas jumlah pemanggilan API (Rate Limit) telah terlampaui.',
+                    'Tunggu beberapa menit sebelum mencoba lagi.'
+                ),
                 default => $this->connectionResult(
                     false,
                     $response->status(),
                     'SiPintu mengembalikan HTTP '.$response->status().'.',
                     $response->serverError() ? 'server' : 'api',
+                    'Server SiPintu merespons dengan status error HTTP '.$response->status().'.',
+                    'Pastikan server backend SiPintu berjalan normal dan tidak mengalami error internal.'
                 ),
             };
         } catch (\RuntimeException $e) {
@@ -269,27 +306,43 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 'message' => $e->getMessage(),
             ]);
 
-            return $this->connectionResult(false, null, $e->getMessage(), 'configuration');
+            return $this->connectionResult(
+                false,
+                null,
+                $e->getMessage(),
+                'configuration',
+                $e->getMessage(),
+                'Buka file .env dan isi konfigurasi SIPINTU_API_URL, SIPINTU_CLIENT_ID, serta SIPINTU_CLIENT_SECRET.'
+            );
         } catch (ConnectionException $e) {
-            $message = strtolower($e->getMessage());
-            $errorType = str_contains($message, 'ssl') ? 'ssl' : (str_contains($message, 'timed out') || str_contains($message, 'timeout') ? 'timeout' : 'network');
+            $rawMsg = $e->getMessage();
+            $messageLower = strtolower($rawMsg);
+            $errorType = str_contains($messageLower, 'ssl') ? 'ssl' : (str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout') ? 'timeout' : 'network');
 
             Log::warning('SiPintu test connection exception.', [
                 'endpoint' => '/api/v1/sijuna/students',
                 'exception_class' => $e::class,
-                'message' => $e->getMessage(),
+                'message' => $rawMsg,
                 'error_type' => $errorType,
             ]);
+
+            $troubleshooting = match ($errorType) {
+                'ssl' => 'Periksa sertifikat SSL server SiPintu. Anda dapat menyetel SIPINTU_VERIFY_SSL=false di file .env untuk pengujian lokal.',
+                'timeout' => 'Server tidak menerima respons dalam batas waktu (timeout). Pastikan jaringan server aktif, domain dapat diakses, atau tingkatkan SIPINTU_TIMEOUT di file .env.',
+                default => 'Gagal terhubung ke host SiPintu. Pastikan server terhubung ke internet/intranet dan domain SIPINTU_API_URL dapat dijangkau.',
+            };
 
             return $this->connectionResult(
                 false,
                 null,
                 match ($errorType) {
-                    'ssl' => 'Koneksi SSL SiPintu gagal. Periksa konfigurasi sertifikat.',
-                    'timeout' => 'Koneksi ke SiPintu melebihi batas waktu.',
+                    'ssl' => 'Koneksi SSL SiPintu gagal.',
+                    'timeout' => 'Koneksi ke SiPintu melebihi batas waktu (Timeout).',
                     default => 'Gagal terhubung ke server SiPintu.',
                 },
                 $errorType,
+                $rawMsg,
+                $troubleshooting
             );
         } catch (\Throwable $e) {
             Log::error('SiPintu test connection unexpected exception.', [
@@ -298,14 +351,21 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 'message' => $e->getMessage(),
             ]);
 
-            return $this->connectionResult(false, null, 'Terjadi kesalahan saat menguji koneksi SiPintu.', 'unexpected');
+            return $this->connectionResult(
+                false,
+                null,
+                'Terjadi kesalahan saat menguji koneksi SiPintu.',
+                'unexpected',
+                $e->getMessage(),
+                'Periksa file storage/logs/laravel.log untuk rincian exception selengkapnya.'
+            );
         }
     }
 
     /**
-     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null, detail: string|null, troubleshooting: string|null}
      */
-    private function connectionResult(bool $success, ?int $httpStatus, string $message, ?string $errorType = null): array
+    private function connectionResult(bool $success, ?int $httpStatus, string $message, ?string $errorType = null, ?string $detail = null, ?string $troubleshooting = null): array
     {
         return [
             'success' => $success,
@@ -314,6 +374,8 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             'http_status' => $httpStatus,
             'message' => $message,
             'error_type' => $errorType,
+            'detail' => $detail,
+            'troubleshooting' => $troubleshooting,
         ];
     }
 }

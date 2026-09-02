@@ -32,6 +32,8 @@ class SipintuSyncController extends Controller
         return view('admin.sipintu-sync.index', [
             'connectionStatus' => $data['connection_status'],
             'connectionMessage' => $data['connection_message'],
+            'connectionDetail' => $data['connection_detail'] ?? null,
+            'connectionTroubleshooting' => $data['connection_troubleshooting'] ?? null,
             'lastSync' => $data['last_sync'],
             'sipintuStudentCount' => $data['sipintu_student_count'],
             'sipintuTeacherCount' => $data['sipintu_teacher_count'],
@@ -59,6 +61,8 @@ class SipintuSyncController extends Controller
             return view('admin.sipintu-sync.index', [
                 'connectionStatus' => $data['connection_status'],
                 'connectionMessage' => $data['connection_message'],
+                'connectionDetail' => $data['connection_detail'] ?? null,
+                'connectionTroubleshooting' => $data['connection_troubleshooting'] ?? null,
                 'lastSync' => $data['last_sync'],
                 'sipintuStudentCount' => $data['sipintu_student_count'],
                 'sipintuTeacherCount' => $data['sipintu_teacher_count'],
@@ -79,6 +83,8 @@ class SipintuSyncController extends Controller
         return view('admin.sipintu-sync.index', [
             'connectionStatus' => $data['connection_status'],
             'connectionMessage' => $data['connection_message'],
+            'connectionDetail' => $data['connection_detail'] ?? null,
+            'connectionTroubleshooting' => $data['connection_troubleshooting'] ?? null,
             'lastSync' => $data['last_sync'],
             'sipintuStudentCount' => $data['sipintu_student_count'],
             'sipintuTeacherCount' => $data['sipintu_teacher_count'],
@@ -104,8 +110,14 @@ class SipintuSyncController extends Controller
         $result = $this->syncService->testConnection();
         $message = $result['message'];
 
-        if ($result['http_status'] !== null) {
+        if (! empty($result['detail'])) {
+            $message .= ' — Rincian: '.$result['detail'];
+        } elseif ($result['http_status'] !== null) {
             $message .= ' (HTTP '.$result['http_status'].').';
+        }
+
+        if (! empty($result['troubleshooting'])) {
+            $message .= ' Solusi: '.$result['troubleshooting'];
         }
 
         return redirect()

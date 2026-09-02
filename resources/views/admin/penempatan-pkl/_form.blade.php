@@ -194,14 +194,7 @@
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
-                <div class="bg-white p-5">
-                    <label for="nomor_surat" class="block text-sm font-semibold text-slate-700">Nomor Surat</label>
-                    <input type="text" id="nomor_surat" name="nomor_surat" value="{{ old('nomor_surat', $penempatanPkl->nomor_surat ?? '') }}" maxlength="100"
-                           class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    @error('nomor_surat')
-                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
+
                 <div class="bg-white p-5">
                     <label for="status" class="block text-sm font-semibold text-slate-700">
                         Status <span class="text-red-500">*</span>

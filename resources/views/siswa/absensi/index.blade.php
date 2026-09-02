@@ -250,30 +250,6 @@
             </div>
         @endif
 
-        {{-- Filter --}}
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm">
-            <form method="GET" action="{{ route('siswa.absensi.index') }}" class="flex flex-wrap items-center flex-wrap gap-3">
-                <div>
-                    <input type="date" name="tanggal" value="{{ $tanggalPresensi }}" readonly
-                           class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                </div>
-                <div>
-                    <select name="status" class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                        <option value="">Semua Status</option>
-                        @foreach(AbsensiStatus::cases() as $status)
-                            <option value="{{ $status->value }}" {{ request('status') == $status->value ? 'selected' : '' }}>
-                                {{ $status->label() }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="submit" class="inline-flex items-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">Filter</button>
-                @if(request('status'))
-                    <a href="{{ route('siswa.absensi.index') }}" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Reset</a>
-                @endif
-            </form>
-        </div>
-
         {{-- Rekap Presensi PKL --}}
         @if(isset($rekapPresensi))
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
@@ -403,11 +379,7 @@
                                             </svg>
                                         </div>
                                         <p class="text-sm font-semibold text-slate-700">
-                                            @if(request('status'))
-                                                Tidak ada hasil untuk filter yang dipilih.
-                                            @else
-                                                Belum ada data Presensi.
-                                            @endif
+                                            Belum ada data Presensi.
                                         </p>
                                     </div>
                                 </td>

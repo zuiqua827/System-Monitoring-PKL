@@ -50,6 +50,8 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
         return [
             'connection_status' => $remote['status'],
             'connection_message' => $remote['message'],
+            'connection_detail' => $remote['detail'] ?? null,
+            'connection_troubleshooting' => $remote['troubleshooting'] ?? null,
             'connection_success' => $remote['connection'],
             'connection_http_status' => $remote['http_status'],
             'connection_error_type' => $remote['error_type'],
@@ -346,6 +348,8 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
             'http_status' => $connection['http_status'],
             'message' => $connection['message'],
             'error_type' => $connection['error_type'],
+            'detail' => $connection['detail'] ?? null,
+            'troubleshooting' => $connection['troubleshooting'] ?? null,
             'student_count' => 0,
             'teacher_count' => 0,
         ];
@@ -364,6 +368,8 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
             'http_status' => $connection['http_status'],
             'message' => 'Koneksi berhasil, tetapi respons data SiPintu gagal: '.$message,
             'error_type' => 'response',
+            'detail' => $message,
+            'troubleshooting' => 'Format data yang diterima tidak sesuai skema API SiPintu.',
             'student_count' => 0,
             'teacher_count' => 0,
         ];

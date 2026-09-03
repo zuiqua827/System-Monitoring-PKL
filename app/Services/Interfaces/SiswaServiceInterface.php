@@ -17,9 +17,9 @@ interface SiswaServiceInterface
      *
      * @return LengthAwarePaginator<int, Siswa>
      */
-public function getPaginated(
+    public function getPaginated(
         ?string $keyword = null,
-        string $sortBy = 'nama',
+        string $sortBy = 'nis',
         string $sortDirection = 'asc',
         int $perPage = 15,
         ?int $jurusanId = null,

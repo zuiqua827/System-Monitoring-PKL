@@ -42,7 +42,7 @@ public function index(Request $request): View
 
         $siswas = $this->siswaService->getPaginated(
             keyword: $request->query('search'),
-            sortBy: $request->query('sort', 'nama'),
+            sortBy: $request->query('sort', 'nis'),
             sortDirection: $request->query('direction', 'asc'),
             perPage: (int) $request->query('per_page', '15'),
             jurusanId: $jurusanId ?: null,

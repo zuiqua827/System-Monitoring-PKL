@@ -542,11 +542,17 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         }
 
         $classroomId = $this->classroomId($remote);
+
+        // If classroomId is 0 / null, the student is an ALUMNI (must be skipped).
+        if ($classroomId <= 0) {
+            return 'skipped';
+        }
+
         $kelas = $this->resolveKelas($remote);
 
         // If remote student has a non-zero classroomId but no local mapping exists,
-        // flag as needs_mapping. If classroomId is 0 / null, the student is an ALUMNI.
-        if ($classroomId > 0 && $kelas === null) {
+        // flag as needs_mapping.
+        if ($kelas === null) {
             return 'needs_mapping';
         }
 
@@ -581,9 +587,15 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         }
 
         $classroomId = $this->classroomId($remote);
+
+        // If classroomId is 0 / null, the student is an ALUMNI (must be skipped).
+        if ($classroomId <= 0) {
+            return 'skipped';
+        }
+
         $kelas = $this->resolveKelas($remote);
 
-        if ($classroomId > 0 && $kelas === null) {
+        if ($kelas === null) {
             return 'needs_mapping';
         }
 
@@ -1052,12 +1064,14 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         return null;
     }
 
+    private static ?string $cachedDefaultPasswordHash = null;
+
     /**
      * Default password for newly created synchronized accounts.
      */
     private function defaultPassword(): string
     {
-        return bcrypt('password');
+        return self::$cachedDefaultPasswordHash ??= bcrypt('password');
     }
 
     /**
@@ -1277,6 +1291,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             'unchanged' => $stats['unchanged']++,
             'conflict' => $this->incrementSkipped($stats, 'conflicts'),
             'needs_mapping' => $this->incrementSkipped($stats, 'needs_mapping'),
+            'skipped' => $stats['skipped']++,
             default => $this->incrementSkipped($stats, 'errors'),
         };
     }

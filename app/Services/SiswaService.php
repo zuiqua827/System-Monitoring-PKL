@@ -37,7 +37,7 @@ class SiswaService extends Service implements SiswaServiceInterface
      */
     public function getPaginated(
         ?string $keyword = null,
-        string $sortBy = 'nama',
+        string $sortBy = 'nis',
         string $sortDirection = 'asc',
         int $perPage = 15,
         ?int $jurusanId = null,

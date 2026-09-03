@@ -18,9 +18,9 @@ interface SiswaRepositoryInterface extends BaseRepositoryInterface
      *
      * @return LengthAwarePaginator<int, Siswa>
      */
-public function search(
+    public function search(
         ?string $keyword = null,
-        string $sortBy = 'nama',
+        string $sortBy = 'nis',
         string $sortDirection = 'asc',
         int $perPage = 15,
         ?int $jurusanId = null,

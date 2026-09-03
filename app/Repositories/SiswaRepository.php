@@ -24,7 +24,7 @@ class SiswaRepository extends EloquentRepository implements SiswaRepositoryInter
      */
     public function search(
         ?string $keyword = null,
-        string $sortBy = 'nama',
+        string $sortBy = 'nis',
         string $sortDirection = 'asc',
         int $perPage = 15,
         ?int $jurusanId = null,
@@ -59,12 +59,16 @@ class SiswaRepository extends EloquentRepository implements SiswaRepositoryInter
         }
 
         $allowedSorts = ['nama', 'nis', 'created_at'];
-        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'nama';
+        $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'nis';
         $sortDirection = in_array($sortDirection, ['asc', 'desc'], true) ? $sortDirection : 'asc';
 
-        return $query
-            ->orderBy($sortBy, $sortDirection)
-            ->paginate(min(max($perPage, 1), 100));
+        if ($sortBy === 'nis') {
+            $query->orderByRaw("CAST(nis AS UNSIGNED) {$sortDirection}");
+        } else {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
+        return $query->paginate(min(max($perPage, 1), 100));
     }
 
 /**

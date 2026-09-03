@@ -96,7 +96,8 @@
                                     <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>
                                 </a>
                             </th>
-<th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Jenis Kelamin</th>
+                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Kelas</th>
+                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Jenis Kelamin</th>
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">No. HP</th>
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Status</th>
                             <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Aksi</th>
@@ -113,6 +114,13 @@
                                         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{{ strtoupper(substr($siswa->nama, 0, 1)) }}</span>
                                         <span class="font-medium text-slate-900">{{ $siswa->nama }}</span>
                                     </div>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    @if($siswa->kelas)
+                                        <span class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ $siswa->kelas->nama }}</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-700/10">Alumni</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3.5">
                                     @if($siswa->jenis_kelamin === 'L')

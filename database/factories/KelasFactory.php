@@ -25,7 +25,7 @@ class KelasFactory extends Factory
         $tingkat = fake()->randomElement([10, 11, 12]);
 
         return [
-            'jurusan_id' => Jurusan::inRandomOrder()->value('id'),
+            'jurusan_id' => Jurusan::factory(),
             'nama' => sprintf('%d %s', $tingkat, fake()->unique()->bothify('??-#')),
             'tingkat' => $tingkat,
             'tahun_ajaran' => fake()->randomElement(['2025/2026', '2026/2027']),

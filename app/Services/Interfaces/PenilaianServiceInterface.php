@@ -105,11 +105,23 @@ interface PenilaianServiceInterface
     /**
      * Calculate predikat based on nilai_akhir.
      *
+     * >= 95 → A+
      * >= 90 → A
      * 80-89 → B
      * 70-79 → C
-     * 60-69 → D
-     * < 60 → E
+     * < 70 → D
      */
     public function calculatePredikat(?float $nilaiAkhir): ?string;
+
+    /**
+     * Get attendance summary data (hadir, sakit, izin, alpha, total_hari, and percentages) for a placement.
+     *
+     * @return array{hadir: int, sakit: int, izin: int, alpha: int, total_hari: int, hadir_pct: float, sakit_pct: float, izin_pct: float, alpha_pct: float}
+     */
+    public function getRekapAbsensiData(int $penempatanPklId): array;
+
+    /**
+     * Get rule-based evaluation description for a given predicate.
+     */
+    public static function getDeskripsiPredikat(?string $predikat): string;
 }

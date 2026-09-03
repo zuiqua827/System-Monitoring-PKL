@@ -153,4 +153,26 @@ class PenilaianPolicy
 
         return $user->hasPermissionTo('penilaian.update');
     }
+
+    /**
+     * Determine whether the user can export/print/download PDF of the penilaian.
+     * ONLY Guru Pembimbing (for their bimbingan students) and Super Admin are permitted.
+     * Siswa and DUDI are strictly DENIED.
+     */
+    public function exportPdf(User $user, Penilaian $penilaian): bool
+    {
+        if ($user->hasRole('Siswa')) {
+            return false;
+        }
+
+        if ($user->hasRole('Guru')) {
+            $guru = $user->guru;
+            if ($guru !== null && $penilaian->penempatanPKL !== null) {
+                return $penilaian->penempatanPKL->guru_id === $guru->id;
+            }
+            return false;
+        }
+
+        return false;
+    }
 }

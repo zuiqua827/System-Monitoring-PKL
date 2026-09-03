@@ -129,3 +129,32 @@ it('records an API failure without writing synchronized records', function (): v
         ->and(Guru::query()->count())->toBe(0)
         ->and(SiPintuSyncLog::query()->where('status', 'failed')->count())->toBe(1);
 });
+
+it('syncs alumni students with classroom=null cleanly without flagging needs_mapping', function (): void {
+    $repository = Mockery::mock(SiPintuRepositoryInterface::class);
+    $repository->shouldReceive('fetchStudents')->andReturn([[
+        'nis' => 'S-ALUMNI',
+        'nama' => 'Siswa Alumni',
+        'classroom' => null,
+        'classroom_id' => null,
+    ]]);
+    $repository->shouldReceive('fetchTeachers')->andReturn([]);
+
+    $service = sipintuServiceWithRepository($repository);
+    $syncService = new SipintuSyncService($service, app(SipintuSyncLogRepositoryInterface::class));
+
+    $preview = $service->previewStudents();
+    expect($preview['baru'])->toBe(1)
+        ->and($preview['perlu_pemetaan'])->toBe(0);
+
+    $result = $syncService->runSync(sipintuAdmin());
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['stats']['students']['created'])->toBe(1)
+        ->and($result['stats']['students']['needs_mapping'])->toBe(0);
+
+    $alumni = Siswa::query()->where('nis', 'S-ALUMNI')->first();
+    expect($alumni)->not->toBeNull()
+        ->and($alumni->class_id)->toBeNull();
+});
+

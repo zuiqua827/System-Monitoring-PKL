@@ -126,6 +126,37 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const inputs = document.querySelectorAll('.nilai-input');
+    const selectPenempatan = document.getElementById('penempatan_pkl_id');
+    const inputKehadiran = document.getElementById('nilai_kehadiran');
+
+    function fetchKehadiranScore(penempatanId) {
+        if (!penempatanId || !inputKehadiran) return;
+
+        fetch(`/penilaian/ajax/attendance-score/${penempatanId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && typeof data.nilai_kehadiran !== 'undefined') {
+                inputKehadiran.value = data.nilai_kehadiran;
+                calculateNilaiAkhir();
+            }
+        })
+        .catch(err => console.error('Error fetching attendance score:', err));
+    }
+
+    if (selectPenempatan) {
+        selectPenempatan.addEventListener('change', function() {
+            fetchKehadiranScore(this.value);
+        });
+
+        if (selectPenempatan.value && (!inputKehadiran.value || inputKehadiran.value === '')) {
+            fetchKehadiranScore(selectPenempatan.value);
+        }
+    }
 
     function calculateNilaiAkhir() {
         let kehadiran = parseFloat(document.getElementById('nilai_kehadiran')?.value) || 0;
@@ -156,11 +187,11 @@ document.addEventListener('DOMContentLoaded', function() {
             previewNilai.textContent = avg;
 
             const avgNum = parseFloat(avg);
-            if (avgNum >= 90) previewPredikat.textContent = 'A (Sangat Baik)';
+            if (avgNum >= 95) previewPredikat.textContent = 'A+ (Sangat Memuaskan)';
+            else if (avgNum >= 90) previewPredikat.textContent = 'A (Sangat Baik)';
             else if (avgNum >= 80) previewPredikat.textContent = 'B (Baik)';
             else if (avgNum >= 70) previewPredikat.textContent = 'C (Cukup)';
-            else if (avgNum >= 60) previewPredikat.textContent = 'D (Kurang)';
-            else previewPredikat.textContent = 'E (Sangat Kurang)';
+            else previewPredikat.textContent = 'D (Kurang)';
         } else {
             previewNilai.textContent = '-';
             previewPredikat.textContent = '-';
@@ -170,6 +201,8 @@ document.addEventListener('DOMContentLoaded', function() {
     inputs.forEach(function(input) {
         input.addEventListener('input', calculateNilaiAkhir);
     });
+
+    calculateNilaiAkhir();
 });
 </script>
 @endpush

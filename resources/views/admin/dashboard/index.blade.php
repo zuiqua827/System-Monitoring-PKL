@@ -66,6 +66,7 @@
             'icon' => 'students',
             'tone' => 'blue',
             'iconClass' => 'bg-blue-50 text-blue-600',
+            'route' => 'admin.siswa.index',
         ],
         [
             'label' => 'Total Guru',
@@ -74,6 +75,7 @@
             'icon' => 'teacher',
             'tone' => 'violet',
             'iconClass' => 'bg-violet-50 text-violet-600',
+            'route' => 'admin.guru.index',
         ],
         [
             'label' => 'Total DUDI',
@@ -82,6 +84,7 @@
             'icon' => 'building',
             'tone' => 'orange',
             'iconClass' => 'bg-orange-50 text-orange-600',
+            'route' => 'admin.dudi.index',
         ],
         [
             'label' => 'Penempatan Aktif',
@@ -90,6 +93,7 @@
             'icon' => 'placement',
             'tone' => 'emerald',
             'iconClass' => 'bg-emerald-50 text-emerald-600',
+            'route' => 'admin.penempatan-pkl.index',
         ],
     ];
 
@@ -176,10 +180,10 @@
         {{-- Primary Stat Cards --}}
         <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
             @foreach ($primaryCards as $card)
-                <article class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md">
+                <a href="{{ isset($card['route']) ? route($card['route']) : '#' }}" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm transition hover:-translate-y-0.5 hover:shadow-card-md block">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <p class="text-sm font-semibold text-slate-500">{{ $card['label'] }}</p>
+                            <p class="text-sm font-semibold text-slate-500 group-hover:text-blue-600 transition-colors">{{ $card['label'] }}</p>
                             <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
                         </div>
                         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl {{ $card['iconClass'] }}">
@@ -203,7 +207,7 @@
                         </span>
                     </div>
                     <p class="mt-4 text-sm text-slate-500">{{ $card['hint'] }}</p>
-                </article>
+                </a>
             @endforeach
         </div>
 

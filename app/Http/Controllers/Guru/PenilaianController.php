@@ -76,4 +76,52 @@ class PenilaianController extends Controller
 
         return view('guru.penilaian.show', compact('penilaian'));
     }
+
+    /**
+     * Download PDF Rapor PKL. Restricted to Guru Pembimbing & Super Admin.
+     */
+    public function downloadPdf(int $id)
+    {
+        $penilaian = $this->penilaianService->findOrFail($id);
+
+        $this->authorize('exportPdf', $penilaian);
+
+        $penilaian->load([
+            'penempatanPKL.siswa.kelas.jurusan',
+            'penempatanPKL.guru',
+            'penempatanPKL.dudi',
+            'penempatanPKL.periodePKL',
+            'dinilaiOleh',
+        ]);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.penilaian', compact('penilaian'))
+            ->setPaper('a4', 'portrait');
+
+        $siswaNama = $penilaian->penempatanPKL?->siswa?->nama ?? 'Siswa';
+        $formattedName = str_replace(' ', '_', trim($siswaNama));
+        $filename = 'Rapor_PKL_' . $formattedName . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Cetak PDF (Downloads PDF directly with attachment header). Restricted to Guru Pembimbing & Super Admin.
+     */
+    public function printPdf(int $id)
+    {
+        return $this->downloadPdf($id);
+    }
+
+    /**
+     * Ajax calculation of attendance score for form auto-population.
+     */
+    public function calculateAttendanceAjax(int $penempatanPklId): \Illuminate\Http\JsonResponse
+    {
+        $score = $this->penilaianService->calculateKehadiranScore($penempatanPklId);
+
+        return response()->json([
+            'success' => true,
+            'nilai_kehadiran' => $score,
+        ]);
+    }
 }

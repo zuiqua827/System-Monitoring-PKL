@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('periode_pkl', function (Blueprint $table) {
             // Change semester (string) to keterangan (text nullable)
+            $table->dropIndex(['tahun_ajaran', 'semester']);
             $table->dropColumn('semester');
             $table->text('keterangan')->nullable()->after('status');
         });

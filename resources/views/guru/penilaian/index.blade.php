@@ -113,8 +113,11 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3.5">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <a href="{{ route('guru.penilaian.show', $penilaian->id) }}" class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">Detail</a>
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <a href="{{ route('guru.penilaian.show', $penilaian->id) }}" class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">Lihat Nilai PKL</a>
+                                        @if($penilaian->status === 'final')
+                                            <a href="{{ route('guru.penilaian.print', $penilaian->id) }}" class="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Cetak PDF</a>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

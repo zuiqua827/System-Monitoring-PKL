@@ -75,6 +75,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     /** @var array<string, User>|null email → User hashmap for O(1) lookups */
     private ?array $usersByEmail = null;
 
+    /** @var array<int, bool>|null user_id → isProtected bool hashmap for O(1) lookups */
+    private ?array $protectedUsersCache = null;
+
     /** @var array<int, Kelas>|null id → Kelas hashmap */
     private ?array $kelasById = null;
 
@@ -84,8 +87,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     /**
      * Preload all reference data into O(1) lookup hashmaps.
      *
-     * This eliminates N+1 queries by loading all students, users, and kelas
-     * once upfront and building associative arrays for instant lookups.
+     * This eliminates N+1 queries by loading all students, teachers, users, roles,
+     * and kelas upfront and building associative arrays for instant lookups.
      */
     public function preloadCaches(): void
     {
@@ -93,8 +96,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             return; // Already preloaded
         }
 
-        // Load all students with their user relationship eager-loaded
-        $this->localStudentsCache = Siswa::query()->withTrashed()->with('user')->get();
+        // Load all students with their user and roles eager-loaded
+        $this->localStudentsCache = Siswa::query()->withTrashed()->with('user.roles')->get();
 
         // Build NIS → Siswa hashmap
         $this->siswaByNis = [];
@@ -110,7 +113,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             }
         }
 
-        $this->localTeachersCache = Guru::query()->withTrashed()->with('user')->get();
+        $this->localTeachersCache = Guru::query()->withTrashed()->with('user.roles')->get();
         $this->guruByNip = [];
         foreach ($this->localTeachersCache as $guru) {
             $nip = trim((string) $guru->nip);
@@ -119,19 +122,27 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             }
         }
 
-        // Build user lookups from the eager-loaded relations
+        // Build user lookups and protected user status from the eager-loaded relations
         $this->usersById = [];
         $this->usersByEmail = [];
+        $this->protectedUsersCache = [];
+
         foreach ($this->localStudentsCache as $siswa) {
             if ($siswa->relationLoaded('user') && $siswa->user !== null) {
-                $this->usersById[$siswa->user->id] = $siswa->user;
-                $this->usersByEmail[strtolower($siswa->user->email)] = $siswa->user;
+                $user = $siswa->user;
+                $this->usersById[$user->id] = $user;
+                $this->usersByEmail[strtolower($user->email)] = $user;
+                $this->protectedUsersCache[$user->id] = $user->hasRole(UserRole::SUPER_ADMIN->value)
+                    || $user->hasRole(UserRole::DUDI->value);
             }
         }
         foreach ($this->localTeachersCache as $guru) {
             if ($guru->relationLoaded('user') && $guru->user !== null) {
-                $this->usersById[$guru->user->id] = $guru->user;
-                $this->usersByEmail[strtolower($guru->user->email)] = $guru->user;
+                $user = $guru->user;
+                $this->usersById[$user->id] = $user;
+                $this->usersByEmail[strtolower($user->email)] = $user;
+                $this->protectedUsersCache[$user->id] = $user->hasRole(UserRole::SUPER_ADMIN->value)
+                    || $user->hasRole(UserRole::DUDI->value);
             }
         }
 
@@ -530,26 +541,25 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             return 'conflict';
         }
 
+        $classroomId = $this->classroomId($remote);
         $kelas = $this->resolveKelas($remote);
+
+        // If remote student has a non-zero classroomId but no local mapping exists,
+        // flag as needs_mapping. If classroomId is 0 / null, the student is an ALUMNI.
+        if ($classroomId > 0 && $kelas === null) {
+            return 'needs_mapping';
+        }
 
         if ($resolved['siswa'] === null) {
             if ($this->personName($remote) === '') {
                 return 'error';
             }
 
-            // New student cannot be created without a valid kelas.
-            return $kelas === null ? 'needs_mapping' : 'created';
+            return 'created';
         }
 
         if ($this->hasProtectedUser($resolved['siswa']->user_id)) {
             return 'conflict';
-        }
-
-        // Existing student: if the remote carries a classroom that cannot be
-        // mapped, we must NOT change anything (avoid guessing class_id).
-        $hasClassroom = $this->classroomId($remote) > 0;
-        if ($hasClassroom && $kelas === null) {
-            return 'needs_mapping';
         }
 
         return $this->studentUnchanged($resolved['siswa'], $remote, $kelas)
@@ -570,17 +580,18 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             return 'conflict';
         }
 
+        $classroomId = $this->classroomId($remote);
         $kelas = $this->resolveKelas($remote);
+
+        if ($classroomId > 0 && $kelas === null) {
+            return 'needs_mapping';
+        }
+
         $existing = $resolved['siswa'];
 
         if ($existing === null) {
             if ($this->personName($remote) === '') {
                 return 'error';
-            }
-
-            // New student requires a mapped kelas before it can be created.
-            if ($kelas === null) {
-                return 'needs_mapping';
             }
 
             return $this->createStudent($remote, $kelas);
@@ -589,11 +600,6 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         if ($this->hasProtectedUser($existing->user_id)
             || $this->userEmailBelongsToAnotherAccount(Siswa::generateEmail((string) $remote['nis']), $existing->user_id)) {
             return 'conflict';
-        }
-
-        $hasClassroom = $this->classroomId($remote) > 0;
-        if ($hasClassroom && $kelas === null) {
-            return 'needs_mapping';
         }
 
         if ($this->studentUnchanged($existing, $remote, $kelas)) {
@@ -610,7 +616,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @param  array<string, mixed>  $remote
      */
-    private function createStudent(array $remote, Kelas $kelas): string
+    private function createStudent(array $remote, ?Kelas $kelas): string
     {
         $nama = $this->personName($remote);
         $nis = (string) $remote['nis'];
@@ -652,7 +658,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             /** @var Siswa $siswa */
             $siswa = $this->siswaRepository->create([
                 'user_id' => $user->id,
-                'class_id' => $kelas->id,
+                'class_id' => $kelas?->id,
                 'nis' => $nis,
                 'nisn' => $remote['nisn'] ?? null,
                 'nama' => $nama,
@@ -742,7 +748,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 'tanggal_lahir' => $tanggalLahir ?? $siswa->tanggal_lahir,
                 'no_telepon' => $remote['no_telepon'] ?? $remote['hp'] ?? $siswa->no_telepon,
                 'alamat' => $remote['alamat'] ?? $siswa->alamat,
-                'class_id' => $kelas?->id ?? $siswa->class_id,
+                'class_id' => $kelas?->id,
             ]);
             if ($siswa->isDirty()) {
                 $siswa->save();
@@ -969,7 +975,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $expectedTgl = (string) ($this->parseTanggalLahir($remote) ?? ($siswa->tanggal_lahir ? $siswa->tanggal_lahir->format('Y-m-d') : ''));
         $expectedPhone = (string) ($remote['no_telepon'] ?? $remote['hp'] ?? $siswa->no_telepon ?? '');
         $expectedAlamat = (string) ($remote['alamat'] ?? $siswa->alamat ?? '');
-        $expectedClass = $kelas?->id ?? $siswa->class_id;
+        $expectedClass = $kelas?->id;
 
         return (string) $siswa->nis === (string) $remote['nis']
             && (string) $siswa->nisn === $expectedNisn
@@ -978,7 +984,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             && ($siswa->tanggal_lahir ? $siswa->tanggal_lahir->format('Y-m-d') : '') === $expectedTgl
             && (string) ($siswa->no_telepon ?? '') === $expectedPhone
             && (string) ($siswa->alamat ?? '') === $expectedAlamat
-            && (int) ($siswa->class_id ?? 0) === (int) $expectedClass;
+            && $siswa->class_id === $expectedClass;
     }
 
     /**
@@ -1094,7 +1100,10 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     private function classroomId(array $remote): int
     {
-        $value = $remote['classroom_id'] ?? $remote['classroom']['id'] ?? null;
+        $value = $remote['classroom_id']
+            ?? $remote['class_id']
+            ?? $remote['kelas_id']
+            ?? (is_array($remote['classroom'] ?? null) ? ($remote['classroom']['id'] ?? null) : null);
 
         if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
             return 0;
@@ -1119,10 +1128,20 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             return false;
         }
 
-        $user = $this->usersById[$userId] ?? User::query()->withTrashed()->find($userId);
+        if ($this->protectedUsersCache !== null && isset($this->protectedUsersCache[$userId])) {
+            return $this->protectedUsersCache[$userId];
+        }
 
-        return $user instanceof User
+        $user = $this->usersById[$userId] ?? User::query()->withTrashed()->with('roles')->find($userId);
+
+        $isProtected = $user instanceof User
             && ($user->hasRole(UserRole::SUPER_ADMIN->value) || $user->hasRole(UserRole::DUDI->value));
+
+        if ($this->protectedUsersCache !== null) {
+            $this->protectedUsersCache[$userId] = $isProtected;
+        }
+
+        return $isProtected;
     }
 
     private function userEmailBelongsToAnotherAccount(string $email, ?int $userId): bool
@@ -1130,6 +1149,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $normalizedEmail = strtolower(trim($email));
         $user = $this->usersByEmail[$normalizedEmail] ?? User::query()
             ->withTrashed()
+            ->with('roles')
             ->where('email', $normalizedEmail)
             ->first();
 
@@ -1145,12 +1165,40 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         if ($this->siswaByNisn !== null && $siswa->nisn !== null && $siswa->nisn !== '') {
             $this->siswaByNisn[$siswa->nisn] = $siswa;
         }
+
+        if ($siswa->relationLoaded('user') && $siswa->user !== null) {
+            $user = $siswa->user;
+            if ($this->usersById !== null) {
+                $this->usersById[$user->id] = $user;
+            }
+            if ($this->usersByEmail !== null) {
+                $this->usersByEmail[strtolower($user->email)] = $user;
+            }
+            if ($this->protectedUsersCache !== null) {
+                $this->protectedUsersCache[$user->id] = $user->hasRole(UserRole::SUPER_ADMIN->value)
+                    || $user->hasRole(UserRole::DUDI->value);
+            }
+        }
     }
 
     private function rememberGuru(Guru $guru): void
     {
         if ($this->guruByNip !== null && $guru->nip !== null && $guru->nip !== '') {
             $this->guruByNip[$guru->nip] = $guru;
+        }
+
+        if ($guru->relationLoaded('user') && $guru->user !== null) {
+            $user = $guru->user;
+            if ($this->usersById !== null) {
+                $this->usersById[$user->id] = $user;
+            }
+            if ($this->usersByEmail !== null) {
+                $this->usersByEmail[strtolower($user->email)] = $user;
+            }
+            if ($this->protectedUsersCache !== null) {
+                $this->protectedUsersCache[$user->id] = $user->hasRole(UserRole::SUPER_ADMIN->value)
+                    || $user->hasRole(UserRole::DUDI->value);
+            }
         }
     }
 
@@ -1165,8 +1213,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $missing = 0;
 
-        /** @var Collection<int, Siswa> $locals */
-        $locals = Siswa::query()->withoutTrashed()->get(['id', 'nis', 'nisn']);
+        $locals = $this->localStudentsCache !== null
+            ? $this->localStudentsCache->whereNull('deleted_at')
+            : Siswa::query()->withoutTrashed()->get(['id', 'nis', 'nisn']);
 
         foreach ($locals as $siswa) {
             if (! isset($remoteNisSet[$siswa->nis]) && ! isset($remoteNisnSet[(string) $siswa->nisn])) {
@@ -1187,8 +1236,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $missing = 0;
 
-        /** @var Collection<int, Guru> $locals */
-        $locals = Guru::query()->withoutTrashed()->get(['id', 'nip']);
+        $locals = $this->localTeachersCache !== null
+            ? $this->localTeachersCache->whereNull('deleted_at')
+            : Guru::query()->withoutTrashed()->get(['id', 'nip']);
 
         foreach ($locals as $guru) {
             if (! isset($remoteNipSet[$guru->nip])) {

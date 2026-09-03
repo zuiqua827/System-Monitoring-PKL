@@ -88,6 +88,11 @@
                     </span>
                 </div>
 
+                <div class="bg-white px-6 py-4 sm:col-span-2">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Deskripsi Capaian Kompetensi</p>
+                    <p class="mt-1.5 text-sm text-slate-700">{{ \App\Services\PenilaianService::getDeskripsiPredikat($penilaian->predikat) }}</p>
+                </div>
+
                 @if($penilaian->catatan_guru)
                 <div class="bg-white px-6 py-4 sm:col-span-2">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Catatan Guru</p>
@@ -104,6 +109,14 @@
                 </svg>
                 Kembali
             </a>
+            @if($penilaian->status === 'final')
+                <a href="{{ route('guru.penilaian.print', $penilaian->id) }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-emerald-700">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Cetak PDF
+                </a>
+            @endif
         </div>
     </div>
 </div>

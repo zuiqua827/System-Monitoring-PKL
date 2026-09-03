@@ -30,7 +30,9 @@ return new class extends Migration
 
         // Update the ENUM to include 'terlambat'
         // MySQL requires altering the column to change ENUM values
-        DB::statement("ALTER TABLE absensi MODIFY COLUMN status ENUM('hadir', 'terlambat', 'izin', 'sakit', 'alpha') NOT NULL DEFAULT 'hadir'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE absensi MODIFY COLUMN status ENUM('hadir', 'terlambat', 'izin', 'sakit', 'alpha') NOT NULL DEFAULT 'hadir'");
+        }
     }
 
     /**
@@ -43,7 +45,9 @@ return new class extends Migration
         });
 
         // Revert status ENUM to original
-        DB::statement("ALTER TABLE absensi MODIFY COLUMN status ENUM('hadir', 'izin', 'sakit', 'alpha') NOT NULL DEFAULT 'hadir'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE absensi MODIFY COLUMN status ENUM('hadir', 'izin', 'sakit', 'alpha') NOT NULL DEFAULT 'hadir'");
+        }
     }
 };
 

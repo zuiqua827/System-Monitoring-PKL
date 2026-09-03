@@ -42,7 +42,9 @@ return new class extends Migration
         });
 
         // Update the ENUM to use required status values: draft, menunggu_validasi, disetujui, ditolak
-        DB::statement("ALTER TABLE aktivitas MODIFY COLUMN status ENUM('draft', 'menunggu_validasi', 'disetujui', 'ditolak') NOT NULL DEFAULT 'draft'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE aktivitas MODIFY COLUMN status ENUM('draft', 'menunggu_validasi', 'disetujui', 'ditolak') NOT NULL DEFAULT 'draft'");
+        }
     }
 
     /**
@@ -65,7 +67,9 @@ return new class extends Migration
         });
 
         // Revert status ENUM
-        DB::statement("ALTER TABLE aktivitas MODIFY COLUMN status ENUM('draft', 'dikirim', 'disetujui', 'ditolak') NOT NULL DEFAULT 'draft'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE aktivitas MODIFY COLUMN status ENUM('draft', 'dikirim', 'disetujui', 'ditolak') NOT NULL DEFAULT 'draft'");
+        }
     }
 };
 

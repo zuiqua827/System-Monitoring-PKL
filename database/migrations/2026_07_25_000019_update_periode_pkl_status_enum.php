@@ -16,12 +16,9 @@ return new class extends Migration
             $table->dropIndex(['status', 'tanggal_mulai', 'tanggal_selesai']);
         });
 
-        // Modify ENUM to use new status values: Persiapan, Aktif, Selesai, Ditutup
-        DB::statement("ALTER TABLE periode_pkl MODIFY COLUMN status ENUM('Persiapan', 'Aktif', 'Selesai', 'Ditutup') NOT NULL DEFAULT 'Persiapan'");
-
-        Schema::table('periode_pkl', function (Blueprint $table) {
-            $table->index(['status', 'tanggal_mulai', 'tanggal_selesai'], 'idx_periode_pkl_status_dates');
-        });
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE periode_pkl MODIFY COLUMN status ENUM('Persiapan', 'Aktif', 'Selesai', 'Ditutup') NOT NULL DEFAULT 'Persiapan'");
+        }
     }
 
     /**
@@ -33,7 +30,9 @@ return new class extends Migration
             $table->dropIndex('idx_periode_pkl_status_dates');
         });
 
-        DB::statement("ALTER TABLE periode_pkl MODIFY COLUMN status ENUM('draft', 'aktif', 'selesai') NOT NULL DEFAULT 'draft'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE periode_pkl MODIFY COLUMN status ENUM('draft', 'aktif', 'selesai') NOT NULL DEFAULT 'draft'");
+        }
 
         Schema::table('periode_pkl', function (Blueprint $table) {
             $table->index(['status', 'tanggal_mulai', 'tanggal_selesai']);

@@ -160,6 +160,8 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
 
     // Penilaian Siswa Bimbingan
     Route::get('/penilaian', [GuruPenilaianController::class, 'index'])->name('penilaian.index');
+    Route::get('/penilaian/{penilaian}/pdf', [GuruPenilaianController::class, 'downloadPdf'])->name('penilaian.pdf');
+    Route::get('/penilaian/{penilaian}/print', [GuruPenilaianController::class, 'printPdf'])->name('penilaian.print');
     Route::get('/penilaian/{id}', [GuruPenilaianController::class, 'show'])->name('penilaian.show');
 
     // Pusat Laporan
@@ -174,6 +176,16 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
     Route::get('/laporan/aktivitas/export/excel', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAktivitasExcel'])->name('laporan.aktivitas.export.excel');
     Route::get('/laporan/aktivitas/export/pdf', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'exportAktivitasPdf'])->name('laporan.aktivitas.export.pdf');
     Route::get('/laporan/penilaian', [\App\Http\Controllers\Guru\Laporan\LaporanController::class, 'penilaian'])->name('laporan.penilaian');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Shared Authenticated Utility Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/penilaian/ajax/attendance-score/{penempatan_pkl_id}', [GuruPenilaianController::class, 'calculateAttendanceAjax'])
+        ->name('penilaian.ajax.attendance');
 });
 
 /*
@@ -246,7 +258,6 @@ Route::middleware(['auth', 'verified', 'role:Siswa'])->prefix('siswa')->name('si
 
     // Penilaian Siswa
     Route::get('/penilaian', [SiswaPenilaianController::class, 'index'])->name('penilaian.index');
-    Route::get('/penilaian/{penilaian}/pdf', [SiswaPenilaianController::class, 'downloadPdf'])->name('penilaian.pdf');
     Route::get('/penilaian/{id}', [SiswaPenilaianController::class, 'show'])->name('penilaian.show');
 });
 

@@ -55,10 +55,28 @@ class KelasService extends Service implements KelasServiceInterface
      */
     public function store(array $data): Kelas
     {
-        /** @var Kelas $kelas */
-        $kelas = $this->transaction(fn (): Model => $this->kelasRepository->create($data));
+        return $this->transaction(function () use ($data): Kelas {
+            /** @var Kelas|null $existing */
+            $existing = Kelas::withTrashed()
+                ->where('jurusan_id', $data['jurusan_id'])
+                ->where('nama', $data['nama'])
+                ->where('tahun_ajaran', $data['tahun_ajaran'])
+                ->first();
 
-        return $kelas;
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existing->update($data);
+
+                return $existing;
+            }
+
+            /** @var Kelas $kelas */
+            $kelas = $this->kelasRepository->create($data);
+
+            return $kelas;
+        });
     }
 
     /**

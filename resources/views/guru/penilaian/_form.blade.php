@@ -67,12 +67,15 @@
                 @foreach($fields as $field => $label)
                 <div class="bg-white p-5">
                     <label for="{{ $field }}" class="block text-sm font-semibold text-slate-700">
-                        {{ $label }} <span class="text-red-500">*</span>
+                        {{ $label }} @if($field !== 'nilai_kehadiran')<span class="text-red-500">*</span>@endif
                     </label>
-                    <input type="number" id="{{ $field }}" name="{{ $field }}" min="0" max="100" required
+                    <input type="number" id="{{ $field }}" name="{{ $field }}" min="0" max="100" {{ $field !== 'nilai_kehadiran' ? 'required' : '' }}
                            value="{{ old($field, $penilaian->$field ?? '') }}"
                            class="nilai-input mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                           {{ $isFinal ? 'disabled' : '' }}>
+                           {{ $isFinal || $field === 'nilai_kehadiran' ? 'readonly' : '' }}>
+                    @if($field === 'nilai_kehadiran')
+                        <p class="mt-1.5 text-xs text-slate-500">Nilai kehadiran dihitung otomatis dari data absensi siswa.</p>
+                    @endif
                     @error($field)
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -122,7 +125,38 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const inputs = document.querySelectorAll('.nilai-input:not([disabled])');
+    const inputs = document.querySelectorAll('.nilai-input');
+    const selectPenempatan = document.getElementById('penempatan_pkl_id');
+    const inputKehadiran = document.getElementById('nilai_kehadiran');
+
+    function fetchKehadiranScore(penempatanId) {
+        if (!penempatanId || !inputKehadiran) return;
+
+        fetch(`/penilaian/ajax/attendance-score/${penempatanId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && typeof data.nilai_kehadiran !== 'undefined') {
+                inputKehadiran.value = data.nilai_kehadiran;
+                calculateNilaiAkhir();
+            }
+        })
+        .catch(err => console.error('Error fetching attendance score:', err));
+    }
+
+    if (selectPenempatan) {
+        selectPenempatan.addEventListener('change', function() {
+            fetchKehadiranScore(this.value);
+        });
+
+        if (selectPenempatan.value && (!inputKehadiran.value || inputKehadiran.value === '')) {
+            fetchKehadiranScore(selectPenempatan.value);
+        }
+    }
 
     function calculateNilaiAkhir() {
         let kehadiran = parseFloat(document.getElementById('nilai_kehadiran')?.value) || 0;
@@ -142,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let validCount = 0;
         inputs.forEach(function(input) {
-            if (input.value !== '') validCount++;
+            if (input.value !== '' || input.id === 'nilai_kehadiran') validCount++;
         });
 
         const previewNilai = document.getElementById('nilai_akhir_preview');
@@ -153,11 +187,11 @@ document.addEventListener('DOMContentLoaded', function() {
             previewNilai.textContent = avg;
 
             const avgNum = parseFloat(avg);
-            if (avgNum >= 90) previewPredikat.textContent = 'A (Sangat Baik)';
+            if (avgNum >= 95) previewPredikat.textContent = 'A+ (Sangat Memuaskan)';
+            else if (avgNum >= 90) previewPredikat.textContent = 'A (Sangat Baik)';
             else if (avgNum >= 80) previewPredikat.textContent = 'B (Baik)';
             else if (avgNum >= 70) previewPredikat.textContent = 'C (Cukup)';
-            else if (avgNum >= 60) previewPredikat.textContent = 'D (Kurang)';
-            else previewPredikat.textContent = 'E (Sangat Kurang)';
+            else previewPredikat.textContent = 'D (Kurang)';
         } else {
             previewNilai.textContent = '{{ $penilaian->nilai_akhir ?? '-' }}';
             previewPredikat.textContent = '{{ $penilaian->predikat ?? '-' }}';
@@ -167,6 +201,8 @@ document.addEventListener('DOMContentLoaded', function() {
     inputs.forEach(function(input) {
         input.addEventListener('input', calculateNilaiAkhir);
     });
+
+    calculateNilaiAkhir();
 });
 </script>
 @endpush

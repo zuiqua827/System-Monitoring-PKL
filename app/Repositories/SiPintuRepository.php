@@ -188,7 +188,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
 
         $body = $response->json();
 
-        // Accept either { "data": [...] } or a bare array/list.
+        // Accept { "data": [...] }, single record object, or bare array/list.
         if (is_array($body) && array_key_exists('data', $body)) {
             if (! is_array($body['data'])) {
                 throw SiPintuApiException::apiError(
@@ -197,10 +197,14 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             }
 
             /** @var array<int, array<string, mixed>> $data */
-            $data = $body['data'];
+            $data = is_array($body['data']) && ! array_is_list($body['data']) && (isset($body['data']['nis']) || isset($body['data']['nip']))
+                ? [$body['data']]
+                : array_values($body['data']);
+        } elseif (is_array($body) && ! array_is_list($body) && (isset($body['nis']) || isset($body['nip']))) {
+            $data = [$body];
         } elseif (is_array($body)) {
             /** @var array<int, array<string, mixed>> $data */
-            $data = $body;
+            $data = array_values($body);
         } else {
             throw SiPintuApiException::apiError(
                 'Respons SiPintu tidak valid: format JSON tidak dikenali. Sinkronisasi dibatalkan.'

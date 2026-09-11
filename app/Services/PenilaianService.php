@@ -6,7 +6,7 @@ namespace App\Services;
 
 use App\Models\Penilaian;
 use App\Repositories\Interfaces\PenilaianRepositoryInterface;
-use App\Repositories\Interfaces\AbsensiRepositoryInterface;
+use App\Services\Interfaces\AbsensiServiceInterface;
 use App\Services\Interfaces\PenilaianServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +21,7 @@ class PenilaianService extends Service implements PenilaianServiceInterface
 {
     public function __construct(
         private readonly PenilaianRepositoryInterface $penilaianRepository,
-        private readonly AbsensiRepositoryInterface $absensiRepository,
+        private readonly AbsensiServiceInterface $absensiService,
     ) {}
 
     /**
@@ -257,171 +257,30 @@ class PenilaianService extends Service implements PenilaianServiceInterface
     /**
      * {@inheritDoc}
      */
+    /**
+     * {@inheritDoc}
+     */
     public function calculatePredikat(?float $nilaiAkhir): ?string
     {
-        if ($nilaiAkhir === null) {
+        return self::calculatePredikatStatic($nilaiAkhir);
+    }
+
+    /**
+     * Static helper to calculate predicate from score (0-100).
+     */
+    public static function calculatePredikatStatic(int|float|null $nilai): ?string
+    {
+        if ($nilai === null) {
             return null;
         }
 
         return match (true) {
-            $nilaiAkhir >= 95 => 'A+',
-            $nilaiAkhir >= 90 => 'A',
-            $nilaiAkhir >= 80 => 'B',
-            $nilaiAkhir >= 70 => 'C',
+            $nilai >= 95 => 'A+',
+            $nilai >= 90 => 'A',
+            $nilai >= 80 => 'B',
+            $nilai >= 70 => 'C',
             default => 'D',
         };
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getRekapAbsensiData(int $penempatanPklId): array
-    {
-        $defaultResult = [
-            'hadir' => 0,
-            'sakit' => 0,
-            'izin' => 0,
-            'alpha' => 0,
-            'total_hari' => 0,
-            'hadir_pct' => 0.0,
-            'sakit_pct' => 0.0,
-            'izin_pct' => 0.0,
-            'alpha_pct' => 0.0,
-        ];
-
-        $penempatan = \App\Models\PenempatanPKL::with(['dudi', 'periodePKL'])->find($penempatanPklId);
-        if ($penempatan === null) {
-            return $defaultResult;
-        }
-
-        $absensiList = $this->absensiRepository->getByPenempatan($penempatanPklId);
-        
-        $pengajuanApproved = \App\Models\PengajuanKetidakhadiran::where('penempatan_pkl_id', $penempatanPklId)
-            ->where('status', 'disetujui')
-            ->get();
-
-        $tanggalMulai = $penempatan->tanggal_mulai ?? $penempatan->periodePKL?->tanggal_mulai;
-        $tanggalSelesai = $penempatan->tanggal_selesai ?? $penempatan->periodePKL?->tanggal_selesai;
-
-        $timezone = config('app.timezone');
-        $today = \Illuminate\Support\Carbon::today($timezone);
-
-        // Find earliest absensi date for this placement if any
-        $earliestAbsensi = null;
-        foreach ($absensiList as $a) {
-            if ($a->tanggal) {
-                $cDate = \Illuminate\Support\Carbon::parse($a->tanggal, $timezone)->startOfDay();
-                if ($earliestAbsensi === null || $cDate->lt($earliestAbsensi)) {
-                    $earliestAbsensi = $cDate;
-                }
-            }
-        }
-
-        $startCalc = $tanggalMulai ? \Illuminate\Support\Carbon::parse($tanggalMulai, $timezone)->startOfDay() : null;
-        if ($startCalc === null || ($startCalc->gt($today) && $earliestAbsensi && $earliestAbsensi->lte($today))) {
-            $startCalc = $earliestAbsensi ? clone $earliestAbsensi : null;
-        } elseif ($earliestAbsensi && $earliestAbsensi->lt($startCalc)) {
-            $startCalc = clone $earliestAbsensi;
-        }
-
-        if ($startCalc === null || $startCalc->gt($today)) {
-            return $defaultResult;
-        }
-
-        $endCalc = ($tanggalSelesai && $today->gt(\Illuminate\Support\Carbon::parse($tanggalSelesai, $timezone)))
-            ? \Illuminate\Support\Carbon::parse($tanggalSelesai, $timezone)->startOfDay()
-            : clone $today;
-
-        if ($startCalc->gt($endCalc)) {
-            $endCalc = clone $startCalc;
-        }
-
-        $dudi = $penempatan->dudi;
-        $workingDays = [];
-        $cursor = clone $startCalc;
-        while ($cursor->lte($endCalc)) {
-            if ($dudi && $dudi->isHariOperasional($cursor)) {
-                $workingDays[] = $cursor->format('Y-m-d');
-            } elseif (!$dudi && $cursor->isWeekday()) {
-                $workingDays[] = $cursor->format('Y-m-d');
-            }
-            $cursor->addDay();
-        }
-
-        $absensiMap = [];
-        foreach ($absensiList as $a) {
-            if ($a->tanggal) {
-                $absensiMap[\Illuminate\Support\Carbon::parse($a->tanggal)->format('Y-m-d')] = $a;
-            }
-        }
-
-        $pengajuanMap = [];
-        foreach ($pengajuanApproved as $pg) {
-            if ($pg->tanggal) {
-                $pengajuanMap[\Illuminate\Support\Carbon::parse($pg->tanggal)->format('Y-m-d')] = $pg;
-            }
-        }
-
-        $hadirCount = 0;
-        $sakitCount = 0;
-        $izinCount = 0;
-        $alphaCount = 0;
-
-        foreach ($workingDays as $dateStr) {
-            if (isset($absensiMap[$dateStr])) {
-                $st = $absensiMap[$dateStr]->status;
-                if ($st === 'hadir' || $st === 'terlambat') {
-                    $hadirCount++;
-                } elseif ($st === 'sakit') {
-                    $sakitCount++;
-                } elseif ($st === 'izin') {
-                    $izinCount++;
-                } elseif ($st === 'alpha') {
-                    $alphaCount++;
-                } else {
-                    $alphaCount++;
-                }
-            } elseif (isset($pengajuanMap[$dateStr])) {
-                $jenis = $pengajuanMap[$dateStr]->jenis;
-                if ($jenis === 'sakit') {
-                    $sakitCount++;
-                } else {
-                    $izinCount++;
-                }
-            } else {
-                $alphaCount++;
-            }
-        }
-
-        $calcTotal = count($workingDays);
-
-        return [
-            'hadir' => $hadirCount,
-            'sakit' => $sakitCount,
-            'izin' => $izinCount,
-            'alpha' => $alphaCount,
-            'total_hari' => $calcTotal,
-            'hadir_pct' => $calcTotal > 0 ? (float) round(($hadirCount / $calcTotal) * 100, 1) : 0.0,
-            'sakit_pct' => $calcTotal > 0 ? (float) round(($sakitCount / $calcTotal) * 100, 1) : 0.0,
-            'izin_pct' => $calcTotal > 0 ? (float) round(($izinCount / $calcTotal) * 100, 1) : 0.0,
-            'alpha_pct' => $calcTotal > 0 ? (float) round(($alphaCount / $calcTotal) * 100, 1) : 0.0,
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function calculateKehadiranScore(int $penempatanPklId): int
-    {
-        $rekap = $this->getRekapAbsensiData($penempatanPklId);
-        if ($rekap['total_hari'] <= 0) {
-            return 100;
-        }
-
-        $points = ($rekap['hadir'] * 1.0) + ($rekap['sakit'] * 0.85) + ($rekap['izin'] * 0.70) + ($rekap['alpha'] * 0.0);
-        $score = ($points / $rekap['total_hari']) * 100;
-
-        return (int) min(100, max(0, round($score)));
     }
 
     /**
@@ -437,5 +296,107 @@ class PenilaianService extends Service implements PenilaianServiceInterface
             'D', 'E' => 'Perlu meningkatkan kompetensi dan sikap kerja dalam melaksanakan Praktik Kerja Lapangan, terutama dalam penyelesaian tugas, komunikasi, kerja sama, kemandirian, dan penguasaan kompetensi teknis.',
             default => 'Menunjukkan kemampuan dalam melaksanakan kegiatan PKL.',
         };
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public static function getDeskripsiAspek(string $aspek, int|float|string|null $nilaiOrPredikat): string
+    {
+        if ($nilaiOrPredikat === null || $nilaiOrPredikat === '') {
+            return '-';
+        }
+
+        $predikat = is_numeric($nilaiOrPredikat)
+            ? self::calculatePredikatStatic((float) $nilaiOrPredikat)
+            : strtoupper((string) $nilaiOrPredikat);
+
+        $aspekKey = strtolower(trim($aspek));
+        $aspekKey = match ($aspekKey) {
+            'kehadiran', 'nilai_kehadiran' => 'kehadiran',
+            'kerja sama', 'kerjasama', 'nilai_kerjasama' => 'kerjasama',
+            'komunikasi', 'nilai_komunikasi' => 'komunikasi',
+            'problem solving', 'problem_solving', 'nilai_problem_solving' => 'problem_solving',
+            'teknis', 'kemampuan teknis', 'nilai_teknis' => 'teknis',
+            'inisiatif', 'nilai_inisiatif' => 'inisiatif',
+            default => $aspekKey,
+        };
+
+        $templates = [
+            'kehadiran' => [
+                'A+' => 'Sangat baik dalam kehadiran dan sangat konsisten mengikuti kegiatan Praktik Kerja Lapangan sesuai jadwal.',
+                'A'  => 'Baik dalam kehadiran dan konsisten mengikuti sebagian besar kegiatan Praktik Kerja Lapangan sesuai jadwal.',
+                'B'  => 'Cukup baik dalam kehadiran, namun masih terdapat beberapa ketidakhadiran yang perlu diperhatikan.',
+                'C'  => 'Perlu meningkatkan konsistensi kehadiran karena masih terdapat beberapa ketidakhadiran selama pelaksanaan PKL.',
+                'D'  => 'Perlu meningkatkan kehadiran secara signifikan karena tingkat ketidakhadiran masih tinggi selama pelaksanaan PKL.',
+            ],
+            'kerjasama' => [
+                'A+' => 'Sangat baik dalam bekerja sama, aktif membantu anggota tim, mampu berkoordinasi, dan memberikan kontribusi positif dalam pekerjaan.',
+                'A'  => 'Baik dalam bekerja sama dan mampu berkoordinasi serta berkontribusi secara positif dalam menyelesaikan pekerjaan.',
+                'B'  => 'Cukup baik dalam bekerja sama, namun masih perlu meningkatkan koordinasi dan kontribusi dalam pekerjaan tim.',
+                'C'  => 'Perlu meningkatkan kemampuan bekerja sama, koordinasi, dan kontribusi dalam menyelesaikan pekerjaan bersama tim.',
+                'D'  => 'Perlu meningkatkan kemampuan bekerja sama secara signifikan terutama dalam koordinasi dan kontribusi terhadap tim.',
+            ],
+            'komunikasi' => [
+                'A+' => 'Sangat baik dalam berkomunikasi, mampu menyampaikan informasi dengan jelas, sopan, efektif, dan percaya diri.',
+                'A'  => 'Baik dalam berkomunikasi dan mampu menyampaikan informasi dengan jelas, sopan, dan efektif.',
+                'B'  => 'Cukup baik dalam berkomunikasi, namun masih perlu meningkatkan kejelasan dan kepercayaan diri dalam menyampaikan informasi.',
+                'C'  => 'Perlu meningkatkan kemampuan komunikasi agar informasi dapat disampaikan dengan lebih jelas, tepat, dan percaya diri.',
+                'D'  => 'Perlu meningkatkan kemampuan komunikasi secara signifikan dalam menyampaikan informasi dan berinteraksi di lingkungan kerja.',
+            ],
+            'problem_solving' => [
+                'A+' => 'Sangat baik dalam menyelesaikan masalah, mampu menganalisis permasalahan dan menemukan solusi secara tepat serta mandiri.',
+                'A'  => 'Baik dalam menyelesaikan masalah dan mampu menganalisis serta menemukan solusi yang tepat.',
+                'B'  => 'Cukup baik dalam menyelesaikan masalah, namun masih memerlukan arahan pada kondisi tertentu.',
+                'C'  => 'Perlu meningkatkan kemampuan menganalisis permasalahan dan menentukan solusi secara mandiri.',
+                'D'  => 'Perlu meningkatkan kemampuan penyelesaian masalah karena masih mengalami kesulitan dalam menganalisis dan menentukan solusi.',
+            ],
+            'teknis' => [
+                'A+' => 'Sangat baik dalam penguasaan kompetensi teknis dan mampu menerapkan pengetahuan serta keterampilan secara tepat dalam pekerjaan.',
+                'A'  => 'Baik dalam penguasaan kompetensi teknis dan mampu menerapkan pengetahuan serta keterampilan dengan baik.',
+                'B'  => 'Cukup baik dalam penguasaan kompetensi teknis, namun masih perlu meningkatkan ketelitian dan penguasaan beberapa kompetensi.',
+                'C'  => 'Perlu meningkatkan penguasaan kompetensi teknis, ketelitian, dan kemampuan menerapkan pengetahuan dalam pekerjaan.',
+                'D'  => 'Perlu meningkatkan kompetensi teknis secara signifikan karena masih mengalami kesulitan dalam menerapkan pengetahuan dan keterampilan.',
+            ],
+            'inisiatif' => [
+                'A+' => 'Sangat baik dalam menunjukkan inisiatif, aktif mencari pekerjaan yang dapat dilakukan dan mampu mengambil tindakan yang tepat tanpa selalu menunggu instruksi.',
+                'A'  => 'Baik dalam menunjukkan inisiatif dan mampu mengambil tindakan yang tepat dalam menyelesaikan pekerjaan.',
+                'B'  => 'Cukup baik dalam menunjukkan inisiatif, namun masih perlu meningkatkan keaktifan dan keberanian dalam mengambil tindakan.',
+                'C'  => 'Perlu meningkatkan inisiatif dan sikap proaktif dalam melaksanakan pekerjaan serta mengurangi ketergantungan terhadap arahan.',
+                'D'  => 'Perlu meningkatkan inisiatif secara signifikan karena masih cenderung menunggu instruksi dan kurang aktif dalam melaksanakan pekerjaan.',
+            ],
+        ];
+
+        return $templates[$aspekKey][$predikat] ?? '-';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRekapAbsensiData(int $penempatanPklId): array
+    {
+        return $this->absensiService->getRekapAbsensiData($penempatanPklId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function calculateKehadiranScore(int $penempatanPklId): int
+    {
+        $rekap = $this->getRekapAbsensiData($penempatanPklId);
+        if ($rekap['total_hari'] <= 0) {
+            return 0;
+        }
+
+        $points = ($rekap['hadir'] * 1.0)
+            + ($rekap['terlambat'] * 0.90)
+            + ($rekap['sangat_terlambat'] * 0.75)
+            + ($rekap['sakit'] * 0.85)
+            + ($rekap['izin'] * 0.70)
+            + ($rekap['alpha'] * 0.0);
+
+        $score = ($points / $rekap['total_hari']) * 100;
+
+        return (int) min(100, max(0, round($score)));
     }
 }

@@ -137,32 +137,18 @@
                 @endif
             </article>
 
-{{-- SiPintu Students --}}
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <p class="text-sm font-semibold text-slate-500">Total Siswa SiPintu</p>
-                <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($sipintuStudentCount) }}</p>
-                <p class="mt-1 text-xs text-slate-500">Data siswa di gateway SiPintu</p>
-            </article>
-
             {{-- SIPKL Students --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
                 <p class="text-sm font-semibold text-slate-500">Total Siswa SIPKL</p>
                 <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($localStudentCount) }}</p>
-                <p class="mt-1 text-xs text-slate-500">Data siswa lokal</p>
-            </article>
-
-            {{-- SiPintu Teachers --}}
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <p class="text-sm font-semibold text-slate-500">Total Guru SiPintu</p>
-                <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($sipintuTeacherCount) }}</p>
-                <p class="mt-1 text-xs text-slate-500">Data guru di gateway SiPintu</p>
+                <p class="mt-1 text-xs text-slate-500">Data siswa lokal tersimpan</p>
             </article>
 
             {{-- SIPKL Teachers --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
                 <p class="text-sm font-semibold text-slate-500">Total Guru SIPKL</p>
                 <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($localTeacherCount) }}</p>
-                <p class="mt-1 text-xs text-slate-500">Data guru lokal</p>
+                <p class="mt-1 text-xs text-slate-500">Data guru lokal tersimpan</p>
             </article>
         </div>
 

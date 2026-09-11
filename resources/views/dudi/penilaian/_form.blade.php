@@ -94,8 +94,9 @@
 
                 {{-- Catatan DUDI --}}
                 <div class="bg-white p-5 sm:col-span-2">
-                    <label for="catatan" class="block text-sm font-semibold text-slate-700">Catatan Evaluasi / Komentar</label>
+                    <label for="catatan" class="block text-sm font-semibold text-slate-700">Catatan DUDI</label>
                     <textarea id="catatan" name="catatan" rows="3"
+                              placeholder="Berikan catatan mengenai kedisiplinan, sikap, dan performa siswa selama PKL..."
                               class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               {{ $isFinal ? 'disabled' : '' }}>{{ old('catatan', $penilaian->catatan ?? '') }}</textarea>
                     @error('catatan')

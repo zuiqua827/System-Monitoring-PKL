@@ -13,12 +13,13 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface KelasServiceInterface
 {
     /**
-     * Get paginated kelas with optional search and sorting.
+     * Get paginated kelas with optional search, tingkat filter, and sorting.
      *
      * @return LengthAwarePaginator<int, Kelas>
      */
     public function getPaginated(
         ?string $keyword = null,
+        ?int $tingkat = null,
         string $sortBy = 'nama',
         string $sortDirection = 'asc',
         int $perPage = 15,

@@ -92,15 +92,12 @@
                     <p id="predikat_preview" class="mt-1.5 text-2xl font-bold text-blue-600">{{ $penilaian->predikat ?? '-' }}</p>
                 </div>
 
-                {{-- Catatan Guru --}}
+                {{-- Catatan DUDI (Read-Only untuk Guru) --}}
                 <div class="bg-white p-5 sm:col-span-2">
-                    <label for="catatan_guru" class="block text-sm font-semibold text-slate-700">Catatan Guru</label>
-                    <textarea id="catatan_guru" name="catatan_guru" rows="3"
-                              class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              {{ $isFinal ? 'disabled' : '' }}>{{ old('catatan_guru', $penilaian->catatan_guru ?? '') }}</textarea>
-                    @error('catatan_guru')
-                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
+                    <label class="block text-sm font-semibold text-slate-700">Catatan DUDI</label>
+                    <div class="mt-1.5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                        {{ isset($penilaian) && $penilaian->catatan ? $penilaian->catatan : 'Belum ada catatan dari DUDI.' }}
+                    </div>
                 </div>
             </div>
         </div>

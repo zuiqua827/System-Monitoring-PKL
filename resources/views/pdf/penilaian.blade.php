@@ -6,13 +6,13 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 1.0cm 1.4cm 1.0cm 1.4cm;
+            margin: 0.8cm 1.2cm 0.8cm 1.2cm;
         }
 
         body {
             font-family: 'Times New Roman', Times, serif;
-            font-size: 9.5pt;
-            line-height: 1.3;
+            font-size: 9pt;
+            line-height: 1.2;
             color: #000000;
             margin: 0;
             padding: 0;
@@ -28,36 +28,36 @@
             vertical-align: middle;
         }
         .header-logo {
-            max-height: 70px;
+            max-height: 60px;
             width: auto;
         }
         .header-text {
             text-align: center;
         }
         .header-text .gov {
-            font-size: 11.5pt;
+            font-size: 11pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .header-text .dept {
-            font-size: 11.5pt;
+            font-size: 11pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .header-text .school {
-            font-size: 14pt;
+            font-size: 13pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin: 1px 0;
         }
         .header-text .address {
-            font-size: 8pt;
+            font-size: 7.5pt;
             color: #000000;
             margin-top: 1px;
-            line-height: 1.2;
+            line-height: 1.15;
         }
 
         /* Garis dua kop surat */
@@ -66,16 +66,16 @@
             border-top: 2px solid #000000;
             border-bottom: 1px solid #000000;
             height: 2px;
-            margin: 3px 0 10px 0;
+            margin: 3px 0 6px 0;
         }
 
         /* ── Title Rapor ── */
         .doc-title-container {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
         .doc-title {
-            font-size: 12pt;
+            font-size: 11pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -86,18 +86,18 @@
         .identity-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
         .identity-table td {
-            padding: 2.5px 2px;
+            padding: 1.5px 2px;
             vertical-align: top;
-            font-size: 9pt;
+            font-size: 8.5pt;
         }
         .identity-table .label {
             font-weight: normal;
         }
         .identity-table .sep {
-            width: 10px;
+            width: 8px;
             text-align: center;
         }
 
@@ -105,41 +105,41 @@
         .rapor-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
         .rapor-table th {
             background-color: #ffffff;
             color: #000000;
             font-weight: bold;
-            font-size: 9pt;
+            font-size: 8.5pt;
             text-align: center;
-            padding: 4px 4px;
+            padding: 3px 4px;
             border: 1px solid #000000;
             text-transform: uppercase;
         }
         .rapor-table td {
-            padding: 4px 5px;
+            padding: 3px 4px;
             border: 1px solid #000000;
-            font-size: 8.5pt;
+            font-size: 8pt;
             vertical-align: middle;
         }
-        .rapor-table .col-no { text-align: center; width: 5%; }
-        .rapor-table .col-aspek { width: 28%; }
-        .rapor-table .col-nilai { text-align: center; width: 10%; font-weight: bold; }
+        .rapor-table .col-no { text-align: center; width: 4%; }
+        .rapor-table .col-aspek { width: 22%; font-weight: bold; }
+        .rapor-table .col-nilai { text-align: center; width: 8%; font-weight: bold; }
         .rapor-table .col-predikat { text-align: center; width: 10%; font-weight: bold; }
-        .rapor-table .col-deskripsi { width: 47%; font-size: 8pt; line-height: 1.2; }
+        .rapor-table .col-deskripsi { width: 56%; font-size: 7.8pt; line-height: 1.15; }
 
         /* ── Ringkasan Nilai Akhir Box ── */
         .summary-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             border: 1px solid #000000;
         }
         .summary-table td {
-            padding: 5px 7px;
+            padding: 3.5px 6px;
             border: 1px solid #000000;
-            font-size: 9pt;
+            font-size: 8.5pt;
             vertical-align: top;
         }
         .summary-header {
@@ -148,118 +148,82 @@
         }
         .summary-value {
             font-weight: bold;
-            font-size: 10.5pt;
+            font-size: 10pt;
             text-align: center;
         }
         .capaian-text {
-            font-size: 8.5pt;
-            line-height: 1.3;
+            font-size: 8pt;
+            line-height: 1.2;
             text-align: justify;
         }
 
-        /* ── Rekap Section (Outer Layout) ── */
-        .rekap-outer-table {
+        /* ── Bottom Info Layout (Catatan DUDI & Rekap Kehadiran) ── */
+        .bottom-info-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
-        .rekap-outer-table td {
-            border: none;
+        .bottom-info-table td {
+            vertical-align: top;
             padding: 0;
-            vertical-align: top;
-        }
-        .section-sub-title {
-            font-weight: bold;
-            font-size: 9pt;
-            margin-bottom: 4px;
-            text-transform: uppercase;
         }
 
-        /* ── Rekap Absensi Table ── */
-        .rekap-absensi-table {
-            width: 100%;
-            border-collapse: collapse;
+        .catatan-box {
             border: 1px solid #000000;
-        }
-        .rekap-absensi-table th {
-            background-color: #ffffff;
-            color: #000000;
-            font-weight: bold;
-            font-size: 8.5pt;
             padding: 4px 6px;
-            border: 1px solid #000000;
-            text-align: left;
-        }
-        .rekap-absensi-table td {
-            padding: 3.5px 6px;
-            border: 1px solid #000000;
-            font-size: 8.5pt;
-        }
-        .rekap-absensi-table tfoot th {
-            background-color: #f8f8f8;
-            border: 1px solid #000000;
-            font-size: 8.5pt;
-            padding: 4px 6px;
-        }
-
-        /* ── Keterangan Penilaian Kehadiran Box ── */
-        .keterangan-kehadiran-box {
-            border: 1px solid #000000;
-            padding: 5px 7px;
             font-size: 8pt;
-            line-height: 1.25;
-            height: 100%;
             box-sizing: border-box;
-        }
-        .keterangan-title {
-            font-weight: bold;
-            font-size: 8.5pt;
-            margin-bottom: 4px;
-            text-align: center;
-            text-transform: uppercase;
-        }
-
-        /* ── Catatan Pembimbing Box ── */
-        .catatan-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 12px;
-            border: 1px solid #000000;
-        }
-        .catatan-table td {
-            width: 50%;
-            padding: 5px 7px;
-            border: 1px solid #000000;
-            font-size: 8.5pt;
-            vertical-align: top;
         }
         .catatan-title {
             font-weight: bold;
-            margin-bottom: 3px;
+            font-size: 8.5pt;
+            margin-bottom: 2px;
+            text-transform: uppercase;
             text-decoration: underline;
+        }
+
+        .ketidakhadiran-box {
+            border: 1px solid #000000;
+            padding: 4px 6px;
+            font-size: 8pt;
+            box-sizing: border-box;
+        }
+        .ketidakhadiran-title {
+            font-weight: bold;
+            font-size: 8.5pt;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+        .ketidakhadiran-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .ketidakhadiran-table td {
+            padding: 1px 0;
+            font-size: 8pt;
         }
 
         /* ── Tanda Tangan Table ── */
         .signature-table {
             width: 100%;
-            margin-top: 10px;
+            margin-top: 6px;
             border-collapse: collapse;
         }
         .signature-table td {
             width: 33.33%;
             vertical-align: top;
             text-align: center;
-            font-size: 8.5pt;
+            font-size: 8pt;
         }
         .sign-space {
-            height: 50px;
+            height: 38px;
         }
         .sign-name {
             font-weight: bold;
             text-decoration: underline;
         }
         .sign-nip {
-            font-size: 8pt;
+            font-size: 7.5pt;
         }
     </style>
 </head>
@@ -277,53 +241,47 @@
             ? public_path('images/logo-smk.jpg')
             : (file_exists(public_path('images/logo-smk.png')) ? public_path('images/logo-smk.png') : null);
 
-        // Fetch Rekap Absensi
+        // Fetch Rekap Absensi using penempatan_pkl_id context
         $penilaianService = app(\App\Services\Interfaces\PenilaianServiceInterface::class);
         $rekapAbsensi = $penilaianService->getRekapAbsensiData($penempatan?->id ?? 0);
-
-        $getAspectPredikat = function(?int $score) {
-            if ($score === null) return '-';
-            if ($score >= 95) return 'A+';
-            if ($score >= 90) return 'A';
-            if ($score >= 80) return 'B';
-            if ($score >= 70) return 'C';
-            return 'D';
-        };
-
-        $getAspectDeskripsi = function(?string $pred) {
-            return \App\Services\PenilaianService::getDeskripsiPredikat($pred);
-        };
+        $nilaiKehadiran = $penilaian->nilai_kehadiran ?? $penilaianService->calculateKehadiranScore($penempatan?->id ?? 0);
 
         $aspekPenilaian = [
             [
                 'no' => 1,
+                'key' => 'kehadiran',
                 'nama' => 'Kehadiran',
-                'nilai' => $penilaian->nilai_kehadiran,
+                'nilai' => $nilaiKehadiran,
             ],
             [
                 'no' => 2,
+                'key' => 'kerjasama',
                 'nama' => 'Kerja Sama',
                 'nilai' => $penilaian->nilai_kerjasama,
             ],
             [
                 'no' => 3,
+                'key' => 'komunikasi',
                 'nama' => 'Komunikasi',
                 'nilai' => $penilaian->nilai_komunikasi,
             ],
             [
                 'no' => 4,
+                'key' => 'problem_solving',
                 'nama' => 'Problem Solving',
                 'nilai' => $penilaian->nilai_problem_solving,
             ],
             [
                 'no' => 5,
-                'nama' => 'Inisiatif',
-                'nilai' => $penilaian->nilai_inisiatif,
+                'key' => 'teknis',
+                'nama' => 'Teknis',
+                'nilai' => $penilaian->nilai_teknis,
             ],
             [
                 'no' => 6,
-                'nama' => 'Kemampuan Teknis',
-                'nilai' => $penilaian->nilai_teknis,
+                'key' => 'inisiatif',
+                'nama' => 'Inisiatif',
+                'nilai' => $penilaian->nilai_inisiatif,
             ],
         ];
     @endphp
@@ -354,10 +312,10 @@
 
     {{-- ─── DOCUMENT TITLE ─── --}}
     <div class="doc-title-container">
-        <div class="doc-title">RAPOR PRAKTIK KERJA LAPANGAN (PKL)</div>
+        <div class="doc-title">HASIL PENILAIAN PRAKTIK KERJA LAPANGAN (PKL)</div>
     </div>
 
-    {{-- ─── IDENTITAS PESERTA ─── --}}
+    {{-- ─── IDENTITAS PESERTA DIDIK ─── --}}
     <table class="identity-table">
         <tr>
             <td width="18%" class="label">Nama</td>
@@ -398,7 +356,7 @@
         </tr>
     </table>
 
-    {{-- ─── TABEL PENILAIAN (TANPA KOLOM BOBOT) ─── --}}
+    {{-- ─── HASIL PENILAIAN (TABEL 6 ASPEK) ─── --}}
     <table class="rapor-table">
         <thead>
             <tr>
@@ -412,8 +370,8 @@
         <tbody>
             @foreach($aspekPenilaian as $asp)
                 @php
-                    $pred = $getAspectPredikat($asp['nilai']);
-                    $desk = $getAspectDeskripsi($pred);
+                    $pred = \App\Services\PenilaianService::calculatePredikatStatic($asp['nilai']) ?? '-';
+                    $desk = \App\Services\PenilaianService::getDeskripsiAspek($asp['key'], $asp['nilai']);
                 @endphp
                 <tr>
                     <td class="col-no">{{ $asp['no'] }}</td>
@@ -433,94 +391,73 @@
             <td width="15%" class="summary-value">
                 {{ $penilaian->nilai_akhir !== null ? number_format((float)$penilaian->nilai_akhir, 2) : '-' }}
             </td>
-            <td width="18%" class="summary-header">Predikat</td>
+            <td width="18%" class="summary-header">Predikat Nilai Akhir</td>
             <td width="49%" class="summary-value" style="text-align: left; padding-left: 10px;">
                 {{ $penilaian->predikat ?? '-' }}
             </td>
         </tr>
         <tr>
-            <td class="summary-header">Deskripsi Kompetensi</td>
+            <td class="summary-header">Deskripsi Nilai Akhir</td>
             <td colspan="3" class="capaian-text">
                 {{ \App\Services\PenilaianService::getDeskripsiPredikat($penilaian->predikat) }}
             </td>
         </tr>
     </table>
 
-    {{-- ─── REKAP ABSENSI & KETERANGAN PENILAIAN KEHADIRAN ─── --}}
-    <table class="rekap-outer-table">
+    {{-- ─── CATATAN DUDI & REKAP KEHADIRAN (LAYOUT BERDAMPINGAN) ─── --}}
+    <table class="bottom-info-table">
         <tr>
-            <td width="57%" style="padding-right: 6px;">
-                <div class="section-sub-title">REKAP ABSENSI</div>
-                <table class="rekap-absensi-table">
-                    <thead>
+            <td width="64%" style="padding-right: 6px;">
+                <div class="catatan-box">
+                    <div class="catatan-title">CATATAN DUDI</div>
+                    <div style="font-size: 8pt; line-height: 1.25;">{{ $penilaian->catatan ?: 'Belum ada catatan dari DUDI.' }}</div>
+                </div>
+            </td>
+            <td width="36%">
+                <div class="ketidakhadiran-box">
+                    <div class="ketidakhadiran-title">REKAP KEHADIRAN</div>
+                    <table class="ketidakhadiran-table">
                         <tr>
-                            <th>Keterangan</th>
-                            <th style="text-align: center; width: 30%;">Jumlah Hari</th>
-                            <th style="text-align: center; width: 30%;">Persentase</th>
+                            <td width="45%">Hadir</td>
+                            <td width="10%" style="text-align: center;">:</td>
+                            <td width="45%">{{ $rekapAbsensi['hadir'] }} hari</td>
                         </tr>
-                    </thead>
-                    <tbody>
+                        @if(($rekapAbsensi['terlambat'] ?? 0) > 0)
                         <tr>
-                            <td>Hadir</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['hadir'] }} hari</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['hadir_pct'] }}%</td>
+                            <td>Terlambat</td>
+                            <td style="text-align: center;">:</td>
+                            <td>{{ $rekapAbsensi['terlambat'] }} hari</td>
                         </tr>
+                        @endif
+                        @if(($rekapAbsensi['sangat_terlambat'] ?? 0) > 0)
+                        <tr>
+                            <td>Sangat Terlambat</td>
+                            <td style="text-align: center;">:</td>
+                            <td>{{ $rekapAbsensi['sangat_terlambat'] }} hari</td>
+                        </tr>
+                        @endif
                         <tr>
                             <td>Sakit</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['sakit'] }} hari</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['sakit_pct'] }}%</td>
+                            <td style="text-align: center;">:</td>
+                            <td>{{ $rekapAbsensi['sakit'] }} hari</td>
                         </tr>
                         <tr>
                             <td>Izin</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['izin'] }} hari</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['izin_pct'] }}%</td>
+                            <td style="text-align: center;">:</td>
+                            <td>{{ $rekapAbsensi['izin'] }} hari</td>
                         </tr>
                         <tr>
                             <td>Alpha</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['alpha'] }} hari</td>
-                            <td style="text-align: center;">{{ $rekapAbsensi['alpha_pct'] }}%</td>
+                            <td style="text-align: center;">:</td>
+                            <td>{{ $rekapAbsensi['alpha'] }} hari</td>
                         </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th>Total Hari Kerja</th>
-                            <th style="text-align: center;">{{ $rekapAbsensi['total_hari'] }} hari</th>
-                            <th style="text-align: center;">100%</th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </td>
-            <td width="43%" style="padding-left: 6px;">
-                <div class="keterangan-kehadiran-box">
-                    <div class="keterangan-title">KETERANGAN PENILAIAN KEHADIRAN</div>
-                    <p style="margin: 0 0 4px 0;">Nilai Kehadiran dihitung otomatis berdasarkan rekap absensi.</p>
-                    <div style="margin-bottom: 4px; padding-left: 4px;">
-                        &bull; Hadir = 100%<br>
-                        &bull; Sakit = 85%<br>
-                        &bull; Izin = 70%<br>
-                        &bull; Alpha = 0%
-                    </div>
-                    <p style="margin: 0;">Nilai akhir kehadiran diperoleh dari perhitungan otomatis sistem.</p>
+                    </table>
                 </div>
             </td>
         </tr>
     </table>
 
-    {{-- ─── CATATAN PEMBIMBING ─── --}}
-    <table class="catatan-table">
-        <tr>
-            <td>
-                <div class="catatan-title">Catatan Pembimbing DUDI</div>
-                <div>{{ $penilaian->catatan ?: '-' }}</div>
-            </td>
-            <td>
-                <div class="catatan-title">Catatan Guru Pembimbing</div>
-                <div>{{ $penilaian->catatan_guru ?: '-' }}</div>
-            </td>
-        </tr>
-    </table>
-
-    {{-- ─── TANDA TANGAN ─── --}}
+    {{-- ─── PENGESAHAN ─── --}}
     <table class="signature-table">
         <tr>
             <td>

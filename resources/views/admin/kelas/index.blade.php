@@ -33,7 +33,7 @@
         {{-- Search --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-card-sm">
             <form method="GET" action="{{ route('admin.kelas.index') }}" class="flex flex-col gap-3 sm:flex-row sm:items-center flex-wrap">
-                <div class="flex-1">
+                <div class="flex-1 min-w-[200px]">
                     <div class="relative">
                         <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center ps-3.5 text-slate-400">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -44,9 +44,18 @@
                                class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 ps-10 pe-4 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
                     </div>
                 </div>
+                <div class="w-full sm:w-48">
+                    <select name="tingkat" onchange="this.form.submit()"
+                            class="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        <option value="">Semua Tingkat</option>
+                        <option value="10" {{ request('tingkat') == '10' ? 'selected' : '' }}>Tingkat 10 (X)</option>
+                        <option value="11" {{ request('tingkat') == '11' ? 'selected' : '' }}>Tingkat 11 (XI)</option>
+                        <option value="12" {{ request('tingkat') == '12' ? 'selected' : '' }}>Tingkat 12 (XII)</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-2">
                     <button type="submit" class="inline-flex items-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">Cari</button>
-                    @if(request('search'))
+                    @if(request('search') || request('tingkat'))
                         <a href="{{ route('admin.kelas.index') }}" class="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Reset</a>
                     @endif
                 </div>
@@ -66,7 +75,12 @@
                                     <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>
                                 </a>
                             </th>
-                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Tingkat</th>
+                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                <a href="{{ route('admin.kelas.index', array_merge(request()->query(), ['sort' => 'tingkat', 'direction' => request('sort') === 'tingkat' && request('direction') === 'asc' ? 'desc' : 'asc'])) }}" class="inline-flex items-center gap-1 hover:text-slate-700">
+                                    Tingkat
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>
+                                </a>
+                            </th>
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
                                 <a href="{{ route('admin.kelas.index', array_merge(request()->query(), ['sort' => 'tahun_ajaran', 'direction' => request('sort') === 'tahun_ajaran' && request('direction') === 'asc' ? 'desc' : 'asc'])) }}" class="inline-flex items-center gap-1 hover:text-slate-700">
                                     Tahun Ajaran

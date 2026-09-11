@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Absensi;
 use App\Models\PenempatanPKL;
+use App\Services\Interfaces\AbsensiServiceInterface;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -26,16 +27,17 @@ class MarkAlfaAbsensi extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(AbsensiServiceInterface $absensiService): int
     {
         $dateStr = $this->option('date');
-        $targetDate = $dateStr ? Carbon::parse($dateStr)->startOfDay() : now()->subDay()->startOfDay(); // Default ke H-1 karena dijalankan dini hari
+        $targetDate = $dateStr ? Carbon::parse($dateStr)->startOfDay() : now()->subDay()->startOfDay();
         $dateFormatted = $targetDate->format('Y-m-d');
         
         // Lewati weekend (Sabtu/Minggu) jika diasumsikan PKL hanya Senin-Jumat
         // Tapi ini bisa tergantung kebijakan. Kita buat skip minggu saja by default.
-        if ($targetDate->isSunday()) {
-            $this->info("Tanggal {$dateFormatted} adalah hari Minggu. Tidak ada proses Alfa.");
+        // A running day must never be marked Alfa before it has ended.
+        if (!$targetDate->lt(Carbon::today(config('app.timezone')))) {
+            $this->info("Tanggal {$dateFormatted} belum selesai. Tidak ada proses Alfa.");
             return 0;
         }
 
@@ -54,15 +56,16 @@ class MarkAlfaAbsensi extends Command
 
         foreach ($penempatans as $penempatan) {
             // Cek apakah ada record absensi
-            $absensi = Absensi::where('penempatan_pkl_id', $penempatan->id)
-                ->where('tanggal', $dateFormatted)
-                ->first();
+            $rekap = $absensiService->getRekapPresensi($penempatan->id);
+            $isBolos = in_array($dateFormatted, $rekap['bolos'], true);
 
-            if (!$absensi) {
+            if ($isBolos && !Absensi::where('penempatan_pkl_id', $penempatan->id)
+                ->whereDate('tanggal', $dateFormatted)
+                ->exists()) {
                 Absensi::create([
                     'penempatan_pkl_id' => $penempatan->id,
                     'tanggal' => $dateFormatted,
-                    'status' => 'alfa',
+                    'status' => 'alpha',
                     'keterangan' => 'Sistem Otomatis (Tidak ada check-in/pengajuan)',
                 ]);
                 $countAlfa++;

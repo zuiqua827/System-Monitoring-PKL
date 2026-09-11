@@ -34,8 +34,11 @@ class KelasController extends Controller
     {
         $this->authorize('viewAny', Kelas::class);
 
+        $tingkat = $request->filled('tingkat') ? (int) $request->query('tingkat') : null;
+
         $kelass = $this->kelasService->getPaginated(
             keyword: $request->query('search'),
+            tingkat: $tingkat,
             sortBy: $request->query('sort', 'nama'),
             sortDirection: $request->query('direction', 'asc'),
             perPage: (int) $request->query('per_page', '15'),

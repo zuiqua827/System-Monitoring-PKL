@@ -328,9 +328,19 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 $remoteNisnSet[$nisn] = true;
             }
 
-            $outcome = $dryRun
-                ? $this->classifyStudent($remote)
-                : $this->syncOneStudent($remote);
+            try {
+                $outcome = $dryRun
+                    ? $this->classifyStudent($remote)
+                    : $this->syncOneStudent($remote);
+            } catch (\Throwable $e) {
+                Log::error('Student record failed during SiPintu sync', [
+                    'nis' => $nis,
+                    'exception_class' => $e::class,
+                    'message' => $e->getMessage(),
+                    'dry_run' => $dryRun,
+                ]);
+                $outcome = 'error';
+            }
 
             if ($outcome === 'needs_mapping') {
                 Log::warning('Student skipped during SiPintu sync', [
@@ -394,10 +404,22 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             $remote['nip'] = $nip;
             $remoteNipSet[$nip] = true;
 
+            try {
+                $outcome = $dryRun ? $this->classifyTeacher($remote) : $this->syncOneTeacher($remote);
+            } catch (\Throwable $e) {
+                Log::error('Teacher record failed during SiPintu sync', [
+                    'nip' => $nip,
+                    'exception_class' => $e::class,
+                    'message' => $e->getMessage(),
+                    'dry_run' => $dryRun,
+                ]);
+                $outcome = 'error';
+            }
+
             $this->applyRecordOutcome(
                 $stats,
                 $dryRun,
-                $dryRun ? $this->classifyTeacher($remote) : $this->syncOneTeacher($remote),
+                $outcome,
             );
         }
 
@@ -542,18 +564,16 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         }
 
         $classroomId = $this->classroomId($remote);
+        $kelas = null;
 
-        // If classroomId is 0 / null, the student is an ALUMNI (must be skipped).
-        if ($classroomId <= 0) {
-            return 'skipped';
-        }
+        if ($classroomId > 0) {
+            $kelas = $this->resolveKelas($remote);
 
-        $kelas = $this->resolveKelas($remote);
-
-        // If remote student has a non-zero classroomId but no local mapping exists,
-        // flag as needs_mapping.
-        if ($kelas === null) {
-            return 'needs_mapping';
+            // If remote student has a non-zero classroomId but no local mapping exists,
+            // flag as needs_mapping.
+            if ($kelas === null) {
+                return 'needs_mapping';
+            }
         }
 
         if ($resolved['siswa'] === null) {
@@ -587,16 +607,14 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         }
 
         $classroomId = $this->classroomId($remote);
+        $kelas = null;
 
-        // If classroomId is 0 / null, the student is an ALUMNI (must be skipped).
-        if ($classroomId <= 0) {
-            return 'skipped';
-        }
+        if ($classroomId > 0) {
+            $kelas = $this->resolveKelas($remote);
 
-        $kelas = $this->resolveKelas($remote);
-
-        if ($kelas === null) {
-            return 'needs_mapping';
+            if ($kelas === null) {
+                return 'needs_mapping';
+            }
         }
 
         $existing = $resolved['siswa'];

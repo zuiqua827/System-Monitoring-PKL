@@ -257,7 +257,7 @@
                 <h3 class="text-base font-bold text-slate-900">Rekap Presensi Selama Periode PKL</h3>
                 <p class="mt-1 text-sm text-slate-500">Masa PKL: {{ $rekapPresensi['hari_berjalan'] }} hari berjalan dari total {{ $rekapPresensi['total_hari'] }} hari wajib.</p>
             </div>
-            <div class="p-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="p-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
                 <div class="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
                     <p class="text-sm font-semibold text-emerald-800">Hadir</p>
                     <p class="mt-1 text-2xl font-bold text-emerald-600">{{ count($rekapPresensi['hadir']) }}</p>
@@ -299,6 +299,28 @@
                             <div>• {{ \Carbon\Carbon::parse($date)->format('d M Y') }}</div>
                         @empty
                             <div class="text-slate-500/50 italic">-</div>
+                        @endforelse
+                    </div>
+                </div>
+                <div class="rounded-xl bg-orange-50 p-4 border border-orange-100">
+                    <p class="text-sm font-semibold text-orange-800">Sakit</p>
+                    <p class="mt-1 text-2xl font-bold text-orange-600">{{ count($rekapPresensi['sakit']) }}</p>
+                    <div class="mt-2 space-y-1 text-xs text-orange-700 max-h-32 overflow-y-auto">
+                        @forelse($rekapPresensi['sakit'] as $ab)
+                            <div>• {{ \Carbon\Carbon::parse(is_object($ab) ? $ab->tanggal : $ab)->format('d M Y') }}</div>
+                        @empty
+                            <div class="text-orange-600/50 italic">-</div>
+                        @endforelse
+                    </div>
+                </div>
+                <div class="rounded-xl bg-blue-50 p-4 border border-blue-100">
+                    <p class="text-sm font-semibold text-blue-800">Izin</p>
+                    <p class="mt-1 text-2xl font-bold text-blue-600">{{ count($rekapPresensi['izin']) }}</p>
+                    <div class="mt-2 space-y-1 text-xs text-blue-700 max-h-32 overflow-y-auto">
+                        @forelse($rekapPresensi['izin'] as $ab)
+                            <div>• {{ \Carbon\Carbon::parse(is_object($ab) ? $ab->tanggal : $ab)->format('d M Y') }}</div>
+                        @empty
+                            <div class="text-blue-600/50 italic">-</div>
                         @endforelse
                     </div>
                 </div>

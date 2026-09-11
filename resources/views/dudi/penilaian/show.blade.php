@@ -41,65 +41,71 @@
 
         <div class="grid gap-6 lg:grid-cols-3">
             <div class="lg:col-span-2 space-y-6">
+                {{-- Tabel Aspek Penilaian --}}
                 <div class="rounded-2xl border border-slate-200 bg-white shadow-card-sm overflow-hidden">
                     <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-5">
-                        <h3 class="text-base font-bold text-slate-900">Rincian Nilai</h3>
+                        <h3 class="text-base font-bold text-slate-900">Rincian Nilai Per Aspek</h3>
+                        <p class="mt-1 text-sm text-slate-500">Detail nilai, predikat, dan deskripsi khusus per aspek</p>
                     </div>
-                    <div class="px-6 py-5">
-                        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Kehadiran</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_kehadiran ?? '-' }}</dd>
-                            </div>
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Kerja Sama</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_kerjasama ?? '-' }}</dd>
-                            </div>
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Komunikasi</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_komunikasi ?? '-' }}</dd>
-                            </div>
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Problem Solving</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_problem_solving ?? '-' }}</dd>
-                            </div>
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                <dt class="text-sm font-medium text-slate-500">Inisiatif</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_inisiatif ?? '-' }}</dd>
-                            </div>
-                            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100 sm:col-span-2">
-                                <dt class="text-sm font-medium text-slate-500">Kemampuan Teknis</dt>
-                                <dd class="mt-2 text-2xl font-bold text-slate-900">{{ $penilaian->nilai_teknis ?? '-' }}</dd>
-                            </div>
-                        </dl>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    <th class="px-4 py-3 text-center w-12">No</th>
+                                    <th class="px-4 py-3">Aspek Penilaian</th>
+                                    <th class="px-4 py-3 text-center w-20">Nilai</th>
+                                    <th class="px-4 py-3 text-center w-24">Predikat</th>
+                                    <th class="px-4 py-3">Deskripsi Aspek</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-sm">
+                                @php
+                                    $aspekList = [
+                                        ['no' => 1, 'key' => 'kehadiran', 'nama' => 'Kehadiran', 'nilai' => $penilaian->nilai_kehadiran],
+                                        ['no' => 2, 'key' => 'kerjasama', 'nama' => 'Kerja Sama', 'nilai' => $penilaian->nilai_kerjasama],
+                                        ['no' => 3, 'key' => 'komunikasi', 'nama' => 'Komunikasi', 'nilai' => $penilaian->nilai_komunikasi],
+                                        ['no' => 4, 'key' => 'problem_solving', 'nama' => 'Problem Solving', 'nilai' => $penilaian->nilai_problem_solving],
+                                        ['no' => 5, 'key' => 'teknis', 'nama' => 'Teknis', 'nilai' => $penilaian->nilai_teknis],
+                                        ['no' => 6, 'key' => 'inisiatif', 'nama' => 'Inisiatif', 'nilai' => $penilaian->nilai_inisiatif],
+                                    ];
+                                @endphp
+                                @foreach($aspekList as $asp)
+                                    @php
+                                        $pred = \App\Services\PenilaianService::calculatePredikatStatic($asp['nilai']) ?? '-';
+                                        $desk = \App\Services\PenilaianService::getDeskripsiAspek($asp['key'], $asp['nilai']);
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/80 transition">
+                                        <td class="px-4 py-3.5 text-center text-slate-500 font-medium">{{ $asp['no'] }}</td>
+                                        <td class="px-4 py-3.5 font-bold text-slate-900">{{ $asp['nama'] }}</td>
+                                        <td class="px-4 py-3.5 text-center font-bold text-slate-900">{{ $asp['nilai'] ?? '-' }}</td>
+                                        <td class="px-4 py-3.5 text-center">
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold
+                                                @if($pred === 'A+') bg-emerald-100 text-emerald-800
+                                                @elseif($pred === 'A') bg-emerald-50 text-emerald-700 border border-emerald-200
+                                                @elseif($pred === 'B') bg-blue-100 text-blue-800
+                                                @elseif($pred === 'C') bg-amber-100 text-amber-800
+                                                @else bg-red-100 text-red-800 @endif">
+                                                {{ $pred }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3.5 text-slate-600 text-xs leading-relaxed">{{ $desk }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                @if($penilaian->catatan || $penilaian->catatan_guru)
                 <div class="rounded-2xl border border-slate-200 bg-white shadow-card-sm overflow-hidden">
                     <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-5">
-                        <h3 class="text-base font-bold text-slate-900">Catatan Evaluasi</h3>
+                        <h3 class="text-base font-bold text-slate-900">Catatan DUDI</h3>
                     </div>
-                    <div class="px-6 py-5 space-y-6">
-                        @if($penilaian->catatan)
-                            <div>
-                                <h4 class="text-sm font-medium text-slate-500 mb-2">Catatan Umum</h4>
-                                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                                    <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ $penilaian->catatan }}</p>
-                                </div>
-                            </div>
-                        @endif
-                        @if($penilaian->catatan_guru)
-                            <div>
-                                <h4 class="text-sm font-medium text-slate-500 mb-2">Catatan Guru Pembimbing</h4>
-                                <div class="rounded-xl bg-blue-50 p-4 border border-blue-100">
-                                    <p class="text-sm text-blue-900 whitespace-pre-wrap">{{ $penilaian->catatan_guru }}</p>
-                                </div>
-                            </div>
-                        @endif
+                    <div class="px-6 py-5">
+                        <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                            <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ $penilaian->catatan ?: 'Belum ada catatan dari DUDI.' }}</p>
+                        </div>
                     </div>
                 </div>
-                @endif
             </div>
 
             <div class="space-y-6">
@@ -109,22 +115,20 @@
                     </div>
                     <div class="p-6 text-center">
                         <div class="mb-4">
-                            <p class="text-sm font-medium text-blue-600">Nilai Rata-rata</p>
+                            <p class="text-sm font-medium text-blue-600">Nilai Akhir</p>
                             <p class="text-5xl font-black text-blue-900 mt-2">{{ $penilaian->nilai_akhir ?? '-' }}</p>
                         </div>
                         <div>
-                            <p class="text-sm font-medium text-blue-600 mb-2">Predikat</p>
-                            @if($penilaian->predikat === 'A')
-                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-800">A (Sangat Baik)</span>
-                            @elseif($penilaian->predikat === 'B')
-                                <span class="inline-flex items-center rounded-full bg-blue-100 px-4 py-2 text-sm font-bold text-blue-800">B (Baik)</span>
-                            @elseif($penilaian->predikat === 'C')
-                                <span class="inline-flex items-center rounded-full bg-amber-100 px-4 py-2 text-sm font-bold text-amber-800">C (Cukup)</span>
-                            @elseif($penilaian->predikat === 'D' || $penilaian->predikat === 'E')
-                                <span class="inline-flex items-center rounded-full bg-red-100 px-4 py-2 text-sm font-bold text-red-800">{{ $penilaian->predikat }} (Kurang)</span>
+                            <p class="text-sm font-medium text-blue-600 mb-2">Predikat Nilai Akhir</p>
+                            @if($penilaian->predikat)
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-800">{{ $penilaian->predikat }}</span>
                             @else
                                 <span class="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-800">Belum ada predikat</span>
                             @endif
+                        </div>
+                        <div class="mt-4 text-left border-t border-blue-100 pt-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">Deskripsi Nilai Akhir</p>
+                            <p class="mt-1 text-xs text-blue-900 leading-relaxed">{{ \App\Services\PenilaianService::getDeskripsiPredikat($penilaian->predikat) }}</p>
                         </div>
                     </div>
                 </div>
@@ -136,8 +140,8 @@
                     <div class="p-6">
                         <dl class="space-y-4">
                             <div>
-                                <dt class="text-sm font-medium text-slate-500">Dinilai Oleh (Guru Pembimbing)</dt>
-                                <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $penilaian->penempatanPKL?->guru?->nama }}</dd>
+                                <dt class="text-sm font-medium text-slate-500">Guru Pembimbing</dt>
+                                <dd class="mt-1 text-sm font-semibold text-slate-900">{{ $penilaian->penempatanPKL?->guru?->nama ?? '-' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-sm font-medium text-slate-500">Tanggal Penilaian</dt>

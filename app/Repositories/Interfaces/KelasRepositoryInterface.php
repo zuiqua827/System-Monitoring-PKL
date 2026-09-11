@@ -14,13 +14,14 @@ use Illuminate\Database\Eloquent\Collection;
 interface KelasRepositoryInterface extends BaseRepositoryInterface
 {
     /**
-     * Paginate kelas with optional search and sorting.
+     * Paginate kelas with optional search, tingkat filter, and sorting.
      * Eager loads jurusan relationship.
      *
      * @return LengthAwarePaginator<int, Kelas>
      */
     public function search(
         ?string $keyword = null,
+        ?int $tingkat = null,
         string $sortBy = 'nama',
         string $sortDirection = 'asc',
         int $perPage = 15,

@@ -586,7 +586,7 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      */
     public function getRekapPresensi(int $penempatanPklId): array
     {
-        $penempatan = \App\Models\PenempatanPKL::find($penempatanPklId);
+        $penempatan = PenempatanPKL::with(['dudi', 'periodePKL'])->find($penempatanPklId);
         $emptyRekap = [
             'total_hari' => 0,
             'hari_berjalan' => 0,
@@ -597,85 +597,199 @@ class AbsensiService extends Service implements AbsensiServiceInterface
             'sakit' => [],
             'alpha' => [],
             'bolos' => [],
+            'status' => 'periode_tidak_valid',
         ];
 
         if (!$penempatan) {
             return $emptyRekap;
         }
 
-        $tanggalMulai = $penempatan->tanggal_mulai;
-        $tanggalSelesai = $penempatan->tanggal_selesai;
+        $absensis = Absensi::where('penempatan_pkl_id', $penempatanPklId)
+            ->orderBy('tanggal', 'asc')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->tanggal ? $item->tanggal->format('Y-m-d') : '';
+            });
 
-        if (!$tanggalMulai || !$tanggalSelesai || $tanggalMulai->gt($tanggalSelesai)) {
+        $pengajuan = \App\Models\PengajuanKetidakhadiran::where('penempatan_pkl_id', $penempatanPklId)
+            ->where('status', 'disetujui')
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->tanggal ? $item->tanggal->format('Y-m-d') : '';
+            });
+
+        $timezone = config('app.timezone', 'Asia/Jakarta');
+        $today = Carbon::today($timezone);
+        $yesterday = (clone $today)->subDay();
+
+        $formalMulai = $penempatan->tanggal_mulai ?? $penempatan->periodePKL?->tanggal_mulai;
+        $formalSelesai = $penempatan->tanggal_selesai ?? $penempatan->periodePKL?->tanggal_selesai;
+
+        $earliestAbsensi = $absensis->keys()->filter()->min();
+        $latestAbsensi = $absensis->keys()->filter()->max();
+
+        // Determine effective start date of PKL for attendance calculation
+        if ($earliestAbsensi !== null) {
+            $earliestCarbon = Carbon::parse($earliestAbsensi, $timezone);
+            if (!$formalMulai || Carbon::parse($formalMulai, $timezone)->gt($today) || $earliestCarbon->lt(Carbon::parse($formalMulai, $timezone))) {
+                $effectiveMulai = $earliestCarbon;
+            } else {
+                $effectiveMulai = Carbon::parse($formalMulai, $timezone);
+            }
+        } else {
+            $effectiveMulai = $formalMulai ? Carbon::parse($formalMulai, $timezone) : clone $today;
+        }
+
+        // Determine effective end date of PKL
+        if ($latestAbsensi !== null) {
+            $latestCarbon = Carbon::parse($latestAbsensi, $timezone);
+            if ($formalSelesai && $latestCarbon->gt(Carbon::parse($formalSelesai, $timezone))) {
+                $effectiveSelesai = $latestCarbon;
+            } else {
+                $effectiveSelesai = $formalSelesai ? Carbon::parse($formalSelesai, $timezone) : (clone $today)->addMonths(3);
+            }
+        } else {
+            $effectiveSelesai = $formalSelesai ? Carbon::parse($formalSelesai, $timezone) : (clone $today)->addMonths(3);
+        }
+
+        if ($effectiveMulai->gt($effectiveSelesai)) {
             return $emptyRekap;
         }
 
-        $timezone = config('app.timezone');
-        $today = Carbon::today($timezone);
-        $endCalculationDate = $today->lt($tanggalSelesai) ? clone $today : clone $tanggalSelesai;
-        $startCalculationDate = clone $tanggalMulai;
-
         $dudi = $penempatan->dudi;
-        
-        $expectedDays = [];
-        while ($startCalculationDate->lte($endCalculationDate)) {
-            if ($dudi && $dudi->isHariOperasional($startCalculationDate)) {
-                $expectedDays[] = $startCalculationDate->format('Y-m-d');
-            } elseif (!$dudi && $startCalculationDate->isWeekday()) {
-                $expectedDays[] = $startCalculationDate->format('Y-m-d');
-            }
-            $startCalculationDate = $startCalculationDate->addDay();
-        }
-
-        $absensis = \App\Models\Absensi::where('penempatan_pkl_id', $penempatanPklId)
-            ->get()
-            ->keyBy(function($item) {
-                return $item->tanggal->format('Y-m-d');
-            });
 
         $rekap = $emptyRekap;
+        $rekap['status'] = 'valid';
 
-        // Total hari PKL should be from tanggal_mulai to tanggal_selesai
-        $totalStart = clone $tanggalMulai;
-        $totalEnd = clone $tanggalSelesai;
-        $totalExpectedDays = 0;
-        while ($totalStart->lte($totalEnd)) {
-            if ($dudi && $dudi->isHariOperasional($totalStart)) {
-                $totalExpectedDays++;
-            } elseif (!$dudi && $totalStart->isWeekday()) {
-                $totalExpectedDays++;
-            }
-            $totalStart = $totalStart->addDay();
-        }
-        $rekap['total_hari'] = $totalExpectedDays;
-        $rekap['hari_berjalan'] = count($expectedDays);
-
+        // 1. Group ALL actual recorded attendance records in database
         foreach ($absensis as $date => $ab) {
-            if ($ab->status === \App\Enums\AbsensiStatus::HADIR->value) {
+            if ($ab->status === AbsensiStatus::HADIR->value) {
                 $rekap['hadir'][] = $ab;
-            } elseif ($ab->status === \App\Enums\AbsensiStatus::TERLAMBAT->value) {
+            } elseif ($ab->status === AbsensiStatus::TERLAMBAT->value) {
                 if ($ab->keterangan === self::SANGAT_TERLAMBAT) {
                     $rekap['sangat_terlambat'][] = $ab;
                 } else {
                     $rekap['terlambat'][] = $ab;
                 }
-            } elseif ($ab->status === \App\Enums\AbsensiStatus::IZIN->value) {
+            } elseif ($ab->status === AbsensiStatus::IZIN->value) {
                 $rekap['izin'][] = $ab;
-            } elseif ($ab->status === \App\Enums\AbsensiStatus::SAKIT->value) {
+            } elseif ($ab->status === AbsensiStatus::SAKIT->value) {
                 $rekap['sakit'][] = $ab;
-            } elseif ($ab->status === \App\Enums\AbsensiStatus::ALPHA->value) {
+            } elseif ($ab->status === AbsensiStatus::ALPHA->value) {
                 $rekap['alpha'][] = $ab;
-            }
-        }
-
-        foreach ($expectedDays as $date) {
-            if (!$absensis->has($date)) {
-                if (Carbon::parse($date, $timezone)->lt($today)) {
+                if (!in_array($date, $rekap['bolos'], true)) {
                     $rekap['bolos'][] = $date;
                 }
             }
         }
 
+        // 2. Total working days in entire PKL period
+        $cur = clone $effectiveMulai;
+        while ($cur->lte($effectiveSelesai)) {
+            if ($dudi ? $dudi->isHariOperasional($cur) : $cur->isWeekday()) {
+                $rekap['total_hari']++;
+            }
+            $cur = $cur->addDay();
+        }
+
+        // 3. Elapsed working days up to today
+        if ($today->gte($effectiveMulai)) {
+            $endElapsed = $effectiveSelesai->lt($today) ? clone $effectiveSelesai : clone $today;
+            $cur = clone $effectiveMulai;
+            while ($cur->lte($endElapsed)) {
+                if ($dudi ? $dudi->isHariOperasional($cur) : $cur->isWeekday()) {
+                    $rekap['hari_berjalan']++;
+                }
+                $cur = $cur->addDay();
+            }
+        }
+
+        // 4. Calculate past working days for missed check-ins (Bolos/Alfa) and approved leaves
+        // Rule: Do not count ongoing day (today), do not count non-operational days, do not count past tanggal selesai
+        if ($yesterday->gte($effectiveMulai)) {
+            $endPast = $effectiveSelesai->lt($yesterday) ? clone $effectiveSelesai : clone $yesterday;
+            $cur = clone $effectiveMulai;
+            while ($cur->lte($endPast)) {
+                $isOp = $dudi ? $dudi->isHariOperasional($cur) : $cur->isWeekday();
+                $dStr = $cur->format('Y-m-d');
+                if ($isOp) {
+                    if (!$absensis->has($dStr)) {
+                        if ($pengajuan->has($dStr)) {
+                            $p = $pengajuan->get($dStr);
+                            if ($p->jenis === 'sakit') {
+                                $rekap['sakit'][] = $dStr;
+                            } elseif ($p->jenis === 'izin') {
+                                $rekap['izin'][] = $dStr;
+                            }
+                        } else {
+                            if (!in_array($dStr, $rekap['bolos'], true)) {
+                                $rekap['bolos'][] = $dStr;
+                            }
+                        }
+                    }
+                }
+                $cur = $cur->addDay();
+            }
+        }
+
         return $rekap;
+    }
+
+    /**
+     * Return the single attendance aggregate used by scoring and reports.
+     */
+    public function getRekapAbsensiData(int $penempatanPklId): array
+    {
+        $empty = [
+            'hadir' => 0,
+            'terlambat' => 0,
+            'sangat_terlambat' => 0,
+            'sakit' => 0,
+            'izin' => 0,
+            'alpha' => 0,
+            'total_hadir' => 0,
+            'total_hari' => 0,
+            'hari_berjalan' => 0,
+            'total_hari_pkl' => 0,
+            'periode_valid' => false,
+            'hadir_pct' => 0.0,
+            'sakit_pct' => 0.0,
+            'izin_pct' => 0.0,
+            'alpha_pct' => 0.0,
+        ];
+
+        $rekap = $this->getRekapPresensi($penempatanPklId);
+        if ($rekap['status'] !== 'valid') {
+            return $empty;
+        }
+
+        $hadir = count($rekap['hadir']);
+        $terlambat = count($rekap['terlambat']);
+        $sangatTerlambat = count($rekap['sangat_terlambat']);
+        $sakit = count($rekap['sakit']);
+        $izin = count($rekap['izin']);
+        $alpha = count($rekap['alpha']) + count($rekap['bolos']);
+        $totalKehadiran = $hadir + $terlambat + $sangatTerlambat;
+
+        // Total operational days evaluated so far
+        $totalEvaluated = $totalKehadiran + $sakit + $izin + $alpha;
+
+        return [
+            'hadir' => $hadir,
+            'terlambat' => $terlambat,
+            'sangat_terlambat' => $sangatTerlambat,
+            'sakit' => $sakit,
+            'izin' => $izin,
+            'alpha' => $alpha,
+            'total_hadir' => $totalKehadiran,
+            'total_hari' => $totalEvaluated,
+            'hari_berjalan' => $rekap['hari_berjalan'],
+            'total_hari_pkl' => $rekap['total_hari'],
+            'periode_valid' => true,
+            'hadir_pct' => $totalEvaluated > 0 ? round(($totalKehadiran / $totalEvaluated) * 100, 1) : 0.0,
+            'sakit_pct' => $totalEvaluated > 0 ? round(($sakit / $totalEvaluated) * 100, 1) : 0.0,
+            'izin_pct' => $totalEvaluated > 0 ? round(($izin / $totalEvaluated) * 100, 1) : 0.0,
+            'alpha_pct' => $totalEvaluated > 0 ? round(($alpha / $totalEvaluated) * 100, 1) : 0.0,
+        ];
     }
 }

@@ -24,6 +24,7 @@ class KelasRepository extends EloquentRepository implements KelasRepositoryInter
      */
     public function search(
         ?string $keyword = null,
+        ?int $tingkat = null,
         string $sortBy = 'nama',
         string $sortDirection = 'asc',
         int $perPage = 15,
@@ -41,13 +42,21 @@ class KelasRepository extends EloquentRepository implements KelasRepositoryInter
             });
         }
 
+        if ($tingkat !== null) {
+            $query->where('tingkat', $tingkat);
+        }
+
         $allowedSorts = ['nama', 'tingkat', 'tahun_ajaran', 'created_at'];
         $sortBy = in_array($sortBy, $allowedSorts, true) ? $sortBy : 'nama';
         $sortDirection = in_array($sortDirection, ['asc', 'desc'], true) ? $sortDirection : 'asc';
 
-        return $query
-            ->orderBy($sortBy, $sortDirection)
-            ->paginate(min(max($perPage, 1), 100));
+        if ($sortBy === 'nama') {
+            $query->orderBy('tingkat', 'asc')->orderBy('nama', $sortDirection);
+        } else {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
+        return $query->paginate(min(max($perPage, 1), 100));
     }
 
     /**

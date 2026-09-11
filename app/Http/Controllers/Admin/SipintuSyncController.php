@@ -15,6 +15,8 @@ use Illuminate\View\View;
  * Super Admin controller for the "Sinkronisasi SiPintu" feature.
  *
  * Thin controller: delegates all business logic to SipintuSyncService.
+ * GET index method never executes external HTTP requests, ensuring fast,
+ * non-blocking rendering without execution time limits.
  */
 class SipintuSyncController extends Controller
 {
@@ -24,16 +26,20 @@ class SipintuSyncController extends Controller
 
     /**
      * Display the SiPintu synchronization dashboard.
+     * Uses ONLY local DB counts and logs to render instantly.
      */
     public function index(): View
     {
         $data = $this->syncService->getDashboardData();
+        $connResult = session('connectionTestResult');
 
         return view('admin.sipintu-sync.index', [
-            'connectionStatus' => $data['connection_status'],
-            'connectionMessage' => $data['connection_message'],
-            'connectionDetail' => $data['connection_detail'] ?? null,
-            'connectionTroubleshooting' => $data['connection_troubleshooting'] ?? null,
+            'connectionStatus' => is_array($connResult)
+                ? ($connResult['success'] ? 'connected' : (($connResult['error_type'] ?? null) === 'configuration' ? 'not_configured' : 'error'))
+                : $data['connection_status'],
+            'connectionMessage' => is_array($connResult) ? ($connResult['message'] ?? $data['connection_message']) : $data['connection_message'],
+            'connectionDetail' => is_array($connResult) ? ($connResult['detail'] ?? null) : ($data['connection_detail'] ?? null),
+            'connectionTroubleshooting' => is_array($connResult) ? ($connResult['troubleshooting'] ?? null) : ($data['connection_troubleshooting'] ?? null),
             'lastSync' => $data['last_sync'],
             'sipintuStudentCount' => $data['sipintu_student_count'],
             'sipintuTeacherCount' => $data['sipintu_teacher_count'],
@@ -46,7 +52,7 @@ class SipintuSyncController extends Controller
     }
 
     /**
-     * Run a READ-ONLY preview / dry-run of the sync.
+     * Run a READ-ONLY preview / dry-run of the sync when requested by user.
      *
      * Does NOT modify any data. Only classifies the upcoming sync into the
      * 7 categories. Returns the same dashboard view with the preview.
@@ -54,31 +60,7 @@ class SipintuSyncController extends Controller
     public function preview(): View
     {
         $data = $this->syncService->getDashboardData();
-
         $preview = $this->syncService->preview();
-
-        if (! $preview['success']) {
-            return view('admin.sipintu-sync.index', [
-                'connectionStatus' => $data['connection_status'],
-                'connectionMessage' => $data['connection_message'],
-                'connectionDetail' => $data['connection_detail'] ?? null,
-                'connectionTroubleshooting' => $data['connection_troubleshooting'] ?? null,
-                'lastSync' => $data['last_sync'],
-                'sipintuStudentCount' => $data['sipintu_student_count'],
-                'sipintuTeacherCount' => $data['sipintu_teacher_count'],
-                'localStudentCount' => $data['local_student_count'],
-                'localTeacherCount' => $data['local_teacher_count'],
-                'classroomMappingCount' => $data['classroom_mapping_count'],
-                'history' => $data['history'],
-                'preview' => [
-                    'success' => false,
-                    'message' => $preview['message'],
-                    'students' => $preview['students'],
-                    'teachers' => $preview['teachers'],
-                    'duration_ms' => $preview['duration_ms'],
-                ],
-            ]);
-        }
 
         return view('admin.sipintu-sync.index', [
             'connectionStatus' => $data['connection_status'],
@@ -93,7 +75,7 @@ class SipintuSyncController extends Controller
             'classroomMappingCount' => $data['classroom_mapping_count'],
             'history' => $data['history'],
             'preview' => [
-                'success' => true,
+                'success' => $preview['success'],
                 'message' => $preview['message'],
                 'students' => $preview['students'],
                 'teachers' => $preview['teachers'],
@@ -122,7 +104,8 @@ class SipintuSyncController extends Controller
 
         return redirect()
             ->route('admin.sipintu-sync.index')
-            ->with($result['success'] ? 'success' : 'error', $message);
+            ->with($result['success'] ? 'success' : 'error', $message)
+            ->with('connectionTestResult', $result);
     }
 
     /**

@@ -119,4 +119,11 @@ interface AbsensiServiceInterface
      * @return array<string, mixed>
      */
     public function getRekapPresensi(int $penempatanPklId): array;
+
+    /**
+     * Get the canonical attendance totals for a placement.
+     *
+     * @return array<string, int|float>
+     */
+    public function getRekapAbsensiData(int $penempatanPklId): array;
 }

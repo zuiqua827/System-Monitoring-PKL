@@ -121,7 +121,15 @@ interface PenilaianServiceInterface
     public function getRekapAbsensiData(int $penempatanPklId): array;
 
     /**
-     * Get rule-based evaluation description for a given predicate.
+     * Get rule-based evaluation description for a given predicate (Nilai Akhir).
      */
     public static function getDeskripsiPredikat(?string $predikat): string;
+
+    /**
+     * Get rule-based evaluation description for a specific aspect and score or predicate.
+     *
+     * @param string $aspek Key or name of aspect (e.g. 'kehadiran', 'kerjasama', 'komunikasi', 'problem_solving', 'teknis', 'inisiatif')
+     * @param int|float|string|null $nilaiOrPredikat Score (0-100) or predicate ('A+', 'A', 'B', 'C', 'D')
+     */
+    public static function getDeskripsiAspek(string $aspek, int|float|string|null $nilaiOrPredikat): string;
 }

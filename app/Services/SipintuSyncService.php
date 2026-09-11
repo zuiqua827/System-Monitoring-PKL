@@ -44,23 +44,34 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
 
         $localStudents = Siswa::query()->withoutTrashed()->count();
         $localTeachers = Guru::query()->withoutTrashed()->count();
+        $classroomMappingCount = SipintuClassroomMapping::query()->count();
 
-        $remote = $this->fetchSiPintuData();
+        $apiUrl = config('services.sipintu.api_url');
+        $clientId = config('services.sipintu.client_id');
+        $clientSecret = config('services.sipintu.client_secret');
+        $apiToken = config('services.sipintu.api_token');
+
+        $isConfigured = ! empty($apiUrl) && (! empty($apiToken) || (! empty($clientId) && ! empty($clientSecret)));
+
+        $status = $isConfigured ? 'ready' : 'not_configured';
+        $message = $isConfigured
+            ? 'Sistem SiPintu siap digunakan. Klik "Test Connection" untuk menguji koneksi live atau "Mulai Sinkronisasi" untuk menyinkronkan data.'
+            : 'Konfigurasi SiPintu belum lengkap. Silakan atur SIPINTU_API_URL, SIPINTU_CLIENT_ID, dan SIPINTU_CLIENT_SECRET di file .env.';
 
         return [
-            'connection_status' => $remote['status'],
-            'connection_message' => $remote['message'],
-            'connection_detail' => $remote['detail'] ?? null,
-            'connection_troubleshooting' => $remote['troubleshooting'] ?? null,
-            'connection_success' => $remote['connection'],
-            'connection_http_status' => $remote['http_status'],
-            'connection_error_type' => $remote['error_type'],
+            'connection_status' => $status,
+            'connection_message' => $message,
+            'connection_detail' => null,
+            'connection_troubleshooting' => $isConfigured ? null : 'Buka file .env dan atur kredensial Gateway SiPintu.',
+            'connection_success' => $isConfigured,
+            'connection_http_status' => null,
+            'connection_error_type' => $isConfigured ? null : 'configuration',
             'last_sync' => $lastLog ? $this->serializeLog($lastLog) : null,
-            'sipintu_student_count' => $remote['student_count'],
-            'sipintu_teacher_count' => $remote['teacher_count'],
+            'sipintu_student_count' => null,
+            'sipintu_teacher_count' => null,
             'local_student_count' => $localStudents,
             'local_teacher_count' => $localTeachers,
-            'classroom_mapping_count' => SipintuClassroomMapping::query()->count(),
+            'classroom_mapping_count' => $classroomMappingCount,
             'history' => $this->syncLogRepository->paginateHistory(15),
         ];
     }
@@ -128,28 +139,26 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
             // transaction so a slow/failed API can never hold local locks.
             $payload = $this->siPintuService->fetchSyncPayload();
 
-            $result = DB::transaction(function () use ($admin, $payload, $start): array {
-                $studentStats = $this->siPintuService->syncStudents($payload['students']);
-                $teacherStats = $this->siPintuService->syncTeachers($payload['teachers']);
-                $durationMs = (int) round((hrtime(true) - $start) / 1_000_000);
-                $message = $this->buildSummaryMessage($studentStats, $teacherStats);
+            $studentStats = $this->siPintuService->syncStudents($payload['students']);
+            $teacherStats = $this->siPintuService->syncTeachers($payload['teachers']);
+            $durationMs = (int) round((hrtime(true) - $start) / 1_000_000);
+            $message = $this->buildSummaryMessage($studentStats, $teacherStats);
 
-                $this->syncLogRepository->create($this->syncLogAttributes($admin, 'success', [
+            $this->syncLogRepository->create($this->syncLogAttributes($admin, 'success', [
+                'students' => $studentStats,
+                'teachers' => $teacherStats,
+                'duration_ms' => $durationMs,
+                'message' => $message,
+            ]));
+
+            $result = [
+                'success' => true,
+                'message' => $message,
+                'stats' => [
                     'students' => $studentStats,
                     'teachers' => $teacherStats,
-                    'duration_ms' => $durationMs,
-                    'message' => $message,
-                ]));
-
-                return [
-                    'success' => true,
-                    'message' => $message,
-                    'stats' => [
-                        'students' => $studentStats,
-                        'teachers' => $teacherStats,
-                    ],
-                ];
-            });
+                ],
+            ];
 
             Cache::forget('sipintu_dashboard_remote_counts');
             Log::info('SiPintu sync completed', [

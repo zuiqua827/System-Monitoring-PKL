@@ -208,11 +208,26 @@ class CleanupDummyDataSeeder extends Seeder
     private function realClassNames(): array
     {
         return [
-            'XII MPLB 1', 'XII MPLB 2', 'XII MPLB 3',
+            // Tingkat 10
+            'X AKL 1', 'X AKL 2',
+            'X MPLB 1', 'X MPLB 2', 'X MPLB 3',
+            'X PM 1', 'X PM 2',
+            'X PPLG 1', 'X PPLG 2',
+            'X TO 1', 'X TO 2',
+
+            // Tingkat 11
+            'XI AKL 1', 'XI AKL 2',
+            'XI MPLB 1', 'XI MPLB 2', 'XI MPLB 3',
+            'XI PM 1', 'XI PM 2',
+            'XI PPLG 1', 'XI PPLG 2',
+            'XI TO 1', 'XI TO 2',
+
+            // Tingkat 12
             'XII AKL 1', 'XII AKL 2',
+            'XII MPLB 1', 'XII MPLB 2', 'XII MPLB 3',
+            'XII PM 1', 'XII PM 2',
             'XII PPLG 1', 'XII PPLG 2',
             'XII TO 1', 'XII TO 2',
-            'XII PM 1', 'XII PM 2',
         ];
     }
 }

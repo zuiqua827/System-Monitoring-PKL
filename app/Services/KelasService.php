@@ -28,11 +28,12 @@ class KelasService extends Service implements KelasServiceInterface
      */
     public function getPaginated(
         ?string $keyword = null,
+        ?int $tingkat = null,
         string $sortBy = 'nama',
         string $sortDirection = 'asc',
         int $perPage = 15,
     ): LengthAwarePaginator {
-        return $this->kelasRepository->search($keyword, $sortBy, $sortDirection, $perPage);
+        return $this->kelasRepository->search($keyword, $tingkat, $sortBy, $sortDirection, $perPage);
     }
 
     /**

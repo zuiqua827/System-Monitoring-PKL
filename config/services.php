@@ -55,7 +55,7 @@ return [
         'api_token' => env('SIPINTU_API_TOKEN'),
         'client_id' => env('SIPINTU_CLIENT_ID'),
         'client_secret' => env('SIPINTU_CLIENT_SECRET'),
-        'timeout' => (int) env('SIPINTU_TIMEOUT', 15),
+        'timeout' => (int) env('SIPINTU_TIMEOUT', 60),
         'connect_timeout' => (int) env('SIPINTU_CONNECT_TIMEOUT', 10),
         // Verify the SSL certificate when calling the SiPintu Gateway.
         // Set SIPINTU_VERIFY_SSL=false in .env for local/development when

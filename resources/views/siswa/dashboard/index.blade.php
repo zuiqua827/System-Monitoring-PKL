@@ -98,11 +98,11 @@
                     <div class="mt-6 grid gap-4 sm:grid-cols-1 sm:grid-cols-2">
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tanggal Mulai</p>
-                            <p class="mt-1 text-sm font-bold text-slate-900">{{ $penempatanAktif->tanggal_mulai ? \Carbon\Carbon::parse($penempatanAktif->tanggal_mulai)->format('d/m/Y') : '-' }}</p>
+                            <p class="mt-1 text-sm font-bold text-slate-900">{{ ($penempatanAktif->tanggal_mulai ?? $penempatanAktif->periodePKL?->tanggal_mulai) ? \Carbon\Carbon::parse($penempatanAktif->tanggal_mulai ?? $penempatanAktif->periodePKL?->tanggal_mulai)->format('d/m/Y') : '-' }}</p>
                         </div>
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tanggal Selesai</p>
-                            <p class="mt-1 text-sm font-bold text-slate-900">{{ $penempatanAktif->tanggal_selesai ? \Carbon\Carbon::parse($penempatanAktif->tanggal_selesai)->format('d/m/Y') : '-' }}</p>
+                            <p class="mt-1 text-sm font-bold text-slate-900">{{ ($penempatanAktif->tanggal_selesai ?? $penempatanAktif->periodePKL?->tanggal_selesai) ? \Carbon\Carbon::parse($penempatanAktif->tanggal_selesai ?? $penempatanAktif->periodePKL?->tanggal_selesai)->format('d/m/Y') : '-' }}</p>
                         </div>
                     </div>
                 </article>

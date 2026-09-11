@@ -39,7 +39,10 @@ class SiPintuRepository implements SiPintuRepositoryInterface
 
         $http = Http::acceptJson()
             ->connectTimeout(max(1, (int) config('services.sipintu.connect_timeout', 10)))
-            ->timeout(max(1, (int) config('services.sipintu.timeout', 15)));
+            ->timeout(max(1, (int) config('services.sipintu.timeout', 60)))
+            ->retry(2, 1000, function (\Throwable $exception, PendingRequest $request): bool {
+                return $exception instanceof ConnectionException;
+            }, throw: false);
 
         if (! $verifySsl) {
             $http = $http->withoutVerifying();
@@ -53,6 +56,35 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             'X-Client-ID' => $clientId,
             'X-Client-Secret' => $clientSecret,
         ]);
+    }
+
+    /**
+     * Sanitizes credentials from exception or diagnostic messages.
+     */
+    private function sanitizeMessage(?string $message): ?string
+    {
+        if ($message === null || $message === '') {
+            return $message;
+        }
+
+        $clientId = trim((string) config('services.sipintu.client_id', ''));
+        $clientSecret = trim((string) config('services.sipintu.client_secret', ''));
+        $apiToken = trim((string) config('services.sipintu.api_token', ''));
+
+        if ($clientId !== '') {
+            $message = str_replace($clientId, '[CLIENT_ID_HIDDEN]', $message);
+        }
+        if ($clientSecret !== '') {
+            $message = str_replace($clientSecret, '[CLIENT_SECRET_HIDDEN]', $message);
+        }
+        if ($apiToken !== '') {
+            $message = str_replace($apiToken, '[API_TOKEN_HIDDEN]', $message);
+        }
+
+        $message = preg_replace('/X-Client-Secret:\s*[^\s,\t\r\n]+/i', 'X-Client-Secret: [HIDDEN]', $message) ?? $message;
+        $message = preg_replace('/X-Client-ID:\s*[^\s,\t\r\n]+/i', 'X-Client-ID: [HIDDEN]', $message) ?? $message;
+
+        return $message;
     }
 
     /**
@@ -75,19 +107,35 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $client = $this->httpClient();
             $response = $client->get($baseUrl.'/api/v1/sijuna/students', $query);
         } catch (\RuntimeException $e) {
-            throw SiPintuApiException::invalidCredentials($e->getMessage());
+            throw SiPintuApiException::invalidCredentials($this->sanitizeMessage($e->getMessage()));
         } catch (ConnectionException $e) {
+            $rawMsg = $e->getMessage();
+            $sanitizedMsg = (string) $this->sanitizeMessage($rawMsg);
+            $messageLower = strtolower($rawMsg);
+            $isTimeout = str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout');
+            $bytesInfo = '';
+            if (preg_match('/with\s+(\d+)\s+bytes\s+received/i', $rawMsg, $matches)) {
+                $bytesInfo = ' (' . number_format((int) $matches[1]) . ' bytes telah diterima sebelum timeout)';
+            }
+
             Log::error('SiPintu API connection error (students)', [
                 'url' => $baseUrl.'/api/v1/sijuna/students',
                 'exception' => get_class($e),
-                'message' => $e->getMessage(),
+                'message' => $sanitizedMsg,
             ]);
+
+            if ($isTimeout) {
+                throw SiPintuApiException::apiError(
+                    "Pengambilan data siswa dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}. Data lokal tetap aman."
+                );
+            }
+
             throw SiPintuApiException::connectionError();
         } catch (\Throwable $e) {
             Log::error('SiPintu API unexpected exception (students)', [
                 'url' => $baseUrl.'/api/v1/sijuna/students',
                 'exception' => get_class($e),
-                'message' => $e->getMessage(),
+                'message' => $this->sanitizeMessage($e->getMessage()),
             ]);
             throw SiPintuApiException::timeout();
         }
@@ -115,19 +163,35 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $client = $this->httpClient();
             $response = $client->get($baseUrl.'/api/v1/sijuna/teachers', $query);
         } catch (\RuntimeException $e) {
-            throw SiPintuApiException::invalidCredentials($e->getMessage());
+            throw SiPintuApiException::invalidCredentials($this->sanitizeMessage($e->getMessage()));
         } catch (ConnectionException $e) {
+            $rawMsg = $e->getMessage();
+            $sanitizedMsg = (string) $this->sanitizeMessage($rawMsg);
+            $messageLower = strtolower($rawMsg);
+            $isTimeout = str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout');
+            $bytesInfo = '';
+            if (preg_match('/with\s+(\d+)\s+bytes\s+received/i', $rawMsg, $matches)) {
+                $bytesInfo = ' (' . number_format((int) $matches[1]) . ' bytes telah diterima sebelum timeout)';
+            }
+
             Log::error('SiPintu API connection error (teachers)', [
                 'url' => $baseUrl.'/api/v1/sijuna/teachers',
                 'exception' => get_class($e),
-                'message' => $e->getMessage(),
+                'message' => $sanitizedMsg,
             ]);
+
+            if ($isTimeout) {
+                throw SiPintuApiException::apiError(
+                    "Pengambilan data guru dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}. Data lokal tetap aman."
+                );
+            }
+
             throw SiPintuApiException::connectionError();
         } catch (\Throwable $e) {
             Log::error('SiPintu API unexpected exception (teachers)', [
                 'url' => $baseUrl.'/api/v1/sijuna/teachers',
                 'exception' => get_class($e),
-                'message' => $e->getMessage(),
+                'message' => $this->sanitizeMessage($e->getMessage()),
             ]);
             throw SiPintuApiException::timeout();
         }
@@ -304,36 +368,44 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 ),
             };
         } catch (\RuntimeException $e) {
+            $msg = (string) $this->sanitizeMessage($e->getMessage());
             Log::warning('SiPintu test connection configuration error.', [
                 'endpoint' => '/api/v1/sijuna/students',
                 'exception_class' => $e::class,
-                'message' => $e->getMessage(),
+                'message' => $msg,
             ]);
 
             return $this->connectionResult(
                 false,
                 null,
-                $e->getMessage(),
+                $msg,
                 'configuration',
-                $e->getMessage(),
+                $msg,
                 'Buka file .env dan isi konfigurasi SIPINTU_API_URL, SIPINTU_CLIENT_ID, serta SIPINTU_CLIENT_SECRET.'
             );
         } catch (ConnectionException $e) {
             $rawMsg = $e->getMessage();
+            $sanitizedMsg = (string) $this->sanitizeMessage($rawMsg);
             $messageLower = strtolower($rawMsg);
-            $errorType = str_contains($messageLower, 'ssl') ? 'ssl' : (str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout') ? 'timeout' : 'network');
+            $isTimeout = str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout');
+            $errorType = str_contains($messageLower, 'ssl') ? 'ssl' : ($isTimeout ? 'timeout' : 'network');
+
+            $bytesInfo = '';
+            if (preg_match('/with\s+(\d+)\s+bytes\s+received/i', $rawMsg, $matches)) {
+                $bytesInfo = ' (' . number_format((int) $matches[1]) . ' bytes telah diterima)';
+            }
 
             Log::warning('SiPintu test connection exception.', [
                 'endpoint' => '/api/v1/sijuna/students',
                 'exception_class' => $e::class,
-                'message' => $rawMsg,
+                'message' => $sanitizedMsg,
                 'error_type' => $errorType,
             ]);
 
             $troubleshooting = match ($errorType) {
                 'ssl' => 'Periksa sertifikat SSL server SiPintu. Anda dapat menyetel SIPINTU_VERIFY_SSL=false di file .env untuk pengujian lokal.',
-                'timeout' => 'Server tidak menerima respons dalam batas waktu (timeout). Pastikan jaringan server aktif, domain dapat diakses, atau tingkatkan SIPINTU_TIMEOUT di file .env.',
-                default => 'Gagal terhubung ke host SiPintu. Pastikan server terhubung ke internet/intranet dan domain SIPINTU_API_URL dapat dijangkau.',
+                'timeout' => 'Server SiPintu merespons dengan data berukuran besar tetapi koneksi melebihi batas waktu' . $bytesInfo . '. Tingkatkan SIPINTU_TIMEOUT di file .env (misal 60 detik) agar pengunduhan data siswa selesai.',
+                default => 'Gagal terhubung ke host SiPintu sebelum menerima respons. Pastikan server terhubung ke internet/intranet dan domain SIPINTU_API_URL dapat dijangkau.',
             };
 
             return $this->connectionResult(
@@ -341,18 +413,19 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 null,
                 match ($errorType) {
                     'ssl' => 'Koneksi SSL SiPintu gagal.',
-                    'timeout' => 'Koneksi ke SiPintu melebihi batas waktu (Timeout).',
-                    default => 'Gagal terhubung ke server SiPintu.',
+                    'timeout' => 'Timeout saat mentransfer data besar SiPintu' . $bytesInfo . '.',
+                    default => 'Koneksi gagal sebelum menerima respons dari server SiPintu.',
                 },
                 $errorType,
-                $rawMsg,
+                $sanitizedMsg,
                 $troubleshooting
             );
         } catch (\Throwable $e) {
+            $msg = (string) $this->sanitizeMessage($e->getMessage());
             Log::error('SiPintu test connection unexpected exception.', [
                 'endpoint' => '/api/v1/sijuna/students',
                 'exception_class' => $e::class,
-                'message' => $e->getMessage(),
+                'message' => $msg,
             ]);
 
             return $this->connectionResult(
@@ -360,7 +433,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 null,
                 'Terjadi kesalahan saat menguji koneksi SiPintu.',
                 'unexpected',
-                $e->getMessage(),
+                $msg,
                 'Periksa file storage/logs/laravel.log untuk rincian exception selengkapnya.'
             );
         }
@@ -376,10 +449,10 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             'status' => $success,
             'connection' => $success,
             'http_status' => $httpStatus,
-            'message' => $message,
+            'message' => $this->sanitizeMessage($message) ?? '',
             'error_type' => $errorType,
-            'detail' => $detail,
-            'troubleshooting' => $troubleshooting,
+            'detail' => $this->sanitizeMessage($detail),
+            'troubleshooting' => $this->sanitizeMessage($troubleshooting),
         ];
     }
 }

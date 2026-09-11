@@ -282,5 +282,24 @@ it('runs test connection via POST route safely without fatal errors', function (
         ->assertSessionHas('success');
 });
 
+it('accurately diagnoses HTTP 530 origin unreachable without crashing or logging secrets', function (): void {
+    config([
+        'services.sipintu.api_url' => 'https://sipintu-cf-530.test',
+        'services.sipintu.client_id' => 'CLIENT_530_TEST',
+        'services.sipintu.client_secret' => 'SECRET_530_TEST',
+    ]);
 
+    Illuminate\Support\Facades\Http::fake([
+        'https://sipintu-cf-530.test/*' => Illuminate\Support\Facades\Http::response('error code: 1033', 530),
+    ]);
 
+    $repository = app(SiPintuRepositoryInterface::class);
+    $result = $repository->testConnection();
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['http_status'])->toBe(530)
+        ->and($result['error_type'])->toBe('server')
+        ->and($result['message'])->toContain('HTTP 530')
+        ->and($result['troubleshooting'])->toContain('Cloudflare Tunnel')
+        ->and(json_encode($result))->not->toContain('SECRET_530_TEST');
+});

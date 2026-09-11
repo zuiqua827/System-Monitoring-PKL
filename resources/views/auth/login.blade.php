@@ -1,94 +1,172 @@
 <x-guest-layout>
-
-    <div class="mb-6 text-center">
-        <h2 class="text-xl font-bold text-slate-900">Selamat Datang</h2>
-        <p class="mt-1 text-sm text-slate-500">Silakan masuk untuk melanjutkan ke dashboard.</p>
+    {{-- Header Branding SIMONGAN inside card --}}
+    <div class="login-brand-header">
+        <div class="login-brand-logo-wrap">
+            <img src="{{ asset('images/simongan-logo.png') }}" alt="Logo SIMONGAN" loading="eager">
+        </div>
+        <h1 class="login-brand-title">SIM<span class="accent">ONGAN</span></h1>
+        <p class="login-brand-subtitle">Sistem Monitoring Praktik Kerja Lapangan</p>
+        <!-- <div class="login-portal-badge">Portal Akses SMKN 1 Bangsri</div> -->
     </div>
 
+    {{-- Session Status & Global Errors --}}
     <x-auth-session-status class="mb-4" :status="session('status')" />
+    <x-input-error :messages="$errors->get('login')" class="mb-4 text-center font-semibold" />
 
-    {{-- Role Tabs --}}
-    <div x-data="{ tab: 'siswa' }">
-        <div class="mb-5 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-            <button type="button" @click="tab = 'siswa'" :class="tab === 'siswa' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="rounded-lg px-3 py-2 text-sm font-semibold transition">
+    {{-- Role Tabs & Interactive Login Form --}}
+    <div x-data="{
+        tab: '{{ old('role', 'siswa') }}',
+        showPassword: false,
+        rawInput: '{{ old('email', '') }}',
+        formatSiswaInput() {
+            if (this.tab === 'siswa') {
+                let trimmed = this.rawInput.trim();
+                if (/^\d+$/.test(trimmed)) {
+                    this.rawInput = trimmed + '@smkn1bangsri.sch.id';
+                }
+            }
+        }
+    }">
+        {{-- Role Selector Tabs --}}
+        <div class="role-tabs-wrap" role="tablist" aria-label="Pilih Tipe Akun">
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="tab === 'siswa'"
+                @click="tab = 'siswa'"
+                :class="tab === 'siswa' ? 'role-tab-btn is-active' : 'role-tab-btn'"
+            >
                 Siswa
             </button>
-            <button type="button" @click="tab = 'guru'" :class="tab === 'guru' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="rounded-lg px-3 py-2 text-sm font-semibold transition">
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="tab === 'guru'"
+                @click="tab = 'guru'"
+                :class="tab === 'guru' ? 'role-tab-btn is-active' : 'role-tab-btn'"
+            >
                 Guru
             </button>
-            <button type="button" @click="tab = 'dudi'" :class="tab === 'dudi' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'" class="rounded-lg px-3 py-2 text-sm font-semibold transition">
-                Industri
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="tab === 'dudi'"
+                @click="tab = 'dudi'"
+                :class="tab === 'dudi' ? 'role-tab-btn is-active' : 'role-tab-btn'"
+            >
+                DUDI
             </button>
         </div>
 
-        <form method="POST" action="{{ route('login') }}" class="space-y-5">
-@csrf
-            {{-- Role is synced to the active tab via Alpine, but has a static
-                 fallback "siswa" so the field is never empty (which would fail
-                 validation and show a misleading "credentials" error). --}}
-            <input type="hidden" name="role" value="siswa" x-bind:value="tab">
+        <form method="POST" action="{{ route('login') }}" @submit="formatSiswaInput">
+            @csrf
 
-            {{-- Email field (shared for all roles) --}}
-            <div>
-                <x-input-label for="email" x-text="tab === 'siswa' ? 'Email ' : 'Email'" />
-                <x-text-input
-                    id="email"
-                    class="mt-1.5 block w-full"
-                    type="email"
-                    name="email"
-                    :value="old('email')"
-                    autofocus
-                    autocomplete="email"
-                    x-bind:placeholder="tab === 'siswa' ? 'Masukkan Nis' : (tab === 'guru' ? 'Masukkan Email Guru' : 'Masukkan Email Industri')"
-                    required
-                />
-                <x-input-error :messages="$errors->get('email')" class="mt-2" />
-                {{-- Fallback error for legacy requests --}}
-                <x-input-error :messages="$errors->get('nis')" class="mt-2" />
+            {{-- Role sync for backend validation --}}
+            <input type="hidden" name="role" :value="tab">
+
+            {{-- Identifier Field (NIS / Email) --}}
+            <div class="login-form-group">
+                <label for="email" class="login-label">
+                    <span x-show="tab === 'siswa'">Email NIS</span>
+                    <span x-show="tab === 'guru'" x-cloak>Email Guru</span>
+                    <span x-show="tab === 'dudi'" x-cloak>Email DUDI / Industri</span>
+                </label>
+                <div class="login-input-shell">
+                    <input
+                        id="email"
+                        class="login-input"
+                        type="text"
+                        name="email"
+                        x-model="rawInput"
+                        autocomplete="username"
+                        :placeholder="tab === 'siswa' ? ' Masukan Email NIS' : (tab === 'guru' ? 'Masukkan Email Guru' : 'Masukkan Email Industri')"
+                        required
+                    />
+                </div>
+                <p class="login-field-helper">
+                    <span x-show="tab === 'siswa'">Gunakan Email NIS siswa</span>
+                    <span x-show="tab === 'guru'" x-cloak>Gunakan email resmi yang terdaftar untuk guru</span>
+                    <span x-show="tab === 'dudi'" x-cloak>Gunakan email perwakilan industri yang terdaftar</span>
+                </p>
+                <x-input-error :messages="$errors->get('email')" class="mt-1.5" />
+                <x-input-error :messages="$errors->get('nis')" class="mt-1.5" />
             </div>
 
-            {{-- Password field (shared) --}}
-            <div>
-                <x-input-label for="password" :value="__('Password')" />
-                <x-text-input
-                    id="password"
-                    class="mt-1.5 block w-full"
-                    type="password"
-                    name="password"
-                    required
-                    autocomplete="current-password"
-                    placeholder="Masukkan password"
-                />
-                <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            {{-- Password Field with Show/Hide Toggle --}}
+            <div class="login-form-group">
+                <div class="flex items-center justify-between mb-1">
+                    <label for="password" class="login-label !mb-0">
+                        Kata Sandi
+                    </label>
+
+                    {{-- Forgot password for Guru / DUDI --}}
+                    <span x-show="tab !== 'siswa'" x-cloak>
+                        @if (Route::has('password.request'))
+                            <a
+                                class="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+                                href="{{ route('password.request') }}"
+                            >
+                                Lupa Password?
+                            </a>
+                        @endif
+                    </span>
+                </div>
+
+                <div class="login-input-shell">
+                    <input
+                        id="password"
+                        class="login-input has-icon-right"
+                        :type="showPassword ? 'text' : 'password'"
+                        name="password"
+                        required
+                        autocomplete="current-password"
+                        placeholder="Masukkan kata sandi"
+                    />
+
+                    {{-- Toggle Visibility Button --}}
+                    <button
+                        type="button"
+                        class="password-toggle-btn"
+                        @click="showPassword = !showPassword"
+                        :title="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
+                        :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
+                    >
+                        {{-- Eye Open Icon --}}
+                        <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        {{-- Eye Slash Icon --}}
+                        <svg x-show="showPassword" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                    </button>
+                </div>
+                <x-input-error :messages="$errors->get('password')" class="mt-1.5" />
             </div>
 
-            {{-- Remember Me + Forgot Password --}}
-            <div class="flex flex-col sm:flex-row gap-4 sm: sm:">
-                <label for="remember_me" class="inline-flex items-center gap-2">
+            {{-- Remember Me --}}
+            <div class="flex items-center justify-between mt-3 mb-5">
+                <label for="remember_me" class="inline-flex items-center gap-2 cursor-pointer select-none">
                     <input
                         id="remember_me"
                         type="checkbox"
-                        class="checkbox"
+                        class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/30 accent-[#2563EB] cursor-pointer"
                         name="remember"
                     >
-                    <span class="text-sm text-slate-600">{{ __('Ingat saya') }}</span>
+                    <span class="text-xs font-medium text-slate-600">Ingat Sesi Saya</span>
                 </label>
-
-                {{-- Forgot password only for Guru/DUDI --}}
-                <span x-show="tab !== 'siswa'" x-cloak>
-                    @if (Route::has('password.request'))
-                        <a class="text-sm font-medium text-blue-600 hover:text-blue-700" href="{{ route('password.request') }}">
-                            {{ __('Lupa password?') }}
-                        </a>
-                    @endif
-                </span>
             </div>
 
+            {{-- Submit Action Button --}}
             <div>
-                <x-primary-button class="w-full justify-center py-2.5 text-sm">
-                    {{ __('Masuk') }}
-                </x-primary-button>
+                <button type="submit" class="login-submit-btn">
+                    <span>Masuk</span>
+                    <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </button>
             </div>
         </form>
-</div>
+    </div>
 </x-guest-layout>

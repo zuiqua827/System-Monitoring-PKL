@@ -57,8 +57,9 @@ public function getPaginated(
         string $sortBy = 'created_at',
         string $sortDirection = 'desc',
         int $perPage = 15,
+        ?string $status = null,
     ): LengthAwarePaginator {
-        return $this->penempatanPklRepository->searchByDudi($dudiId, $keyword, $sortBy, $sortDirection, $perPage);
+        return $this->penempatanPklRepository->searchByDudi($dudiId, $keyword, $sortBy, $sortDirection, $perPage, $status);
     }
 
     /**

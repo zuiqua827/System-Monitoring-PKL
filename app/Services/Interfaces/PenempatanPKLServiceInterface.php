@@ -40,6 +40,7 @@ public function getPaginated(
         string $sortBy = 'created_at',
         string $sortDirection = 'desc',
         int $perPage = 15,
+        ?string $status = null,
     ): LengthAwarePaginator;
 
     /**

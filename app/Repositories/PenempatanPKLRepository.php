@@ -33,8 +33,8 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
         ?int $guruId = null,
         ?string $status = null,
     ): LengthAwarePaginator {
-$query = $this->newQuery()
-            ->with(['siswa.kelas', 'guru', 'dudi', 'periodePKL']);
+        $query = $this->newQuery()
+            ->with(['siswa.kelas.jurusan', 'guru', 'dudi', 'periodePKL']);
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {
@@ -61,7 +61,7 @@ $query = $this->newQuery()
             $query->whereHas('siswa.kelas', fn ($q) => $q->where('jurusan_id', $jurusanId));
         }
 
-if ($kelasId !== null && $kelasId !== 0) {
+        if ($kelasId !== null && $kelasId !== 0) {
             $query->whereHas('siswa', fn ($q) => $q->where('class_id', $kelasId));
         }
 
@@ -92,10 +92,15 @@ if ($kelasId !== null && $kelasId !== 0) {
         string $sortBy = 'created_at',
         string $sortDirection = 'desc',
         int $perPage = 15,
+        ?string $status = null,
     ): LengthAwarePaginator {
         $query = $this->newQuery()
             ->with(['siswa.kelas.jurusan', 'guru', 'periodePKL'])
             ->where('dudi_id', $dudiId);
+
+        if ($status !== null && $status !== '') {
+            $query->where('status', $status);
+        }
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {

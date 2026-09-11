@@ -6,6 +6,10 @@
 
 :root {
     color-scheme: light;
+    --sidebar-active: #2563EB;
+    --sidebar-active-hover: #1D4ED8;
+    --sidebar-active-text: #FFFFFF;
+    --sidebar-active-icon: #FFFFFF;
 }
 
 body {
@@ -221,4 +225,36 @@ body {
 }
 .empty-state p {
     @apply text-sm font-medium text-slate-700;
+}
+
+/* ==========================================================================
+   SIDEBAR SYSTEM-WIDE ACTIVE & HOVER STYLES
+   ========================================================================== */
+.sidebar-nav-item-active {
+    background-color: #2563EB !important;
+    color: #FFFFFF !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 4px 14px -1px rgba(37, 99, 235, 0.35) !important;
+}
+.sidebar-nav-item-active:hover {
+    background-color: #1D4ED8 !important;
+}
+.sidebar-nav-item-active svg {
+    color: #FFFFFF !important;
+}
+.sidebar-nav-item-inactive {
+    color: #94A3B8 !important;
+    background-color: transparent !important;
+    border-radius: 0.75rem !important;
+}
+.sidebar-nav-item-inactive svg {
+    color: #64748B !important;
+    transition: color 0.15s ease-in-out;
+}
+.sidebar-nav-item-inactive:hover {
+    background-color: rgba(37, 99, 235, 0.08) !important;
+    color: #FFFFFF !important;
+}
+.sidebar-nav-item-inactive:hover svg {
+    color: #FFFFFF !important;
 }

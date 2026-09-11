@@ -21,6 +21,9 @@ use App\Http\Controllers\Siswa\AktivitasController as SiswaAktivitasController;
 use App\Http\Controllers\Siswa\DashboardController as SiswaDashboardController;
 use App\Http\Controllers\Siswa\PenilaianController as SiswaPenilaianController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Api\SipintuWebhookController;
+use App\Http\Controllers\Auth\SipintuSsoController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +33,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 |
 | Route structure:
+| - Health Check: /health & /api/v1/health
+| - SiPintu SSO: /auth/callback & /auth/sipintu
+| - Webhook: /api/v1/sipintu/sync-user
 | - Guest: welcome page
 | - Authenticated: role-based dashboard redirect
 | - Super Admin: /admin/*
@@ -38,6 +44,19 @@ use Illuminate\Support\Facades\Route;
 | - Siswa: /siswa/*
 |
 */
+
+// Health Check Endpoints (SiPintu monitoring)
+Route::get('/health', [HealthController::class, 'check'])->name('health.check');
+Route::get('/api/v1/health', [HealthController::class, 'check']);
+
+// SiPintu SSO Endpoints
+Route::get('/auth/sipintu', [SipintuSsoController::class, 'redirect'])->name('auth.sipintu.redirect');
+Route::get('/auth/callback', [SipintuSsoController::class, 'callback'])->name('auth.callback');
+Route::get('/oauth/callback', [SipintuSsoController::class, 'callback'])->name('oauth.callback');
+
+// SiPintu Webhook User Synchronization Endpoint
+Route::post('/api/v1/sipintu/sync-user', [SipintuWebhookController::class, 'handleUserSync'])->name('sipintu.webhook.user-sync');
+Route::post('/api/webhook/sipintu/user-sync', [SipintuWebhookController::class, 'handleUserSync']);
 
 Route::get('/', function () {
     return redirect('/login');

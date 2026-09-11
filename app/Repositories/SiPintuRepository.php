@@ -236,6 +236,10 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             throw SiPintuApiException::apiError('Terlalu banyak request ke server SiPintu (Rate Limit).');
         }
 
+        if ($response->status() === 530) {
+            throw SiPintuApiException::apiError('Server origin SiPintu tidak dapat dijangkau (HTTP 530 Origin Unreachable / Cloudflare Error 1033). Pastikan server origin SiPintu aktif.');
+        }
+
         if ($response->serverError()) {
             throw SiPintuApiException::apiError('Server SiPintu mengalami gangguan internal (HTTP '.$response->status().').');
         }
@@ -306,7 +310,9 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         $endpoint = rtrim((string) config('services.sipintu.api_url', ''), '/').'/api/v1/sijuna/students';
 
         try {
-            $response = $this->httpClient()->get($endpoint);
+            // Lightweight test: pass limit=1 and enforce a short timeout so Test Connection never hangs
+            $client = $this->httpClient()->timeout(min(10, (int) config('services.sipintu.timeout', 60)));
+            $response = $client->get($endpoint, ['limit' => 1]);
 
             Log::debug('SiPintu test connection response.', [
                 'endpoint' => '/api/v1/sijuna/students',
@@ -353,18 +359,50 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 429 => $this->connectionResult(
                     false,
                     429,
-                    'SiPintu membatasi terlalu banyak request.',
+                    'SiPintu membatasi terlalu banyak request (Rate Limit).',
                     'rate_limit',
-                    'Batas jumlah pemanggilan API (Rate Limit) telah terlampaui.',
-                    'Tunggu beberapa menit sebelum mencoba lagi.'
+                    'Batas jumlah pemanggilan API telah terlampaui.',
+                    'Tunggu beberapa menit sebelum mencoba kembali.'
+                ),
+                500 => $this->connectionResult(
+                    false,
+                    500,
+                    'Server SiPintu mengalami internal error (HTTP 500).',
+                    'server',
+                    'Aplikasi backend SiPintu mengalami kegagalan internal saat melayani endpoint /api/v1/sijuna/students.',
+                    'Hubungi pengelola server SiPintu untuk memeriksa log error aplikasi pada server SiPintu.'
+                ),
+                502 => $this->connectionResult(
+                    false,
+                    502,
+                    'Bad Gateway dari server proxy SiPintu (HTTP 502).',
+                    'server',
+                    'Proxy/webserver SiPintu tidak menerima respons valid dari upstream PHP-FPM / aplikasi backend.',
+                    'Pastikan service backend SiPintu (misal PHP-FPM atau Octane) aktif berjalan di server SiPintu.'
+                ),
+                503 => $this->connectionResult(
+                    false,
+                    503,
+                    'Layanan SiPintu sedang tidak tersedia (HTTP 503 Service Unavailable).',
+                    'server',
+                    'Server SiPintu sedang dalam mode pemeliharaan atau kelebihan beban.',
+                    'Coba beberapa saat lagi atau pastikan server SiPintu tidak dalam maintenance.'
+                ),
+                530 => $this->connectionResult(
+                    false,
+                    530,
+                    'Server origin SiPintu tidak dapat dijangkau (HTTP 530 Origin Unreachable / Cloudflare Error 1033).',
+                    'server',
+                    'Edge proxy/Cloudflare aktif, tetapi tunnel atau server origin SiPintu SMKN 1 Bangsri sedang offline / tidak terhubung.',
+                    'Pastikan komputer/server origin yang menjalankan SiPintu aktif dan koneksi Cloudflare Tunnel (cloudflared) berjalan.'
                 ),
                 default => $this->connectionResult(
                     false,
                     $response->status(),
                     'SiPintu mengembalikan HTTP '.$response->status().'.',
                     $response->serverError() ? 'server' : 'api',
-                    'Server SiPintu merespons dengan status error HTTP '.$response->status().'.',
-                    'Pastikan server backend SiPintu berjalan normal dan tidak mengalami error internal.'
+                    'Server SiPintu merespons dengan status error HTTP '.$response->status().(str_contains(strtolower((string)$response->header('Content-Type')), 'text/html') ? ' (Respons berupa halaman HTML, bukan JSON API).' : '.'),
+                    'Pastikan server backend SiPintu berjalan normal dan URL endpoint sesuai.'
                 ),
             };
         } catch (\RuntimeException $e) {

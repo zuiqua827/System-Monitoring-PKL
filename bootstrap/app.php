@@ -31,6 +31,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', [
             ForceChangePassword::class,
         ]);
+
+        // Specific exemption from CSRF verification for server-to-server webhooks
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+            'api/v1/sipintu/sync-user',
+            'api/webhook/sipintu/user-sync',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

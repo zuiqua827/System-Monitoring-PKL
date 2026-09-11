@@ -62,6 +62,11 @@ return [
         // the server uses a self-signed cert or PHP lacks the CA bundle.
         // Production should keep this true after its CA bundle is configured.
         'verify_ssl' => env('SIPINTU_VERIFY_SSL', true),
+
+        // Downstream & SSO configuration
+        'downstream_url' => env('SIPINTU_DOWNSTREAM_URL', env('APP_URL', 'https://simongan.smkn1bangsri.sch.id')),
+        'sso_callback_url' => env('SIPINTU_SSO_CALLBACK_URL'),
+        'webhook_secret' => env('SIPINTU_WEBHOOK_SECRET'),
     ],
 
 ];

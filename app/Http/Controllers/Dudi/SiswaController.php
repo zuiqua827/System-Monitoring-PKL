@@ -27,12 +27,15 @@ class SiswaController extends Controller
         $sortBy = $request->query('sort', 'created_at');
         $sortDirection = $request->query('direction', 'desc');
 
+        $status = $request->query('status');
+
         $siswaList = $this->penempatanPKLService->getDudiSiswaPaginated(
             $dudi->id,
             $keyword,
             $sortBy,
             $sortDirection,
-            15
+            15,
+            $status,
         );
 
         return view('dudi.siswa.index', compact('siswaList'));

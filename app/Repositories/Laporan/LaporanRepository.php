@@ -417,6 +417,9 @@ class LaporanRepository implements LaporanRepositoryInterface
                 $q2->where('class_id', $filters['kelas_id']);
             });
         }
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
     }
 
     private function applyAbsensiFilters($query, array $filters): void

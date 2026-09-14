@@ -125,8 +125,12 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             ]);
 
             if ($isTimeout) {
+                $timeoutDetail = ($matches[1] ?? null) === '0' || ! isset($matches[1])
+                    ? 'Request ke server SiPintu melebihi batas waktu dan belum menerima response (0 bytes diterima).'
+                    : "Pengambilan data siswa dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
+
                 throw SiPintuApiException::apiError(
-                    "Pengambilan data siswa dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}. Data lokal tetap aman."
+                    "{$timeoutDetail} Data lokal tetap aman."
                 );
             }
 
@@ -181,8 +185,12 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             ]);
 
             if ($isTimeout) {
+                $timeoutDetail = ($matches[1] ?? null) === '0' || ! isset($matches[1])
+                    ? 'Request ke server SiPintu melebihi batas waktu dan belum menerima response (0 bytes diterima).'
+                    : "Pengambilan data guru dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
+
                 throw SiPintuApiException::apiError(
-                    "Pengambilan data guru dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}. Data lokal tetap aman."
+                    "{$timeoutDetail} Data lokal tetap aman."
                 );
             }
 
@@ -237,7 +245,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         }
 
         if ($response->status() === 530) {
-            throw SiPintuApiException::apiError('Server origin SiPintu tidak dapat dijangkau (HTTP 530 Origin Unreachable / Cloudflare Error 1033). Pastikan server origin SiPintu aktif.');
+            throw SiPintuApiException::apiError('Server origin SiPintu tidak dapat dijangkau (HTTP 530 / Cloudflare Error 1033). Cloudflare Edge dapat dijangkau tetapi origin/tunnel SiPintu tidak memberikan response.');
         }
 
         if ($response->serverError()) {
@@ -307,20 +315,31 @@ class SiPintuRepository implements SiPintuRepositoryInterface
      */
     public function testConnection(): array
     {
-        $endpoint = rtrim((string) config('services.sipintu.api_url', ''), '/').'/api/v1/sijuna/students';
+        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
+        // Priority 1: Use official lightweight health check endpoint /api/v1/health
+        $healthEndpoint = $baseUrl.'/api/v1/health';
 
         try {
-            // Lightweight test: pass limit=1 and enforce a short timeout so Test Connection never hangs
-            $client = $this->httpClient()->timeout(min(10, (int) config('services.sipintu.timeout', 60)));
-            $response = $client->get($endpoint, ['limit' => 1]);
+            // Lightweight test: enforce max 5 seconds timeout so Test Connection is responsive and never hangs
+            $client = $this->httpClient()->timeout(min(5, (int) config('services.sipintu.timeout', 60)));
+            $response = $client->get($healthEndpoint);
 
             Log::debug('SiPintu test connection response.', [
-                'endpoint' => '/api/v1/sijuna/students',
+                'endpoint' => '/api/v1/health',
                 'http_status' => $response->status(),
             ]);
 
             if ($response->successful()) {
-                return $this->connectionResult(true, $response->status(), 'Koneksi ke SiPintu berhasil.');
+                $body = $response->json();
+                $gatewayMsg = is_array($body) && isset($body['message']) && is_string($body['message'])
+                    ? ' '.$body['message']
+                    : '';
+
+                return $this->connectionResult(
+                    true,
+                    $response->status(),
+                    'Koneksi ke SiPintu berhasil.'.$gatewayMsg
+                );
             }
 
             return match ($response->status()) {
@@ -338,14 +357,14 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                     'Akses SiPintu ditolak.',
                     'permission',
                     'Credential valid tetapi tidak memiliki hak akses (Forbidden).',
-                    'Pastikan kredensial memiliki hak akses ke modul SIJUNA di gateway SiPintu.'
+                    'Pastikan kredensial memiliki hak akses ke gateway SiPintu.'
                 ),
                 404 => $this->connectionResult(
                     false,
                     404,
                     'Endpoint SiPintu tidak ditemukan.',
                     'endpoint',
-                    'URL Endpoint (/api/v1/sijuna/students) mengembalikan HTTP 404.',
+                    'URL Endpoint (/api/v1/health) mengembalikan HTTP 404.',
                     'Periksa alamat SIPINTU_API_URL pada file .env, pastikan domain dan path base URL sudah benar.'
                 ),
                 422 => $this->connectionResult(
@@ -369,7 +388,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                     500,
                     'Server SiPintu mengalami internal error (HTTP 500).',
                     'server',
-                    'Aplikasi backend SiPintu mengalami kegagalan internal saat melayani endpoint /api/v1/sijuna/students.',
+                    'Aplikasi backend SiPintu mengalami kegagalan internal saat melayani request.',
                     'Hubungi pengelola server SiPintu untuk memeriksa log error aplikasi pada server SiPintu.'
                 ),
                 502 => $this->connectionResult(
@@ -391,9 +410,9 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 530 => $this->connectionResult(
                     false,
                     530,
-                    'Server origin SiPintu tidak dapat dijangkau (HTTP 530 Origin Unreachable / Cloudflare Error 1033).',
+                    'Server origin SiPintu tidak dapat dijangkau (HTTP 530 / Cloudflare Error 1033).',
                     'server',
-                    'Edge proxy/Cloudflare aktif, tetapi tunnel atau server origin SiPintu SMKN 1 Bangsri sedang offline / tidak terhubung.',
+                    'Cloudflare Edge dapat dijangkau tetapi origin/tunnel SiPintu tidak memberikan response.',
                     'Pastikan komputer/server origin yang menjalankan SiPintu aktif dan koneksi Cloudflare Tunnel (cloudflared) berjalan.'
                 ),
                 default => $this->connectionResult(
@@ -408,7 +427,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         } catch (\RuntimeException $e) {
             $msg = (string) $this->sanitizeMessage($e->getMessage());
             Log::warning('SiPintu test connection configuration error.', [
-                'endpoint' => '/api/v1/sijuna/students',
+                'endpoint' => '/api/v1/health',
                 'exception_class' => $e::class,
                 'message' => $msg,
             ]);
@@ -428,13 +447,13 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $isTimeout = str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout');
             $errorType = str_contains($messageLower, 'ssl') ? 'ssl' : ($isTimeout ? 'timeout' : 'network');
 
-            $bytesInfo = '';
+            $bytesReceived = null;
             if (preg_match('/with\s+(\d+)\s+bytes\s+received/i', $rawMsg, $matches)) {
-                $bytesInfo = ' (' . number_format((int) $matches[1]) . ' bytes telah diterima)';
+                $bytesReceived = (int) $matches[1];
             }
 
             Log::warning('SiPintu test connection exception.', [
-                'endpoint' => '/api/v1/sijuna/students',
+                'endpoint' => '/api/v1/health',
                 'exception_class' => $e::class,
                 'message' => $sanitizedMsg,
                 'error_type' => $errorType,
@@ -442,18 +461,24 @@ class SiPintuRepository implements SiPintuRepositoryInterface
 
             $troubleshooting = match ($errorType) {
                 'ssl' => 'Periksa sertifikat SSL server SiPintu. Anda dapat menyetel SIPINTU_VERIFY_SSL=false di file .env untuk pengujian lokal.',
-                'timeout' => 'Server SiPintu merespons dengan data berukuran besar tetapi koneksi melebihi batas waktu' . $bytesInfo . '. Tingkatkan SIPINTU_TIMEOUT di file .env (misal 60 detik) agar pengunduhan data siswa selesai.',
+                'timeout' => $bytesReceived === 0 || $bytesReceived === null
+                    ? 'Server SiPintu belum merespons sama sekali (0 bytes received). Pastikan upstream backend dan tunnel SiPintu berjalan normal.'
+                    : 'Koneksi ke SiPintu melebihi batas waktu saat menerima respons (' . number_format($bytesReceived) . ' bytes telah diterima).',
                 default => 'Gagal terhubung ke host SiPintu sebelum menerima respons. Pastikan server terhubung ke internet/intranet dan domain SIPINTU_API_URL dapat dijangkau.',
+            };
+
+            $message = match ($errorType) {
+                'ssl' => 'Koneksi SSL SiPintu gagal.',
+                'timeout' => $bytesReceived === 0 || $bytesReceived === null
+                    ? 'Request ke server SiPintu melebihi batas waktu dan belum menerima response.'
+                    : 'Request ke server SiPintu melebihi batas waktu (' . number_format($bytesReceived) . ' bytes diterima).',
+                default => 'Koneksi gagal sebelum menerima respons dari server SiPintu.',
             };
 
             return $this->connectionResult(
                 false,
                 null,
-                match ($errorType) {
-                    'ssl' => 'Koneksi SSL SiPintu gagal.',
-                    'timeout' => 'Timeout saat mentransfer data besar SiPintu' . $bytesInfo . '.',
-                    default => 'Koneksi gagal sebelum menerima respons dari server SiPintu.',
-                },
+                $message,
                 $errorType,
                 $sanitizedMsg,
                 $troubleshooting
@@ -461,7 +486,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         } catch (\Throwable $e) {
             $msg = (string) $this->sanitizeMessage($e->getMessage());
             Log::error('SiPintu test connection unexpected exception.', [
-                'endpoint' => '/api/v1/sijuna/students',
+                'endpoint' => '/api/v1/health',
                 'exception_class' => $e::class,
                 'message' => $msg,
             ]);

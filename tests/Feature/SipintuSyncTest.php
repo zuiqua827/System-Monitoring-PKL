@@ -303,3 +303,96 @@ it('accurately diagnoses HTTP 530 origin unreachable without crashing or logging
         ->and($result['troubleshooting'])->toContain('Cloudflare Tunnel')
         ->and(json_encode($result))->not->toContain('SECRET_530_TEST');
 });
+
+it('DATABASE SAFETY: Never deletes existing local students and teachers when SiPintu returns HTTP 530 or timeout', function (): void {
+    // Create pre-existing students and teachers
+    $initialStudentCount = 10;
+    $initialTeacherCount = 5;
+
+    for ($i = 1; $i <= $initialStudentCount; $i++) {
+        $u = User::factory()->create(['email' => "existing_student_{$i}@smk1bangsri.sch.id"]);
+        $u->assignRole(UserRole::SISWA->value);
+        Siswa::factory()->create([
+            'user_id' => $u->id,
+            'nis' => sprintf('NIS-LOCAL-%04d', $i),
+            'nama' => "Siswa Lokal {$i}",
+        ]);
+    }
+
+    for ($j = 1; $j <= $initialTeacherCount; $j++) {
+        $u = User::factory()->create(['email' => "existing_teacher_{$j}@smk1bangsri.sch.id"]);
+        $u->assignRole(UserRole::GURU->value);
+        Guru::factory()->create([
+            'user_id' => $u->id,
+            'nip' => sprintf('NIP-LOCAL-%04d', $j),
+            'nama' => "Guru Lokal {$j}",
+        ]);
+    }
+
+    expect(Siswa::query()->count())->toBe($initialStudentCount)
+        ->and(Guru::query()->count())->toBe($initialTeacherCount);
+
+    // Case A: SiPintu throws Timeout
+    $repoTimeout = Mockery::mock(SiPintuRepositoryInterface::class);
+    $repoTimeout->shouldReceive('fetchStudents')
+        ->andThrow(SiPintuApiException::apiError('Request ke server SiPintu melebihi batas waktu (0 bytes diterima). Data lokal tetap aman.'));
+    $repoTimeout->shouldReceive('fetchTeachers')
+        ->andReturn([]);
+
+    $serviceTimeout = sipintuServiceWithRepository($repoTimeout);
+    $syncServiceTimeout = new SipintuSyncService($serviceTimeout, app(SipintuSyncLogRepositoryInterface::class));
+    $resTimeout = $syncServiceTimeout->runSync(sipintuAdmin());
+
+    expect($resTimeout['success'])->toBeFalse()
+        ->and(Siswa::query()->count())->toBe($initialStudentCount)
+        ->and(Guru::query()->count())->toBe($initialTeacherCount);
+
+    // Case B: SiPintu returns HTTP 530 Origin Unreachable
+    $repo530 = Mockery::mock(SiPintuRepositoryInterface::class);
+    $repo530->shouldReceive('fetchStudents')
+        ->andThrow(SiPintuApiException::apiError('Server origin SiPintu tidak dapat dijangkau (HTTP 530 / Cloudflare Error 1033).'));
+    $repo530->shouldReceive('fetchTeachers')
+        ->andReturn([]);
+
+    $service530 = sipintuServiceWithRepository($repo530);
+    $syncService530 = new SipintuSyncService($service530, app(SipintuSyncLogRepositoryInterface::class));
+    $res530 = $syncService530->runSync(sipintuAdmin());
+
+    expect($res530['success'])->toBeFalse()
+        ->and(Siswa::query()->count())->toBe($initialStudentCount)
+        ->and(Guru::query()->count())->toBe($initialTeacherCount);
+
+    // Verify exactly 0 soft deletes or hard deletes occurred
+    expect(Siswa::onlyTrashed()->count())->toBe(0)
+        ->and(Guru::onlyTrashed()->count())->toBe(0);
+});
+
+it('does not create automatic PKL penempatan when students are synchronized', function (): void {
+    $kelas = Kelas::factory()->create();
+    SipintuClassroomMapping::query()->create([
+        'classroom_id' => 888,
+        'kelas_id' => $kelas->id,
+    ]);
+
+    $repository = Mockery::mock(SiPintuRepositoryInterface::class);
+    $repository->shouldReceive('fetchStudents')->andReturn([[
+        'nis' => 'S-NOPKL',
+        'nama' => 'Siswa Tanpa PKL Otomatis',
+        'classroom_id' => 888,
+    ]]);
+    $repository->shouldReceive('fetchTeachers')->andReturn([]);
+
+    $service = sipintuServiceWithRepository($repository);
+    $syncService = new SipintuSyncService($service, app(SipintuSyncLogRepositoryInterface::class));
+
+    $result = $syncService->runSync(sipintuAdmin());
+
+    expect($result['success'])->toBeTrue();
+
+    $siswa = Siswa::query()->where('nis', 'S-NOPKL')->first();
+    expect($siswa)->not->toBeNull();
+
+    // Ensure penempatan_pkl table does NOT have a record for this student
+    expect(\App\Models\PenempatanPKL::query()->where('siswa_id', $siswa->id)->count())->toBe(0);
+});
+

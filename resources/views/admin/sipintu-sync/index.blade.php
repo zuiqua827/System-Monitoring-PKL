@@ -172,7 +172,7 @@
             </svg>
             <div class="text-sm text-blue-800">
                 <p class="font-semibold">Data <span class="font-bold">Siswa</span> dan <span class="font-bold">Guru</span> disinkronkan dari SiPintu.</p>
-                <p class="mt-1 text-blue-700">NIS digunakan sebagai identitas unik siswa, NIP untuk guru. Data yang sudah ada diperbarui, data baru ditambahkan, dan data dummy yang tidak ada di SiPintu dinonaktifkan (soft delete). DUDI, Admin, dan modul PKL tidak pernah diubah.</p>
+                <p class="mt-1 text-blue-700">NIS digunakan sebagai identitas unik siswa, NIP untuk guru. Data yang sudah ada diperbarui, data baru ditambahkan, dan data lokal tidak pernah dihapus. Password akun existing tidak diubah. DUDI, Admin, dan penempatan PKL tidak pernah diubah otomatis.</p>
             </div>
         </div>
 

@@ -2,7 +2,7 @@
     {{-- Header Branding SIMONGAN inside card --}}
     <div class="login-brand-header">
         <div class="login-brand-logo-wrap">
-            <img src="{{ asset('images/simongan-logo.png') }}" alt="Logo SIMONGAN" loading="eager">
+            <img src="{{ asset('images/simongan-logo.png') }}?v={{ file_exists(public_path('images/simongan-logo.png')) ? filemtime(public_path('images/simongan-logo.png')) : '20260914' }}" alt="Logo SIMONGAN" loading="eager">
         </div>
         <h1 class="login-brand-title">SIMONGAN</h1>
         <p class="login-brand-subtitle">Sistem Monitoring Praktik Kerja Lapangan</p>

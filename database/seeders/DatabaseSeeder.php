@@ -24,7 +24,6 @@ class DatabaseSeeder extends Seeder
             GuruSeeder::class,
             BackfillUserRolesSeeder::class,
             MasterDataSekolahSeeder::class,
-            CleanupDummyDataSeeder::class,
         ]);
     }
 }

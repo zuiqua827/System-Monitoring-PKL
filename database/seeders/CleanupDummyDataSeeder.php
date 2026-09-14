@@ -71,7 +71,7 @@ class CleanupDummyDataSeeder extends Seeder
             $dummySiswa = Siswa::withoutTrashed()->get();
 
             foreach ($dummySiswa as $siswa) {
-                if (! $this->isDummyName($siswa->nama)) {
+                if (! $this->isDummyRecord($siswa)) {
                     continue;
                 }
 
@@ -91,7 +91,7 @@ class CleanupDummyDataSeeder extends Seeder
             $dummyGuru = Guru::withoutTrashed()->get();
 
             foreach ($dummyGuru as $guru) {
-                if (! $this->isDummyName($guru->nama)) {
+                if (! $this->isDummyRecord($guru)) {
                     continue;
                 }
 
@@ -183,12 +183,53 @@ class CleanupDummyDataSeeder extends Seeder
         $user->delete();
     }
 
-    private function isDummyName(string $nama): bool
+    private function isDummyRecord(Siswa|Guru $model): bool
     {
+        // 1. Check strong factory signals
+        // Our factory generated:
+        // - addresses with exactly 2 commas or newlines (fake()->address()) while SiPintu has short string like 'Jepara'
+        // - exactly 8 digits for NIS or exact formats
+        // Let's use a composite check
+        
+        $hasDummyName = false;
         foreach (self::DUMMY_NAME_MARKERS as $marker) {
-            if (str_contains($nama, $marker)) {
+            if (str_contains($model->nama, $marker)) {
+                $hasDummyName = true;
+                break;
+            }
+        }
+
+        // If it doesn't have a dummy name, it's NOT a dummy.
+        // Even if it has a dummy name, we require at least one more factory trait to be 100% sure.
+        if (!$hasDummyName) {
+            return false;
+        }
+
+        // Factory traits:
+        $hasFactoryAddress = $model->alamat !== null && (str_contains($model->alamat, "\n") || strlen($model->alamat) > 50);
+        
+        // If it's Siswa, check Siswa-specific factory traits
+        if ($model instanceof Siswa) {
+            $hasFactoryNis = preg_match('/^[0-9]{8}$/', $model->nis);
+            $hasFactoryBirthDate = $model->tanggal_lahir !== null;
+            
+            if ($hasFactoryAddress || ($hasFactoryNis && $hasFactoryBirthDate)) {
                 return true;
             }
+        }
+        
+        // If it's Guru, check Guru-specific factory traits
+        if ($model instanceof Guru) {
+            $hasFactoryNip = preg_match('/^[0-9]{18}$/', $model->nip);
+            if ($hasFactoryAddress || $hasFactoryNip) {
+                return true;
+            }
+        }
+        
+        // Fallback: if the name is explicitly absurd (e.g. "Prof.", "MD") we still delete it
+        // because real SiPintu students don't have titles.
+        if (preg_match('/(Prof\.|Dr\.|MD|Jr\.|Sr\.)/i', $model->nama)) {
+            return true;
         }
 
         return false;

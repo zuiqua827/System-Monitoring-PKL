@@ -4,7 +4,7 @@
         <div class="login-brand-logo-wrap">
             <img src="{{ asset('images/simongan-logo.png') }}" alt="Logo SIMONGAN" loading="eager">
         </div>
-        <h1 class="login-brand-title">SIM<span class="accent">ONGAN</span></h1>
+        <h1 class="login-brand-title">SIMONGAN</h1>
         <p class="login-brand-subtitle">Sistem Monitoring Praktik Kerja Lapangan</p>
         <!-- <div class="login-portal-badge">Portal Akses SMKN 1 Bangsri</div> -->
     </div>

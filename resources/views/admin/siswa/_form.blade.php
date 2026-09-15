@@ -21,7 +21,7 @@
                 <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
                     <p class="text-xs font-semibold text-blue-800">Info Login Siswa</p>
                     <p class="mt-1 text-xs leading-relaxed text-blue-700">
-                        Akun login dibuat otomatis dari <strong>NIS</strong> (email: <em>NIS@{{ config('app.student_email_domain', 'smk1bangsri.sch.id') }}</em>).
+                        Akun login dibuat otomatis dari <strong>NIS</strong> (email: <em>NIS@{{ config('app.student_email_domain', 'smkn1bangsri.sch.id') }}</em>).
                         Password awal adalah <strong>Tanggal Lahir</strong> (format <strong>YYYY-MM-DD</strong>).
                         Siswa akan diminta mengganti password pada saat login pertama.
                     </p>

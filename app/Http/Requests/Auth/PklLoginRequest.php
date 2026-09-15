@@ -158,6 +158,23 @@ class PklLoginRequest extends FormRequest
             ]);
         }
 
+        if ($expectedRole === UserRole::DUDI->value) {
+            $dudi = $user->dudi;
+            if ($dudi === null || ! $dudi->status_aktif) {
+                Auth::logout();
+
+                $this->session()->regenerate();
+
+                RateLimiter::hit($this->throttleKey());
+
+                throw ValidationException::withMessages([
+                    'email' => $dudi === null
+                        ? 'Data profil DUDI tidak ditemukan untuk akun ini.'
+                        : 'Akun DUDI Anda sedang dinonaktifkan. Silakan hubungi pihak sekolah.',
+                ]);
+            }
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

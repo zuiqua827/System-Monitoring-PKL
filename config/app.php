@@ -75,7 +75,7 @@ return [
     |
     | Example:
     |   NIS: 11872054
-    |   Email: 11872054@smk1bangsri.sch.id
+    |   Email: 11872054@smkn1bangsri.sch.id
     |
     | Set STUDENT_EMAIL_DOMAIN in your .env when deploying to real servers.
     |

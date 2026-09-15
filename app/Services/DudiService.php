@@ -12,6 +12,7 @@ use App\Services\Interfaces\DudiServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * Service layer for DUDI business logic.
@@ -62,7 +63,7 @@ class DudiService extends Service implements DudiServiceInterface
      *
      * Business Rules:
      * 1. Create User account with role "DUDI"
-     * 2. Use no_telepon as initial password (hashed, force change on first login)
+     * 2. Use "password" as default initial password (hashed via Hash::make, force change on first login)
      * 3. Create Dudi record linked to the new User
      * 4. All within a single database transaction
      */
@@ -70,12 +71,12 @@ class DudiService extends Service implements DudiServiceInterface
     {
         /** @var Dudi $dudi */
         $dudi = $this->transaction(function () use ($data): Model {
-            // 1. Create User account with no_telepon as initial password
+            // 1. Create User account with default password "password"
             /** @var \App\Models\User $user */
             $user = $this->userRepository->create([
                 'name' => $data['nama_perusahaan'],
                 'email' => $data['email'],
-                'password' => bcrypt($data['no_telepon']),
+                'password' => Hash::make($data['password'] ?? 'password'),
                 'must_change_password' => true,
                 'email_verified_at' => now(),
             ]);
@@ -88,6 +89,7 @@ class DudiService extends Service implements DudiServiceInterface
                 'user_id' => $user->id,
                 'nama_perusahaan' => $data['nama_perusahaan'],
                 'penanggung_jawab' => $data['penanggung_jawab'],
+                'email_perusahaan' => $data['email_perusahaan'] ?? $data['email'] ?? null,
                 'no_telepon' => $data['no_telepon'],
                 'alamat' => $data['alamat'],
                 'kecamatan' => $data['kecamatan'] ?? null,
@@ -124,7 +126,7 @@ class DudiService extends Service implements DudiServiceInterface
             $this->userRepository->update($dudi->user, $userUpdateData);
 
             // 2. Update Dudi record
-            return $this->dudiRepository->update($dudi, [
+            $dudiUpdateData = [
                 'nama_perusahaan' => $data['nama_perusahaan'],
                 'penanggung_jawab' => $data['penanggung_jawab'],
                 'no_telepon' => $data['no_telepon'],
@@ -135,7 +137,13 @@ class DudiService extends Service implements DudiServiceInterface
                 'latitude' => $data['latitude'] ?? null,
                 'longitude' => $data['longitude'] ?? null,
                 'status_aktif' => $data['status_aktif'] ?? true,
-            ]);
+            ];
+
+            if (isset($data['email'])) {
+                $dudiUpdateData['email_perusahaan'] = $data['email'];
+            }
+
+            return $this->dudiRepository->update($dudi, $dudiUpdateData);
         });
 
         return $updated;

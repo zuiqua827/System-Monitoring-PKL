@@ -34,6 +34,7 @@ class StoreDudiRequest extends FormRequest
             'nama_perusahaan' => ['required', 'string', 'max:255'],
             'penanggung_jawab' => ['required', 'string', 'max:255'],
             'no_telepon' => ['required', 'string', 'max:20'],
+            'password' => ['nullable', 'string', 'min:6'],
             'alamat' => ['required', 'string'],
             'kecamatan' => ['nullable', 'string', 'max:255'],
             'kabupaten' => ['nullable', 'string', 'max:255'],

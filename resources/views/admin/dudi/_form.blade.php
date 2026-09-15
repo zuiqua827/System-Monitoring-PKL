@@ -68,7 +68,7 @@
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                     @if(!isset($dudi) || !$dudi)
-                        <p class="mt-1.5 text-xs text-slate-500">Nomor telepon akan digunakan sebagai password awal akun DUDI.</p>
+                        <p class="mt-1.5 text-xs text-slate-500">Password default akun DUDI adalah <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">password</code> (dapat diubah setelah login).</p>
                     @endif
                 </div>
                 <div class="bg-white p-5">

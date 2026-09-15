@@ -158,21 +158,13 @@
         }
 
         /* ── Bottom Info Layout (Catatan DUDI & Rekap Kehadiran) ── */
-        .bottom-info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 6px;
-        }
-        .bottom-info-table td {
-            vertical-align: top;
-            padding: 0;
-        }
-
         .catatan-box {
             border: 1px solid #000000;
             padding: 4px 6px;
             font-size: 8pt;
             box-sizing: border-box;
+            margin-bottom: 6px;
+            width: 100%;
         }
         .catatan-title {
             font-weight: bold;
@@ -187,20 +179,32 @@
             padding: 4px 6px;
             font-size: 8pt;
             box-sizing: border-box;
+            margin-bottom: 6px;
+            width: 100%;
         }
         .ketidakhadiran-title {
             font-weight: bold;
             font-size: 8.5pt;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
             text-transform: uppercase;
         }
-        .ketidakhadiran-table {
+        .ketidakhadiran-table-compact {
             width: 100%;
             border-collapse: collapse;
         }
-        .ketidakhadiran-table td {
-            padding: 1px 0;
-            font-size: 8pt;
+        .ketidakhadiran-table-compact th {
+            border: 1px solid #000000;
+            padding: 3px;
+            font-size: 7.5pt;
+            text-align: center;
+            background-color: #f8f8f8;
+            font-weight: bold;
+        }
+        .ketidakhadiran-table-compact td {
+            border: 1px solid #000000;
+            padding: 3px;
+            font-size: 7.5pt;
+            text-align: center;
         }
 
         /* ── Tanda Tangan Table ── */
@@ -210,7 +214,7 @@
             border-collapse: collapse;
         }
         .signature-table td {
-            width: 33.33%;
+            width: 50%;
             vertical-align: top;
             text-align: center;
             font-size: 8pt;
@@ -404,58 +408,38 @@
         </tr>
     </table>
 
-    {{-- ─── CATATAN DUDI & REKAP KEHADIRAN (LAYOUT BERDAMPINGAN) ─── --}}
-    <table class="bottom-info-table">
-        <tr>
-            <td width="64%" style="padding-right: 6px;">
-                <div class="catatan-box">
-                    <div class="catatan-title">CATATAN DUDI</div>
-                    <div style="font-size: 8pt; line-height: 1.25;">{{ $penilaian->catatan ?: 'Belum ada catatan dari DUDI.' }}</div>
-                </div>
-            </td>
-            <td width="36%">
-                <div class="ketidakhadiran-box">
-                    <div class="ketidakhadiran-title">REKAP KEHADIRAN</div>
-                    <table class="ketidakhadiran-table">
-                        <tr>
-                            <td width="45%">Hadir</td>
-                            <td width="10%" style="text-align: center;">:</td>
-                            <td width="45%">{{ $rekapAbsensi['hadir'] }} hari</td>
-                        </tr>
-                        @if(($rekapAbsensi['terlambat'] ?? 0) > 0)
-                        <tr>
-                            <td>Terlambat</td>
-                            <td style="text-align: center;">:</td>
-                            <td>{{ $rekapAbsensi['terlambat'] }} hari</td>
-                        </tr>
-                        @endif
-                        @if(($rekapAbsensi['sangat_terlambat'] ?? 0) > 0)
-                        <tr>
-                            <td>Sangat Terlambat</td>
-                            <td style="text-align: center;">:</td>
-                            <td>{{ $rekapAbsensi['sangat_terlambat'] }} hari</td>
-                        </tr>
-                        @endif
-                        <tr>
-                            <td>Sakit</td>
-                            <td style="text-align: center;">:</td>
-                            <td>{{ $rekapAbsensi['sakit'] }} hari</td>
-                        </tr>
-                        <tr>
-                            <td>Izin</td>
-                            <td style="text-align: center;">:</td>
-                            <td>{{ $rekapAbsensi['izin'] }} hari</td>
-                        </tr>
-                        <tr>
-                            <td>Alpha</td>
-                            <td style="text-align: center;">:</td>
-                            <td>{{ $rekapAbsensi['alpha'] }} hari</td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-        </tr>
-    </table>
+    {{-- ─── CATATAN DUDI ─── --}}
+    <div class="catatan-box">
+        <div class="catatan-title">CATATAN DUDI</div>
+        <div style="font-size: 8pt; line-height: 1.25;">{{ $penilaian->catatan ?: 'Belum ada catatan dari DUDI.' }}</div>
+    </div>
+
+    {{-- ─── REKAP KEHADIRAN ─── --}}
+    <div class="ketidakhadiran-box">
+        <div class="ketidakhadiran-title">REKAP KEHADIRAN</div>
+        <table class="ketidakhadiran-table-compact">
+            <thead>
+                <tr>
+                    <th width="16%">Hadir</th>
+                    <th width="16%">Terlambat</th>
+                    <th width="18%">Sangat Terlambat</th>
+                    <th width="16%">Sakit</th>
+                    <th width="16%">Izin</th>
+                    <th width="18%">Alpha</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ $rekapAbsensi['hadir'] ?? 0 }} hari</td>
+                    <td>{{ $rekapAbsensi['terlambat'] ?? 0 }} hari</td>
+                    <td>{{ $rekapAbsensi['sangat_terlambat'] ?? 0 }} hari</td>
+                    <td>{{ $rekapAbsensi['sakit'] ?? 0 }} hari</td>
+                    <td>{{ $rekapAbsensi['izin'] ?? 0 }} hari</td>
+                    <td>{{ $rekapAbsensi['alpha'] ?? 0 }} hari</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     {{-- ─── PENGESAHAN ─── --}}
     <table class="signature-table">
@@ -464,21 +448,14 @@
                 <div>Mengetahui,</div>
                 <div><strong>Pembimbing DUDI</strong></div>
                 <div class="sign-space"></div>
-                <div class="sign-name">{{ $dudi?->penanggung_jawab ?? ($dudi?->nama_perusahaan ?? '.........................................') }}</div>
+                <div class="sign-name">{{ $dudi?->penanggung_jawab ?? ($dudi?->pemimpin ?? '.........................................') }}</div>
             </td>
             <td>
-                <div><br></div>
+                <div>Bangsri, {{ $penilaian->tanggal_penilaian ? $penilaian->tanggal_penilaian->locale('id')->translatedFormat('d F Y') : now()->locale('id')->translatedFormat('d F Y') }}</div>
                 <div><strong>Guru Pembimbing</strong></div>
                 <div class="sign-space"></div>
                 <div class="sign-name">{{ $guru?->nama ?? '.........................................' }}</div>
                 <div class="sign-nip">NIP. {{ $guru?->nip ?? '-' }}</div>
-            </td>
-            <td>
-                <div>Bangsri, {{ $penilaian->tanggal_penilaian ? $penilaian->tanggal_penilaian->locale('id')->translatedFormat('d F Y') : now()->locale('id')->translatedFormat('d F Y') }}</div>
-                <div><strong>Kepala Program Keahlian</strong></div>
-                <div class="sign-space"></div>
-                <div class="sign-name">.........................................</div>
-                <div class="sign-nip">NIP. .........................................</div>
             </td>
         </tr>
     </table>

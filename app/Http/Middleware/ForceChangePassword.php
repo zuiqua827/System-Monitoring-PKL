@@ -28,6 +28,8 @@ class ForceChangePassword
         'force-change-password',
         'force-change-password.update',
         'logout',
+        'auth.callback',
+        'oauth.callback',
     ];
 
     /**
@@ -43,6 +45,11 @@ class ForceChangePassword
         }
 
         if (! $user->must_change_password) {
+            return $next($request);
+        }
+
+        // SSO users manage credentials in SiPintu and must not be forced to change local SIMONGAN password
+        if ($request->session()->get('auth_via_sso', false)) {
             return $next($request);
         }
 

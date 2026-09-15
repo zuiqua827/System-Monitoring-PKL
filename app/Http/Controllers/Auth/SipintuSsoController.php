@@ -11,6 +11,7 @@ use App\Services\Interfaces\UserAuthenticationServiceInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -22,14 +23,14 @@ class SipintuSsoController extends Controller
     ) {}
 
     /**
-     * Redirect user to SiPintu SSO Authorization Endpoint.
-     * GET /auth/sipintu /auth/login/sipintu
+     * Redirect user to SiPintu SSO Authorization Endpoint (SP-initiated).
+     * GET /auth/sipintu
      */
     public function redirect(Request $request): RedirectResponse
     {
-        $gatewayUrl = rtrim((string) config('services.sipintu.api_url', 'https://sipintu.smkn1bangsri.sch.id'), '/');
-        $clientId = config('services.sipintu.client_id');
-        $callbackUrl = config('services.sipintu.sso_callback_url', route('auth.callback'));
+        $gatewayUrl = rtrim((string) (config('services.sipintu.api_url') ?: config('services.sipintu.base_url', 'https://sipintu.smkn1bangsri.sch.id')), '/');
+        $clientId = (string) config('services.sipintu.client_id');
+        $callbackUrl = (string) (config('services.sipintu.sso_callback_url') ?: config('services.sipintu.redirect_uri', route('oauth.callback')));
 
         $state = bin2hex(random_bytes(16));
         $request->session()->put('sso_state', $state);
@@ -50,33 +51,80 @@ class SipintuSsoController extends Controller
      */
     public function callback(Request $request): RedirectResponse
     {
-        // 1. Validate incoming code & state
-        $code = $request->query('code');
+        // 1. Handle OAuth errors returned from the authorization server
         $error = $request->query('error');
         $errorDescription = $request->query('error_description');
 
-        if ($error) {
-            Log::warning('SiPintu SSO callback error from gateway', [
-                'error' => $error,
-                'description' => $errorDescription,
+        if (! empty($error)) {
+            Log::warning('SiPintu SSO callback returned error', [
+                'error' => (string) $error,
             ]);
-            return redirect()->route('login')->with('error', 'Login SSO SiPintu dibatalkan atau ditolak: ' . ($errorDescription ?? $error));
+
+            $errorMessage = match ((string) $error) {
+                'access_denied' => 'Login SSO SiPintu dibatalkan atau ditolak oleh pengguna.',
+                'invalid_request' => 'Permintaan otorisasi SSO tidak valid.',
+                'invalid_grant' => 'Kode otorisasi SSO tidak valid atau sudah kedaluwarsa.',
+                default => 'Login SSO SiPintu gagal: ' . ($errorDescription ? (string) $errorDescription : (string) $error),
+            };
+
+            return redirect()->route('login')
+                ->with('error', $errorMessage)
+                ->withErrors(['login' => $errorMessage]);
         }
 
-        if (empty($code)) {
-            return redirect()->route('login')->with('error', 'Kode otorisasi SSO tidak ditemukan.');
+        // 2. Validate authorization code
+        $code = $request->query('code');
+        if (empty($code) || ! is_string($code) || trim($code) === '') {
+            $missingCodeMsg = 'Kode otorisasi SSO tidak ditemukan.';
+
+            return redirect()->route('login')
+                ->with('error', $missingCodeMsg)
+                ->withErrors(['login' => $missingCodeMsg]);
+        }
+        $code = trim($code);
+
+        // 3. Validate state parameter if state was initiated in session (SP-initiated flow)
+        if ($request->session()->has('sso_state')) {
+            $expectedState = (string) $request->session()->pull('sso_state');
+            $incomingState = (string) $request->query('state');
+
+            if (! hash_equals($expectedState, $incomingState)) {
+                Log::warning('SiPintu SSO callback state mismatch detected (potential CSRF)');
+
+                $stateMismatchMsg = 'Sesi login SSO tidak valid (state mismatch). Silakan coba lagi.';
+
+                return redirect()->route('login')
+                    ->with('error', $stateMismatchMsg)
+                    ->withErrors(['login' => $stateMismatchMsg]);
+            }
         }
 
-        $gatewayUrl = rtrim((string) config('services.sipintu.api_url', 'https://sipintu.smkn1bangsri.sch.id'), '/');
+        // 4. Prevent authorization code replay attacks (defense-in-depth single-use verification)
+        $codeHash = hash('sha256', $code);
+        $consumedKey = 'sso_code_consumed:' . $codeHash;
+
+        if (Cache::has($consumedKey)) {
+            Log::warning('SiPintu SSO authorization code replay detected (already consumed)');
+
+            $replayMsg = 'Kode otorisasi SSO sudah pernah digunakan.';
+
+            return redirect()->route('login')
+                ->with('error', $replayMsg)
+                ->withErrors(['login' => $replayMsg]);
+        }
+
+        $gatewayUrl = rtrim((string) (config('services.sipintu.api_url') ?: config('services.sipintu.base_url', 'https://sipintu.smkn1bangsri.sch.id')), '/');
         $clientId = (string) config('services.sipintu.client_id');
         $clientSecret = (string) config('services.sipintu.client_secret');
-        $callbackUrl = (string) config('services.sipintu.sso_callback_url', route('auth.callback'));
+        $configuredCallback = config('services.sipintu.sso_callback_url') ?: config('services.sipintu.redirect_uri');
+        $callbackUrl = ! empty($configuredCallback) ? (string) $configuredCallback : route('oauth.callback');
         $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
+        $timeout = (int) config('services.sipintu.timeout', 30);
 
         try {
-            // 2. Exchange authorization code for access token
-            $tokenClient = Http::asForm()->timeout(30);
-            if (!$verifySsl) {
+            // 5. Exchange authorization code for access token
+            $tokenClient = Http::asForm()->timeout($timeout);
+            if (! $verifySsl) {
                 $tokenClient = $tokenClient->withoutVerifying();
             }
 
@@ -88,74 +136,140 @@ class SipintuSsoController extends Controller
                 'redirect_uri' => $callbackUrl,
             ]);
 
-            if (!$tokenResponse->successful()) {
+            if (! $tokenResponse->successful()) {
                 Log::error('SiPintu SSO token exchange failed', [
                     'status' => $tokenResponse->status(),
-                    'body' => $tokenResponse->body(),
+                    'error' => $tokenResponse->json('error'),
                 ]);
-                return redirect()->route('login')->with('error', 'Gagal memverifikasi token SSO dengan server SiPintu (HTTP ' . $tokenResponse->status() . ').');
+
+                $tokenExchangeMsg = 'Gagal memverifikasi token SSO dengan server SiPintu (HTTP ' . $tokenResponse->status() . ').';
+
+                return redirect()->route('login')
+                    ->with('error', $tokenExchangeMsg)
+                    ->withErrors(['login' => $tokenExchangeMsg]);
             }
 
             $tokenData = $tokenResponse->json();
-            $accessToken = $tokenData['access_token'] ?? null;
+            $accessToken = is_array($tokenData) ? ($tokenData['access_token'] ?? null) : null;
 
-            if (!$accessToken) {
-                return redirect()->route('login')->with('error', 'Access token SiPintu tidak valid.');
+            if (empty($accessToken) || ! is_string($accessToken)) {
+                $invalidTokenMsg = 'Access token SiPintu tidak valid.';
+
+                return redirect()->route('login')
+                    ->with('error', $invalidTokenMsg)
+                    ->withErrors(['login' => $invalidTokenMsg]);
             }
 
-            // 3. Fetch User Profile using access token
-            $userClient = Http::withToken($accessToken)->acceptJson()->timeout(30);
-            if (!$verifySsl) {
+            // 6. Fetch User Profile using access token
+            $userClient = Http::withToken($accessToken)->acceptJson()->timeout($timeout);
+            if (! $verifySsl) {
                 $userClient = $userClient->withoutVerifying();
             }
 
             $userResponse = $userClient->get($gatewayUrl . '/api/v1/user');
-            if (!$userResponse->successful()) {
-                Log::error('SiPintu SSO fetch user failed', [
+            if (! $userResponse->successful()) {
+                Log::error('SiPintu SSO fetch user profile failed', [
                     'status' => $userResponse->status(),
-                    'body' => $userResponse->body(),
                 ]);
-                return redirect()->route('login')->with('error', 'Gagal mengambil data profil pengguna dari SiPintu.');
+
+                $fetchUserMsg = 'Gagal mengambil data profil pengguna dari SiPintu.';
+
+                return redirect()->route('login')
+                    ->with('error', $fetchUserMsg)
+                    ->withErrors(['login' => $fetchUserMsg]);
             }
 
             $userData = $userResponse->json();
-            $userPayload = $userData['data'] ?? $userData;
+            $userPayload = is_array($userData) ? ($userData['data'] ?? $userData) : [];
 
-            $email = $userPayload['email'] ?? null;
-            $username = $userPayload['username'] ?? $userPayload['nis'] ?? null;
+            $email = ! empty($userPayload['email']) ? trim((string) $userPayload['email']) : null;
+            $nis = ! empty($userPayload['nis']) ? trim((string) $userPayload['nis']) : null;
+            $nip = ! empty($userPayload['nip']) ? trim((string) $userPayload['nip']) : null;
+            $username = ! empty($userPayload['username']) ? trim((string) $userPayload['username']) : null;
 
-            // Find local user by email or username/nis
+            // 7. Match local user strictly by available schema identifiers (email, siswa.nis, guru.nip)
+            /** @var User|null $user */
             $user = null;
-            if (!empty($email)) {
+
+            // Priority 1: email in users table
+            if ($email !== null && $email !== '') {
                 $user = User::query()->where('email', $email)->first();
             }
 
-            if (!$user && !empty($username)) {
-                // Check if user is linked to Siswa with this NIS
+            // Priority 2: nis in siswa table
+            if (! $user && $nis !== null && $nis !== '') {
                 $user = User::query()
-                    ->whereHas('siswa', fn ($q) => $q->where('nis', $username))
+                    ->whereHas('siswa', fn ($q) => $q->where('nis', $nis))
                     ->first();
             }
 
-            if (!$user) {
-                Log::warning('SiPintu SSO user authenticated at gateway but not found locally', [
-                    'email' => $email,
-                    'username' => $username,
-                ]);
-                return redirect()->route('login')->with(
-                    'error',
-                    'Akun Anda terdaftar di SiPintu, tetapi belum ditautkan ke akun Sistem Monitoring PKL (SIMONGAN). Hubungi Admin.'
-                );
+            // Priority 3: nip in guru table
+            if (! $user && $nip !== null && $nip !== '') {
+                $user = User::query()
+                    ->whereHas('guru', fn ($q) => $q->where('nip', $nip))
+                    ->first();
             }
 
-            // 4. Log in the local user
-            Auth::login($user);
+            // Fallback for username attribute if sent as NIS, NIP, or email
+            if (! $user && $username !== null && $username !== '') {
+                $user = User::query()
+                    ->whereHas('siswa', fn ($q) => $q->where('nis', $username))
+                    ->first();
+
+                if (! $user) {
+                    $user = User::query()
+                        ->whereHas('guru', fn ($q) => $q->where('nip', $username))
+                        ->first();
+                }
+
+                if (! $user && filter_var($username, FILTER_VALIDATE_EMAIL)) {
+                    $user = User::query()->where('email', $username)->first();
+                }
+            }
+
+            // 8. If user is not found locally, reject login (DO NOT auto-create user or PKL placement)
+            if (! $user) {
+                Log::warning('SiPintu SSO user authenticated at gateway but not found locally', [
+                    'has_email' => ! empty($email),
+                    'has_nis' => ! empty($nis),
+                    'has_nip' => ! empty($nip),
+                    'has_username' => ! empty($username),
+                ]);
+
+                $userNotFoundMsg = 'Akun SiPintu belum terdaftar pada aplikasi.';
+
+                return redirect()->route('login')
+                    ->with('error', $userNotFoundMsg)
+                    ->withErrors(['login' => $userNotFoundMsg]);
+            }
+
+            // 9. Reject Super Admin accounts from logging in via SSO (must use local admin credentials)
+            if ($user->hasRole('Super Admin')) {
+                Log::warning('SiPintu SSO rejected for Super Admin account', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                ]);
+
+                $adminBlockedMsg = 'Akun Administrator tidak dapat masuk melalui SSO SiPintu. Silakan gunakan login admin SIMONGAN.';
+
+                return redirect()->route('login')
+                    ->with('error', $adminBlockedMsg)
+                    ->withErrors(['login' => $adminBlockedMsg]);
+            }
+
+            // 10. Log in the local user with remember me enabled
+            Auth::login($user, true);
             $request->session()->regenerate();
+            // Flag session as SSO authenticated so ForceChangePassword does not intercept
+            $request->session()->put('auth_via_sso', true);
 
             $this->authenticationService->recordLoginMetadata(
                 user: $user,
                 ipAddress: $request->ip(),
             );
+
+            // 11. Mark authorization code as consumed (defense-in-depth replay prevention)
+            Cache::put($consumedKey, true, 600);
 
             $dashboardUrl = RoleRedirectHelper::getDashboardUrl($user);
 
@@ -167,7 +281,11 @@ class SipintuSsoController extends Controller
                 'message' => $e->getMessage(),
             ]);
 
-            return redirect()->route('login')->with('error', 'Terjadi kesalahan sistem saat memproses login SSO.');
+            $systemErrorMsg = 'Terjadi kesalahan sistem saat memproses login SSO.';
+
+            return redirect()->route('login')
+                ->with('error', $systemErrorMsg)
+                ->withErrors(['login' => $systemErrorMsg]);
         }
     }
 }

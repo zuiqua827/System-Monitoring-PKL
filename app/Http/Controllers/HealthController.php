@@ -30,7 +30,7 @@ class HealthController extends Controller
         }
 
         $downstreamUrl = config('services.sipintu.downstream_url', config('app.url'));
-        $ssoCallbackUrl = config('services.sipintu.sso_callback_url', rtrim((string) $downstreamUrl, '/') . '/auth/callback');
+        $ssoCallbackUrl = config('services.sipintu.sso_callback_url', rtrim((string) $downstreamUrl, '/') . '/oauth/callback');
 
         $status = $dbOk ? 'ok' : 'degraded';
         $httpCode = $dbOk ? 200 : 503;

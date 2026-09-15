@@ -112,7 +112,7 @@ $adminSections = [
 {{-- Logo --}}
     <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-800/80 px-5">
         <a href="{{ route($dashboardRoute) }}" class="flex items-center gap-3">
-            <img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN Logo" class="h-9 w-9 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
+            <img src="{{ asset('images/simongan-logo.png') }}?v={{ file_exists(public_path('images/simongan-logo.png')) ? filemtime(public_path('images/simongan-logo.png')) : '20260914' }}" alt="SIMONGAN Logo" class="h-9 w-9 rounded-xl bg-white/10 object-contain ring-1 ring-white/20">
             <span class="leading-tight">
                 <span class="block text-sm font-bold tracking-wide text-white">SIMONGAN</span>
                 <span class="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Sistem Monitoring Lapangan</span>

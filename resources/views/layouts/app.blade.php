@@ -6,7 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <title>@yield('title', config('app.name', 'SIMONGAN'))</title>
-<link rel="icon" type="image/png" href="{{ asset('images/simongan-logo.png') }}">
+<link rel="icon" type="image/png" href="{{ asset('images/simongan-logo.png') }}?v={{ file_exists(public_path('images/simongan-logo.png')) ? filemtime(public_path('images/simongan-logo.png')) : '20260914' }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

@@ -19,7 +19,7 @@
 
     {{-- Logo (mobile) --}}
 <a href="{{ route($dashboardRoute ?? 'dashboard') }}" class="flex items-center gap-2 lg:hidden">
-        <img src="{{ asset('images/simongan-logo.png') }}" alt="SIMONGAN" class="h-8 w-8 object-contain">
+        <img src="{{ asset('images/simongan-logo.png') }}?v={{ file_exists(public_path('images/simongan-logo.png')) ? filemtime(public_path('images/simongan-logo.png')) : '20260914' }}" alt="SIMONGAN" class="h-8 w-8 object-contain">
     </a>
 
     {{-- Title --}}

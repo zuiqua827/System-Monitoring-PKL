@@ -59,6 +59,10 @@ class SipintuSyncController extends Controller
      */
     public function preview(): View
     {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '512M');
+
         $data = $this->syncService->getDashboardData();
         $preview = $this->syncService->preview();
 
@@ -113,6 +117,10 @@ class SipintuSyncController extends Controller
      */
     public function sync(Request $request): RedirectResponse
     {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '512M');
+
         /** @var User $admin */
         $admin = $request->user();
 

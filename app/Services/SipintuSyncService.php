@@ -84,6 +84,10 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
      */
     public function preview(): array
     {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '512M');
+
         $start = hrtime(true);
 
         try {
@@ -130,6 +134,10 @@ class SipintuSyncService extends Service implements SipintuSyncServiceInterface
 
     public function runSync(User $admin): array
     {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '512M');
+
         $start = hrtime(true);
 
         Log::info('SiPintu sync started', ['admin_id' => $admin->id]);

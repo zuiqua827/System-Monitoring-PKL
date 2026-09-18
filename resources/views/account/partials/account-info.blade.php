@@ -76,14 +76,16 @@
 
             {{-- Phone --}}
             <div>
-                <x-input-label for="phone" value="No. Telepon" />
+                <x-input-label for="phone" value="No. Telepon / WhatsApp" />
                 <x-text-input
                     id="phone"
                     name="phone"
                     type="text"
                     class="mt-1 block w-full"
                     :value="old('phone', $user->phone)"
+                    placeholder="Contoh: 081234567890"
                 />
+                <p class="mt-1 text-xs text-slate-400">Digunakan untuk menerima notifikasi pengingat absensi PKL.</p>
                 <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
 

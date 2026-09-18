@@ -69,4 +69,21 @@ return [
         'webhook_secret' => env('SIPINTU_WEBHOOK_SECRET'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | WhatsApp Gateway (Node.js Baileys Microservice)
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for connecting to the local or remote Baileys-based
+    | WhatsApp Gateway service.
+    |
+    */
+    'whatsapp' => [
+        'gateway_url' => env('WA_GATEWAY_URL', 'http://127.0.0.1:3000'),
+        'api_key' => env('WA_GATEWAY_API_KEY', null),
+        'timeout' => (int) env('WA_GATEWAY_TIMEOUT', 15),
+        'default_offset_minutes' => 5,
+    ],
+
 ];
+

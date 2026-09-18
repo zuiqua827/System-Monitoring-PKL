@@ -19,3 +19,5 @@ Artisan::command('inspire', function () {
 */
 Schedule::command('sipintu:sync')->dailyAt('02:00');
 Schedule::command('absensi:mark-alfa')->dailyAt('00:10');
+Schedule::command('whatsapp:attendance-reminders')->everyMinute()->withoutOverlapping();
+

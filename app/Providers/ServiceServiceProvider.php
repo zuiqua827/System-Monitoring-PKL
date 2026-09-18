@@ -29,6 +29,7 @@ use App\Services\Interfaces\SipintuSyncServiceInterface;
 use App\Services\Interfaces\SiswaServiceInterface;
 use App\Services\Interfaces\UserAuthenticationServiceInterface;
 use App\Services\Interfaces\UserProfileServiceInterface;
+use App\Services\Interfaces\WhatsAppServiceInterface;
 use App\Services\JurusanService;
 use App\Services\KelasService;
 use App\Services\PenempatanPKLService;
@@ -42,6 +43,7 @@ use App\Services\SipintuSyncService;
 use App\Services\SiswaService;
 use App\Services\UserAuthenticationService;
 use App\Services\UserProfileService;
+use App\Services\WhatsAppService;
 use Illuminate\Support\ServiceProvider;
 
 class ServiceServiceProvider extends ServiceProvider
@@ -49,7 +51,7 @@ class ServiceServiceProvider extends ServiceProvider
     /**
      * @var array<class-string, class-string>
      */
-private array $services = [
+    private array $services = [
         AbsensiServiceInterface::class => AbsensiService::class,
         AccountSettingsServiceInterface::class => AccountSettingsService::class,
         AktivitasServiceInterface::class => AktivitasService::class,
@@ -69,6 +71,7 @@ private array $services = [
         SipintuSyncServiceInterface::class => SipintuSyncService::class,
         UserAuthenticationServiceInterface::class => UserAuthenticationService::class,
         UserProfileServiceInterface::class => UserProfileService::class,
+        WhatsAppServiceInterface::class => WhatsAppService::class,
     ];
 
     public function register(): void

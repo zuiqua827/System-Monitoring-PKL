@@ -131,6 +131,16 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     Route::post('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'store'])->name('sipintu-classroom-mapping.store');
     Route::post('/sipintu-classroom-mapping/apply', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'apply'])->name('sipintu-classroom-mapping.apply');
 
+    // WhatsApp Gateway & Notifikasi
+    Route::get('/whatsapp', [\App\Http\Controllers\Admin\WhatsAppController::class, 'index'])->name('whatsapp.index');
+    Route::get('/whatsapp/status-ajax', [\App\Http\Controllers\Admin\WhatsAppController::class, 'statusAjax'])->name('whatsapp.status-ajax');
+    Route::post('/whatsapp/settings', [\App\Http\Controllers\Admin\WhatsAppController::class, 'updateSettings'])->name('whatsapp.settings.update');
+    Route::post('/whatsapp/test-send', [\App\Http\Controllers\Admin\WhatsAppController::class, 'sendTest'])->name('whatsapp.test-send');
+    Route::post('/whatsapp/disconnect', [\App\Http\Controllers\Admin\WhatsAppController::class, 'disconnect'])->name('whatsapp.disconnect');
+    Route::post('/whatsapp/scan-now', [\App\Http\Controllers\Admin\WhatsAppController::class, 'scanNow'])->name('whatsapp.scan-now');
+    Route::get('/whatsapp/logs', [\App\Http\Controllers\Admin\WhatsAppController::class, 'logs'])->name('whatsapp.logs');
+
+
     // Master Absensi
     Route::resource('absensi', AdminAbsensiController::class);
     Route::post('absensi/{absensi}/restore', [AdminAbsensiController::class, 'restore'])->name('absensi.restore')->withTrashed();

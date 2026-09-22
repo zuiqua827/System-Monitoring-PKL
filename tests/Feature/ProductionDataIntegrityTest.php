@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Jurusan;
 use App\Models\Kelas;
 use App\Models\Siswa;
-use Database\Seeders\CleanupDummyDataSeeder;
+
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -26,26 +26,22 @@ class ProductionDataIntegrityTest extends TestCase
         $this->assertEquals(0, $dummyCount, 'DatabaseSeeder seharusnya tidak pernah memasukkan data dummy siswa!');
     }
 
-    public function test_cleanup_dummy_data_seeder_removes_dummies_safely(): void
+    public function test_database_seeder_does_not_delete_existing_data(): void
     {
         $this->seed(DatabaseSeeder::class);
 
-        // Inject a dummy student manually
-        $kelas = Kelas::first();
-        if (!$kelas) {
-            $this->markTestSkipped('No classes available.');
-        }
-        
-        $dummy = Siswa::factory()->create([
-            'nama' => 'John Doe Jr.',
-            'class_id' => $kelas->id,
-        ]);
+        $initialRoleCount = \Spatie\Permission\Models\Role::count();
+        $initialUserCount = \App\Models\User::count();
+        $initialJurusanCount = \App\Models\Jurusan::count();
+        $initialKelasCount = \App\Models\Kelas::count();
 
-        $this->assertDatabaseHas('siswa', ['id' => $dummy->id, 'deleted_at' => null]);
+        // Run again to ensure it doesn't duplicate or delete existing data destructively
+        $this->seed(DatabaseSeeder::class);
 
-        $this->seed(CleanupDummyDataSeeder::class);
-
-        $this->assertSoftDeleted('siswa', ['id' => $dummy->id]);
+        $this->assertEquals($initialRoleCount, \Spatie\Permission\Models\Role::count(), 'Role count changed after second seeding');
+        $this->assertEquals($initialUserCount, \App\Models\User::count(), 'User count changed after second seeding');
+        $this->assertEquals($initialJurusanCount, \App\Models\Jurusan::count(), 'Jurusan data count changed after second seeding');
+        $this->assertEquals($initialKelasCount, \App\Models\Kelas::count(), 'Kelas data count changed after second seeding');
     }
 
     public function test_classes_x_xi_xii_are_properly_seeded(): void

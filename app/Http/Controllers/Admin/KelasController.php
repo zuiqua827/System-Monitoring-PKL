@@ -9,6 +9,7 @@ use App\Http\Requests\StoreKelasRequest;
 use App\Http\Requests\UpdateKelasRequest;
 use App\Models\Kelas;
 use App\Services\Interfaces\KelasServiceInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -153,7 +154,17 @@ class KelasController extends Controller
 
         $this->authorize('forceDelete', $kelas);
 
-        $this->kelasService->forceDelete($kelas);
+        try {
+            $this->kelasService->forceDelete($kelas);
+        } catch (\RuntimeException $e) {
+            return redirect()
+                ->route('admin.kelas.index')
+                ->with('error', $e->getMessage());
+        } catch (QueryException) {
+            return redirect()
+                ->route('admin.kelas.index')
+                ->with('error', 'Gagal menghapus permanen Kelas karena masih terdapat data terkait.');
+        }
 
         return redirect()
             ->route('admin.kelas.index')

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Jurusan;
+use App\Models\SipintuClassroomMapping;
 use App\Repositories\Interfaces\JurusanRepositoryInterface;
 use App\Services\Interfaces\JurusanServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 
 /**
  * Service layer for Jurusan business logic.
@@ -109,9 +111,45 @@ class JurusanService extends Service implements JurusanServiceInterface
 
     /**
      * {@inheritDoc}
+     *
+     * Safely force-deletes a Jurusan within a transaction.
+     * Checks for active child records first and blocks if data integrity would be compromised.
+     * Cascades deletion of orphaned/trashed kelas and their sipintu_classroom_mappings.
+     *
+     * @throws \RuntimeException if active child records block deletion
      */
     public function forceDelete(Jurusan $jurusan): bool
     {
-        return $this->jurusanRepository->forceDelete($jurusan);
+        return $this->transaction(function () use ($jurusan): bool {
+            // Load all kelas (including trashed) that reference this jurusan
+            $kelasRecords = $jurusan->kelas()->withTrashed()->get();
+
+            if ($kelasRecords->isNotEmpty()) {
+                // Check for kelas that still have siswa (including trashed) — these have
+                // deep FK dependencies (penempatan_pkl → absensi, aktivitas, etc.)
+                // and cannot be safely cascade-deleted from here.
+                foreach ($kelasRecords as $kelas) {
+                    $totalSiswaCount = $kelas->siswa()->withTrashed()->count();
+                    if ($totalSiswaCount > 0) {
+                        throw new \RuntimeException(
+                            "Jurusan \"{$jurusan->nama}\" tidak dapat dihapus permanen karena kelas \"{$kelas->nama}\" "
+                            . "masih memiliki {$totalSiswaCount} siswa terkait. "
+                            . 'Hapus permanen semua siswa di kelas tersebut terlebih dahulu.'
+                        );
+                    }
+                }
+
+                // All kelas are empty (no siswa at all) — safe to cascade
+                $kelasIds = $kelasRecords->pluck('id')->all();
+
+                // Remove sipintu_classroom_mappings that reference these kelas
+                SipintuClassroomMapping::whereIn('kelas_id', $kelasIds)->delete();
+
+                // Force-delete all empty kelas belonging to this jurusan
+                $jurusan->kelas()->withTrashed()->forceDelete();
+            }
+
+            return $this->jurusanRepository->forceDelete($jurusan);
+        });
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Requests\StoreJurusanRequest;
 use App\Http\Requests\UpdateJurusanRequest;
 use App\Models\Jurusan;
 use App\Services\Interfaces\JurusanServiceInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -143,7 +144,17 @@ class JurusanController extends Controller
 
         $this->authorize('forceDelete', $jurusan);
 
-        $this->jurusanService->forceDelete($jurusan);
+        try {
+            $this->jurusanService->forceDelete($jurusan);
+        } catch (\RuntimeException $e) {
+            return redirect()
+                ->route('admin.jurusan.index')
+                ->with('error', $e->getMessage());
+        } catch (QueryException) {
+            return redirect()
+                ->route('admin.jurusan.index')
+                ->with('error', 'Gagal menghapus permanen Jurusan karena masih terdapat data terkait.');
+        }
 
         return redirect()
             ->route('admin.jurusan.index')

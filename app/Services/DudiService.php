@@ -219,6 +219,12 @@ class DudiService extends Service implements DudiServiceInterface
     public function forceDelete(Dudi $dudi): bool
     {
         return $this->transaction(function () use ($dudi): bool {
+            if ($dudi->penempatan()->withTrashed()->exists()) {
+                throw new \RuntimeException(
+                    "DUDI \"{$dudi->nama_perusahaan}\" tidak dapat dihapus permanen karena masih memiliki data Penempatan PKL terkait."
+                );
+            }
+
             $result = $this->dudiRepository->forceDelete($dudi);
 
             // User cascade delete is handled by foreign key (cascadeOnDelete)

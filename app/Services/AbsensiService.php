@@ -687,11 +687,11 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         }
 
         if ($time instanceof CarbonInterface) {
-            return $time->copy()->setTimezone($timezone);
+            return Carbon::parse($time->format('Y-m-d H:i:s.u'), $timezone);
         }
 
         if ($time instanceof \DateTimeInterface) {
-            return Carbon::instance($time)->setTimezone($timezone);
+            return Carbon::parse($time->format('Y-m-d H:i:s.u'), $timezone);
         }
 
         $str = trim((string) $time);

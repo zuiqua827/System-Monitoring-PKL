@@ -207,7 +207,11 @@ $adminSections = [
                 <p class="truncate text-[11px] text-slate-500">{{ $roleName }}</p>
             </div>
         </div>
-        <form method="POST" action="{{ route('logout') }}">
+        <form method="POST" action="{{ route('logout') }}"
+              data-confirm="Apakah Anda yakin ingin keluar dari akun ini?"
+              data-confirm-title="Konfirmasi Logout"
+              data-confirm-type="warning"
+              data-confirm-btn="Ya, Logout">
             @csrf
             <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700/80 px-3 py-2.5 text-[13px] font-semibold text-slate-300 transition-colors duration-150 hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-300">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

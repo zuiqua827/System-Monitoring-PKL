@@ -146,7 +146,17 @@ class DudiController extends Controller
 
         $this->authorize('forceDelete', $dudi);
 
-        $this->dudiService->forceDelete($dudi);
+        try {
+            $this->dudiService->forceDelete($dudi);
+        } catch (\RuntimeException $e) {
+            return redirect()
+                ->route('admin.dudi.index')
+                ->with('error', $e->getMessage());
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()
+                ->route('admin.dudi.index')
+                ->with('error', 'Gagal menghapus permanen DUDI karena masih terdapat data terkait (seperti Penempatan PKL).');
+        }
 
         return redirect()
             ->route('admin.dudi.index')

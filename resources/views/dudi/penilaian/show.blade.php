@@ -26,7 +26,11 @@
                         </svg>
                         Edit Penilaian
                     </a>
-                    <form action="{{ route('dudi.penilaian.finalize', $penilaian->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin memfinalisasi penilaian ini? Setelah difinalisasi, penilaian tidak dapat diubah lagi.');" class="inline-block">
+                    <form action="{{ route('dudi.penilaian.finalize', $penilaian->id) }}" method="POST" class="inline-block"
+                          data-confirm="Apakah Anda yakin ingin memfinalisasi penilaian ini? Setelah difinalisasi, penilaian tidak dapat diubah lagi."
+                          data-confirm-title="Finalisasi Penilaian"
+                          data-confirm-type="warning"
+                          data-confirm-btn="Ya, Finalisasi">
                         @csrf
                         <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

@@ -112,4 +112,35 @@ class Absensi extends Model
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
+
+    /**
+     * Get separated check-in and check-out status details.
+     *
+     * @param \App\Models\Dudi|null $dudi
+     * @return array{
+     *     check_in: array{time: string|null, status: string, badge_color: string, is_valid: bool},
+     *     check_out: array{time: string|null, status: string, badge_color: string, is_valid: bool}
+     * }
+     */
+    public function getPresensiStatusDetails(?\App\Models\Dudi $dudi = null): array
+    {
+        return app(\App\Services\Interfaces\AbsensiServiceInterface::class)->getPresensiStatusDetails($this, $dudi);
+    }
+
+    /**
+     * Get check-in status label ('Tepat Waktu', 'Terlambat', 'Sangat Terlambat', or 'Belum Check In').
+     */
+    public function getCheckInStatus(?\App\Models\Dudi $dudi = null): string
+    {
+        return $this->getPresensiStatusDetails($dudi)['check_in']['status'];
+    }
+
+    /**
+     * Get check-out status label ('Tepat Waktu', 'Pulang Sebelum Waktu', or 'Belum Check Out').
+     */
+    public function getCheckOutStatus(?\App\Models\Dudi $dudi = null): string
+    {
+        return $this->getPresensiStatusDetails($dudi)['check_out']['status'];
+    }
 }
+

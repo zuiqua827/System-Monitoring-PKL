@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validation rules for creating a new Penilaian.
@@ -28,7 +29,12 @@ class StorePenilaianRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id', 'unique:penilaian,penempatan_pkl_id'],
+            'penempatan_pkl_id' => [
+                'required', 
+                'integer', 
+                'exists:penempatan_pkl,id', 
+                Rule::unique('penilaian', 'penempatan_pkl_id')->withoutTrashed(),
+            ],
             'nilai_kehadiran' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'nilai_kerjasama' => ['required', 'numeric', 'min:0', 'max:100'],
             'nilai_komunikasi' => ['required', 'numeric', 'min:0', 'max:100'],

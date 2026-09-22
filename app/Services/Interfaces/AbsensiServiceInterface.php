@@ -126,4 +126,17 @@ interface AbsensiServiceInterface
      * @return array<string, int|float>
      */
     public function getRekapAbsensiData(int $penempatanPklId): array;
+
+    /**
+     * Get separated check-in and check-out status details for an attendance record.
+     *
+     * @param Absensi|null $absensi
+     * @param \App\Models\Dudi|null $dudi
+     * @return array{
+     *     check_in: array{time: string|null, status: string, badge_color: string, is_valid: bool},
+     *     check_out: array{time: string|null, status: string, badge_color: string, is_valid: bool}
+     * }
+     */
+    public function getPresensiStatusDetails(?Absensi $absensi, ?\App\Models\Dudi $dudi = null): array;
 }
+

@@ -155,7 +155,11 @@
                         </a>
                     @endcan
                     @can('delete', $dudi)
-                        <form method="POST" action="{{ route('admin.dudi.destroy', $dudi->id) }}" onsubmit="return confirm('Hapus DUDI {{ $dudi->nama_perusahaan }}?')">
+                        <form method="POST" action="{{ route('admin.dudi.destroy', $dudi->id) }}"
+                              data-confirm="Hapus DUDI {{ $dudi->nama_perusahaan }}? Data akan dipindahkan ke tempat sampah."
+                              data-confirm-title="Hapus DUDI"
+                              data-confirm-type="danger"
+                              data-confirm-btn="Ya, Hapus">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-700">
@@ -168,7 +172,11 @@
                     @endcan
                 @else
                     @can('restore', $dudi)
-                        <form method="POST" action="{{ route('admin.dudi.restore', $dudi->id) }}" onsubmit="return confirm('Pulihkan DUDI {{ $dudi->nama_perusahaan }}?')">
+                        <form method="POST" action="{{ route('admin.dudi.restore', $dudi->id) }}"
+                              data-confirm="Pulihkan DUDI {{ $dudi->nama_perusahaan }}?"
+                              data-confirm-title="Pulihkan DUDI"
+                              data-confirm-type="success"
+                              data-confirm-btn="Pulihkan">
                             @csrf
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-emerald-700">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -179,7 +187,11 @@
                         </form>
                     @endcan
                     @can('forceDelete', $dudi)
-                        <form method="POST" action="{{ route('admin.dudi.force-delete', $dudi->id) }}" onsubmit="return confirm('Hapus permanen {{ $dudi->nama_perusahaan }}? Tindakan ini tidak dapat dibatalkan!')">
+                        <form method="POST" action="{{ route('admin.dudi.force-delete', $dudi->id) }}"
+                              data-confirm="Hapus permanen {{ $dudi->nama_perusahaan }}? Tindakan ini tidak dapat dibatalkan!"
+                              data-confirm-title="Hapus Permanen DUDI"
+                              data-confirm-type="danger"
+                              data-confirm-btn="Ya, Hapus Permanen">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-800 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-900">

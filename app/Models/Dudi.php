@@ -175,8 +175,24 @@ class Dudi extends Model
         if ($val instanceof \DateTimeInterface) {
             return $val->format('H:i:s');
         }
-        return $val ? (string) $val : '09:00:00';
+        if ($val) {
+            return (string) $val;
+        }
+
+        if ($this->jam_masuk) {
+            $jamMasukStr = $this->jam_masuk instanceof \DateTimeInterface
+                ? $this->jam_masuk->format('H:i:s')
+                : (string) $this->jam_masuk;
+            try {
+                return Carbon::parse($jamMasukStr)->addMinutes(60)->format('H:i:s');
+            } catch (\Throwable) {
+                // Fallback below
+            }
+        }
+
+        return '09:00:00';
     }
+
 
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo

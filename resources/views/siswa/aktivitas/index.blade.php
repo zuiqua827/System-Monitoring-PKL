@@ -13,13 +13,6 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
 
         {{-- Status Penempatan Aktif --}}
         @if ($penempatanAktif)
@@ -127,13 +120,21 @@
                                         @if($aktivitas->status === 'draft')
                                             <a href="{{ route('siswa.aktivitas.edit', $aktivitas->id) }}" class="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">Edit</a>
 
-                                            <form method="POST" action="{{ route('siswa.aktivitas.destroy', $aktivitas->id) }}" class="inline" onsubmit="return confirm('Hapus aktivitas ini?')">
+                                            <form method="POST" action="{{ route('siswa.aktivitas.destroy', $aktivitas->id) }}" class="inline"
+                                                  data-confirm="Hapus aktivitas ini? Tindakan ini tidak dapat dibatalkan."
+                                                  data-confirm-title="Hapus Aktivitas"
+                                                  data-confirm-type="danger"
+                                                  data-confirm-btn="Ya, Hapus">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="inline-flex items-center rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus</button>
                                             </form>
 
-                                            <form method="POST" action="{{ route('siswa.aktivitas.submit', $aktivitas->id) }}" class="inline" onsubmit="return confirm('Kirim aktivitas untuk divalidasi?')">
+                                            <form method="POST" action="{{ route('siswa.aktivitas.submit', $aktivitas->id) }}" class="inline"
+                                                  data-confirm="Kirim aktivitas ini untuk divalidasi oleh pembimbing PKL?"
+                                                  data-confirm-title="Kirim Aktivitas"
+                                                  data-confirm-type="info"
+                                                  data-confirm-btn="Ya, Kirim">
                                                 @csrf
                                                 <button type="submit" class="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Kirim</button>
                                             </form>

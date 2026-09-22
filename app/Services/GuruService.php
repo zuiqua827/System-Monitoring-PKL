@@ -70,6 +70,36 @@ class GuruService extends Service implements GuruServiceInterface
     {
         /** @var Guru $guru */
         $guru = $this->transaction(function () use ($data): Model {
+            /** @var Guru|null $existing */
+            $existing = Guru::withTrashed()
+                ->where('nip', $data['nip'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existingUser = $existing->user()->withTrashed()->first();
+                if ($existingUser) {
+                    if ($existingUser->trashed()) {
+                        $existingUser->restore();
+                    }
+                    $existingUser->update([
+                        'name' => $data['nama'],
+                        'email' => $data['email'],
+                        'password' => bcrypt($data['nip']),
+                    ]);
+                }
+                $existing->update([
+                    'nama' => $data['nama'],
+                    'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
+                    'no_hp' => $data['no_hp'] ?? null,
+                    'alamat' => $data['alamat'] ?? null,
+                ]);
+
+                return $existing;
+            }
+
             // 1. Create User account with NIP as initial password
             /** @var \App\Models\User $user */
             $user = $this->userRepository->create([

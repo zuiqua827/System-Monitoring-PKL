@@ -81,8 +81,14 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     /** @var array<int, Kelas>|null id → Kelas hashmap */
     private ?array $kelasById = null;
 
+    /** @var array<string, Kelas>|null normalized name → Kelas hashmap */
+    private ?array $kelasByNormalizedName = null;
+
     /** @var array<int, int>|null SiPintu classroom_id → local kelas_id */
     private ?array $kelasIdBySipintuClassroomId = null;
+
+    /** @var bool Whether current execution is a dry-run preview */
+    private bool $isDryRun = false;
 
     /**
      * Preload all reference data into O(1) lookup hashmaps.
@@ -149,8 +155,10 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         // Load all kelas and build normalized name → Kelas hashmap
         $localKelas = Kelas::query()->get();
         $this->kelasById = [];
+        $this->kelasByNormalizedName = [];
         foreach ($localKelas as $kelas) {
             $this->kelasById[$kelas->id] = $kelas;
+            $this->kelasByNormalizedName[$this->normalizeKelasName($kelas->nama)] = $kelas;
         }
 
         $this->kelasIdBySipintuClassroomId = SipintuClassroomMapping::query()
@@ -287,6 +295,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     private function processStudentRecords(array $students, array $context): array
     {
         $dryRun = $context['dry_run'];
+        $this->isDryRun = $dryRun;
         $stats = $context['stats'];
         $seenNis = [];
         $remoteNisSet = [];
@@ -698,6 +707,11 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 'alamat' => $remote['alamat'] ?? null,
             ]);
 
+            if ($this->isNonaktif($remote)) {
+                $siswa->delete();
+                $user->delete();
+            }
+
             return $siswa;
         });
 
@@ -719,10 +733,6 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $email = Siswa::generateEmail($nis);
 
         $this->transaction(function () use ($siswa, $remote, $nama, $nis, $tanggalLahir, $email, $kelas): void {
-            if ($siswa->trashed()) {
-                $siswa->restore();
-            }
-
             $user = null;
             if ($this->usersById !== null && $siswa->user_id !== null) {
                 $user = $this->usersById[$siswa->user_id] ?? null;
@@ -782,6 +792,23 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             ]);
             if ($siswa->isDirty()) {
                 $siswa->save();
+            }
+
+            $isNonaktif = $this->isNonaktif($remote);
+            if ($isNonaktif) {
+                if (! $siswa->trashed()) {
+                    $siswa->delete();
+                }
+                if (! $user->trashed()) {
+                    $user->delete();
+                }
+            } else {
+                if ($siswa->trashed()) {
+                    $siswa->restore();
+                }
+                if ($user->trashed()) {
+                    $user->restore();
+                }
             }
         });
     }
@@ -1014,7 +1041,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             && ($siswa->tanggal_lahir ? $siswa->tanggal_lahir->format('Y-m-d') : '') === $expectedTgl
             && (string) ($siswa->no_telepon ?? '') === $expectedPhone
             && (string) ($siswa->alamat ?? '') === $expectedAlamat
-            && $siswa->class_id === $expectedClass;
+            && $siswa->class_id === $expectedClass
+            && $siswa->trashed() === $this->isNonaktif($remote);
     }
 
     /**
@@ -1095,9 +1123,11 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     /**
      * Resolve the local kelas for a SiPintu student record.
      *
-     * Uses ONLY the Admin-configured classroom mapping. There is NO fallback
-     * to the first kelas (safety requirement). Returns null when the mapping
-     * is missing so the caller can flag the student as "Perlu Pemetaan".
+     * Priority:
+     *  1. Admin-configured mapping in sipintu_classroom_mappings (by classroom_id).
+     *  2. Matching classroom name from remote student to local kelas.nama (case-insensitive).
+     *     When found during live sync, the mapping is automatically saved for future use.
+     *  3. Returns null if unmapped so caller can classify student appropriately.
      *
      * @param  array<string, mixed>  $remote
      */
@@ -1105,43 +1135,135 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $classroomId = $this->classroomId($remote);
 
-        if ($classroomId <= 0) {
-            return null;
+        // 1. Check explicit manual mapping in sipintu_classroom_mappings (highest priority)
+        if ($classroomId > 0) {
+            $kelasId = $this->kelasIdBySipintuClassroomId !== null
+                ? $this->kelasIdBySipintuClassroomId[$classroomId] ?? null
+                : $this->classroomMappingService->resolveKelasId($classroomId);
+
+            if ($kelasId !== null) {
+                if ($this->kelasById !== null) {
+                    return $this->kelasById[$kelasId] ?? null;
+                }
+
+                return Kelas::query()->find($kelasId);
+            }
         }
 
-        $kelasId = $this->kelasIdBySipintuClassroomId !== null
-            ? $this->kelasIdBySipintuClassroomId[$classroomId] ?? null
-            : $this->classroomMappingService->resolveKelasId($classroomId);
-
-        if ($kelasId === null) {
-            return null;
+        // 2. Check classroom name from remote object/field and match against local Kelas by name
+        $classroomName = null;
+        if (is_array($remote['classroom'] ?? null) && ! empty($remote['classroom']['name'])) {
+            $classroomName = (string) $remote['classroom']['name'];
+        } elseif (! empty($remote['classroom_name']) && is_string($remote['classroom_name'])) {
+            $classroomName = $remote['classroom_name'];
+        } elseif (! empty($remote['kelas']) && is_string($remote['kelas'])) {
+            $classroomName = $remote['kelas'];
         }
 
-        if ($this->kelasById !== null) {
-            return $this->kelasById[$kelasId] ?? null;
+        if ($classroomName !== null) {
+            $norm = $this->normalizeKelasName($classroomName);
+            $matchedKelas = null;
+
+            if ($this->kelasByNormalizedName !== null) {
+                $matchedKelas = $this->kelasByNormalizedName[$norm] ?? null;
+            } else {
+                $matchedKelas = Kelas::query()
+                    ->whereRaw('UPPER(TRIM(nama)) = ?', [$norm])
+                    ->first();
+            }
+
+            if ($matchedKelas !== null) {
+                // Persist the mapping during live sync if classroomId is known and not yet mapped
+                if (! $this->isDryRun && $classroomId > 0 && ($this->kelasIdBySipintuClassroomId[$classroomId] ?? null) === null) {
+                    try {
+                        $this->classroomMappingService->saveMapping($classroomId, $matchedKelas->id, null);
+                        if ($this->kelasIdBySipintuClassroomId !== null) {
+                            $this->kelasIdBySipintuClassroomId[$classroomId] = $matchedKelas->id;
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Gagal menyimpan pemetaan kelas otomatis', [
+                            'classroom_id' => $classroomId,
+                            'kelas_id' => $matchedKelas->id,
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                return $matchedKelas;
+            }
         }
 
-        /** @var Kelas|null $kelas */
-        $kelas = Kelas::query()->find($kelasId);
-
-        return $kelas;
+        return null;
     }
 
     /**
+     * Determine the numeric SiPintu classroom ID for a student.
+     * Graduated/alumni students without an active classroom assignment return 0.
+     *
      * @param  array<string, mixed>  $remote
      */
     private function classroomId(array $remote): int
     {
-        $value = $remote['classroom_id']
-            ?? $remote['class_id']
-            ?? $remote['kelas_id']
-            ?? (is_array($remote['classroom'] ?? null) ? ($remote['classroom']['id'] ?? null) : null);
+        $rawClassroomId = $remote['classroom_id'] ?? $remote['class_id'] ?? $remote['kelas_id'] ?? null;
+        if (is_int($rawClassroomId) || (is_string($rawClassroomId) && ctype_digit($rawClassroomId))) {
+            $id = (int) $rawClassroomId;
+            if ($id > 0) {
+                return $id;
+            }
+        }
 
-        if (! is_int($value) && ! (is_string($value) && ctype_digit($value))) {
+        // Graduated / alumni students without active classroom_id do not have mandatory classroom requirement
+        if ($this->isAlumni($remote)) {
             return 0;
         }
 
-        return max(0, (int) $value);
+        // Fallback to classroom object id for active students
+        $objId = is_array($remote['classroom'] ?? null) ? ($remote['classroom']['id'] ?? null) : null;
+        if (is_int($objId) || (is_string($objId) && ctype_digit($objId))) {
+            return max(0, (int) $objId);
+        }
+
+        return 0;
+    }
+
+    private function normalizeKelasName(string $name): string
+    {
+        return strtoupper(trim((string) preg_replace('/\s+/', ' ', $name)));
+    }
+
+    private function isAlumni(array $remote): bool
+    {
+        if (($remote['graduated'] ?? false) === true) {
+            return true;
+        }
+
+        $status = $remote['status'] ?? null;
+        if ($status === 2 || $status === '2' || strtolower((string) $status) === 'alumni' || strtolower((string) $status) === 'lulus') {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isNonaktif(array $remote): bool
+    {
+        if (! empty($remote['deleted_at'])) {
+            return true;
+        }
+
+        $status = $remote['status'] ?? null;
+        if ($status === 0 || $status === '0') {
+            return true;
+        }
+
+        if (is_string($status)) {
+            $statusLower = strtolower(trim($status));
+            if (in_array($statusLower, ['nonaktif', 'inactive', 'pindah', 'keluar', 'dikeluarkan', 'drop out', 'do'], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

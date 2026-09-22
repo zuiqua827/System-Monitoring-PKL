@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('whatsapp_logs', function (Blueprint $table) {
             $table->id();
-            $table->string('idempotency_key', 64)->nullable()->unique()->after('id');
+            $table->string('idempotency_key', 64)->nullable()->unique();
             $table->foreignId('penempatan_pkl_id')->nullable()->constrained('penempatan_pkl')->nullOnDelete();
             $table->foreignId('siswa_id')->nullable()->constrained('siswa')->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();

@@ -92,7 +92,6 @@ class SiPintuRepository implements SiPintuRepositoryInterface
      */
     public function fetchStudents(?string $nis = null, ?string $search = null): array
     {
-        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
         $query = [];
 
         if ($nis !== null && $nis !== '') {
@@ -103,48 +102,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        try {
-            $client = $this->httpClient();
-            $response = $client->get($baseUrl.'/api/v1/sijuna/students', $query);
-        } catch (\RuntimeException $e) {
-            throw SiPintuApiException::invalidCredentials($this->sanitizeMessage($e->getMessage()));
-        } catch (ConnectionException $e) {
-            $rawMsg = $e->getMessage();
-            $sanitizedMsg = (string) $this->sanitizeMessage($rawMsg);
-            $messageLower = strtolower($rawMsg);
-            $isTimeout = str_contains($messageLower, 'timed out') || str_contains($messageLower, 'timeout');
-            $bytesInfo = '';
-            if (preg_match('/with\s+(\d+)\s+bytes\s+received/i', $rawMsg, $matches)) {
-                $bytesInfo = ' (' . number_format((int) $matches[1]) . ' bytes telah diterima sebelum timeout)';
-            }
-
-            Log::error('SiPintu API connection error (students)', [
-                'url' => $baseUrl.'/api/v1/sijuna/students',
-                'exception' => get_class($e),
-                'message' => $sanitizedMsg,
-            ]);
-
-            if ($isTimeout) {
-                $timeoutDetail = ($matches[1] ?? null) === '0' || ! isset($matches[1])
-                    ? 'Request ke server SiPintu melebihi batas waktu dan belum menerima response (0 bytes diterima).'
-                    : "Pengambilan data siswa dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
-
-                throw SiPintuApiException::apiError(
-                    "{$timeoutDetail} Data lokal tetap aman."
-                );
-            }
-
-            throw SiPintuApiException::connectionError();
-        } catch (\Throwable $e) {
-            Log::error('SiPintu API unexpected exception (students)', [
-                'url' => $baseUrl.'/api/v1/sijuna/students',
-                'exception' => get_class($e),
-                'message' => $this->sanitizeMessage($e->getMessage()),
-            ]);
-            throw SiPintuApiException::timeout();
-        }
-
-        return $this->parseResponse($response);
+        return $this->fetchFromEndpoint('/api/v1/sijuna/students', $query, 'students');
     }
 
     /**
@@ -152,7 +110,6 @@ class SiPintuRepository implements SiPintuRepositoryInterface
      */
     public function fetchTeachers(?string $nip = null, ?string $search = null): array
     {
-        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
         $query = [];
 
         if ($nip !== null && $nip !== '') {
@@ -163,9 +120,57 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
+        return $this->fetchFromEndpoint('/api/v1/sijuna/teachers', $query, 'teachers');
+    }
+
+    /**
+     * Fetch all records from an endpoint, handling multi-page pagination if present.
+     *
+     * @param  array<string, mixed>  $query
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchFromEndpoint(string $endpoint, array $query, string $logLabel): array
+    {
+        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
+        $url = $baseUrl.$endpoint;
+
+        $response = $this->executeGetRequest($url, $query, $logLabel);
+        $firstPageData = $this->parseResponse($response);
+
+        // Check if the response indicates pagination (e.g. last_page > 1 or links.next)
+        $body = $response->json();
+        $lastPage = 1;
+        if (is_array($body)) {
+            $lastPage = (int) ($body['meta']['last_page'] ?? $body['last_page'] ?? 1);
+        }
+
+        if ($lastPage <= 1) {
+            return $firstPageData;
+        }
+
+        $allData = $firstPageData;
+        for ($page = 2; $page <= $lastPage; $page++) {
+            $pageQuery = array_merge($query, ['page' => $page]);
+            $pageResponse = $this->executeGetRequest($url, $pageQuery, "{$logLabel} (halaman {$page})");
+            $pageData = $this->parseResponse($pageResponse);
+            foreach ($pageData as $record) {
+                $allData[] = $record;
+            }
+        }
+
+        return $allData;
+    }
+
+    /**
+     * Execute a GET request to the SiPintu API with standardized error handling.
+     *
+     * @param  array<string, mixed>  $query
+     */
+    private function executeGetRequest(string $url, array $query, string $logLabel): Response
+    {
         try {
             $client = $this->httpClient();
-            $response = $client->get($baseUrl.'/api/v1/sijuna/teachers', $query);
+            $response = $client->get($url, $query);
         } catch (\RuntimeException $e) {
             throw SiPintuApiException::invalidCredentials($this->sanitizeMessage($e->getMessage()));
         } catch (ConnectionException $e) {
@@ -178,8 +183,8 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 $bytesInfo = ' (' . number_format((int) $matches[1]) . ' bytes telah diterima sebelum timeout)';
             }
 
-            Log::error('SiPintu API connection error (teachers)', [
-                'url' => $baseUrl.'/api/v1/sijuna/teachers',
+            Log::error("SiPintu API connection error ({$logLabel})", [
+                'url' => $url,
                 'exception' => get_class($e),
                 'message' => $sanitizedMsg,
             ]);
@@ -187,7 +192,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             if ($isTimeout) {
                 $timeoutDetail = ($matches[1] ?? null) === '0' || ! isset($matches[1])
                     ? 'Request ke server SiPintu melebihi batas waktu dan belum menerima response (0 bytes diterima).'
-                    : "Pengambilan data guru dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
+                    : "Pengambilan data {$logLabel} dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
 
                 throw SiPintuApiException::apiError(
                     "{$timeoutDetail} Data lokal tetap aman."
@@ -196,15 +201,15 @@ class SiPintuRepository implements SiPintuRepositoryInterface
 
             throw SiPintuApiException::connectionError();
         } catch (\Throwable $e) {
-            Log::error('SiPintu API unexpected exception (teachers)', [
-                'url' => $baseUrl.'/api/v1/sijuna/teachers',
+            Log::error("SiPintu API unexpected exception ({$logLabel})", [
+                'url' => $url,
                 'exception' => get_class($e),
                 'message' => $this->sanitizeMessage($e->getMessage()),
             ]);
             throw SiPintuApiException::timeout();
         }
 
-        return $this->parseResponse($response);
+        return $response;
     }
 
     /**

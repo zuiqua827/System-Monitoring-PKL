@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\UserRole;
 use App\Models\Dudi;
+use App\Models\User;
 use App\Repositories\Interfaces\DudiRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Services\Interfaces\DudiServiceInterface;
@@ -71,6 +72,39 @@ class DudiService extends Service implements DudiServiceInterface
     {
         /** @var Dudi $dudi */
         $dudi = $this->transaction(function () use ($data): Model {
+            $existingUser = User::withTrashed()->where('email', $data['email'])->first();
+            if ($existingUser !== null) {
+                if ($existingUser->trashed()) {
+                    $existingUser->restore();
+                }
+                $existingUser->update([
+                    'name' => $data['nama_perusahaan'],
+                    'password' => Hash::make($data['password'] ?? 'password'),
+                ]);
+
+                $existingDudi = Dudi::withTrashed()->where('user_id', $existingUser->id)->first();
+                if ($existingDudi !== null) {
+                    if ($existingDudi->trashed()) {
+                        $existingDudi->restore();
+                    }
+                    $existingDudi->update([
+                        'nama_perusahaan' => $data['nama_perusahaan'],
+                        'penanggung_jawab' => $data['penanggung_jawab'],
+                        'email_perusahaan' => $data['email_perusahaan'] ?? $data['email'] ?? null,
+                        'no_telepon' => $data['no_telepon'],
+                        'alamat' => $data['alamat'],
+                        'kecamatan' => $data['kecamatan'] ?? null,
+                        'kabupaten' => $data['kabupaten'] ?? null,
+                        'provinsi' => $data['provinsi'] ?? null,
+                        'latitude' => $data['latitude'] ?? null,
+                        'longitude' => $data['longitude'] ?? null,
+                        'status_aktif' => $data['status_aktif'] ?? true,
+                    ]);
+
+                    return $existingDudi;
+                }
+            }
+
             // 1. Create User account with default password "password"
             /** @var \App\Models\User $user */
             $user = $this->userRepository->create([

@@ -92,6 +92,38 @@ class SiswaService extends Service implements SiswaServiceInterface
     {
         /** @var Siswa $siswa */
         $siswa = $this->transaction(function () use ($data): Model {
+            /** @var Siswa|null $existing */
+            $existing = Siswa::withTrashed()
+                ->where('nis', $data['nis'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existingUser = $existing->user()->withTrashed()->first();
+                if ($existingUser) {
+                    if ($existingUser->trashed()) {
+                        $existingUser->restore();
+                    }
+                    $existingUser->update([
+                        'name' => $data['nama'],
+                        'password' => bcrypt($data['tanggal_lahir']),
+                    ]);
+                }
+                $existing->update([
+                    'class_id' => $data['class_id'],
+                    'nisn' => $data['nisn'] ?? null,
+                    'nama' => $data['nama'],
+                    'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
+                    'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
+                    'no_telepon' => $data['no_telepon'] ?? null,
+                    'alamat' => $data['alamat'] ?? null,
+                ]);
+
+                return $existing;
+            }
+
             // 1. Create User account
             // Initial password = tanggal_lahir (hashed). Student is forced
             // to change it on first login (must_change_password = true).

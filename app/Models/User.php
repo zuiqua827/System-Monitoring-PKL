@@ -51,9 +51,14 @@ class User extends Authenticatable implements PasskeyUser
     use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
+     * @var string
+     */
+    protected string $guard_name = 'web';
+
+    /**
      * @var list<string>
      */
-protected $fillable = [
+    protected $fillable = [
         'role_id',
         'name',
         'email',

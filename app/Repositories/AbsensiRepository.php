@@ -32,7 +32,7 @@ class AbsensiRepository extends EloquentRepository implements AbsensiRepositoryI
         string $sortDirection = 'desc',
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = $this->newQuery()
+        $query = $this->newQuery()->withTrashed()
             ->with([
                 'penempatanPKL',
                 'penempatanPKL.siswa',

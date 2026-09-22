@@ -37,7 +37,7 @@ class UpdateDudiRequest extends FormRequest
         $userId = $dudi instanceof \App\Models\Dudi ? $dudi->user_id : null;
 
         return [
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)->withoutTrashed()],
             'nama_perusahaan' => ['required', 'string', 'max:255'],
             'penanggung_jawab' => ['required', 'string', 'max:255'],
             'no_telepon' => ['required', 'string', 'max:20'],

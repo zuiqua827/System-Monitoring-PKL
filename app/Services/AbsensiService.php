@@ -489,36 +489,227 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         return $earthRadius * $c;
     }
 
-    private function determineCheckInStatus(CarbonInterface $waktuPresensi, mixed $jamMasukDudi, string $batasTerlambatStr, string $batasSangatTerlambatStr): array
-    {
+    /**
+     * Determine check-in status (hadir/terlambat) and keterangan ('Sangat Terlambat' or null).
+     *
+     * Rules:
+     * - waktuPresensi <= jamMasuk -> Hadir (Tepat Waktu)
+     * - waktuPresensi >= batasSangatTerlambat -> Terlambat (Sangat Terlambat)
+     * - jamMasuk < waktuPresensi < batasSangatTerlambat -> Terlambat (Terlambat)
+     */
+    public function determineCheckInStatus(
+        CarbonInterface $waktuPresensi,
+        mixed $jamMasukDudi,
+        ?string $batasTerlambatStr = null,
+        ?string $batasSangatTerlambatStr = null
+    ): array {
         $timezone = config('app.timezone');
         $jamMasuk = $jamMasukDudi instanceof \DateTimeInterface
             ? $jamMasukDudi->format('H:i:s')
             : Carbon::parse((string) $jamMasukDudi, $timezone)->format('H:i:s');
 
-        // On time is <= batas terlambat
-        $batasTerlambat = Carbon::createFromFormat(
+        $jamMasukCarbon = Carbon::createFromFormat(
             'Y-m-d H:i:s',
-            $waktuPresensi->toDateString() . ' ' . $batasTerlambatStr,
+            $waktuPresensi->toDateString() . ' ' . $jamMasuk,
             $timezone,
         );
-        
-        $batasSangatTerlambat = Carbon::createFromFormat(
+
+        $batasSangatTerlambatStr = $batasSangatTerlambatStr ?: '09:00:00';
+        $batasSangatTerlambatCarbon = Carbon::createFromFormat(
             'Y-m-d H:i:s',
             $waktuPresensi->toDateString() . ' ' . $batasSangatTerlambatStr,
             $timezone,
         );
 
-        if ($waktuPresensi->lte($batasTerlambat)) {
+        // Safeguard if batas_sangat_terlambat is set earlier than or equal to jam_masuk
+        if ($batasSangatTerlambatCarbon->lte($jamMasukCarbon)) {
+            $batasSangatTerlambatCarbon = $jamMasukCarbon->copy()->addMinutes(60);
+        }
+
+        // 1. Tepat Waktu: jika check_in_time <= jam_masuk
+        if ($waktuPresensi->lte($jamMasukCarbon)) {
             return [AbsensiStatus::HADIR->value, null];
         }
 
-        if ($waktuPresensi->lte($batasSangatTerlambat)) {
-            return [AbsensiStatus::TERLAMBAT->value, null];
+        // 2. Sangat Terlambat: jika check_in_time >= batas_sangat_terlambat
+        if ($waktuPresensi->gte($batasSangatTerlambatCarbon)) {
+            return [AbsensiStatus::TERLAMBAT->value, self::SANGAT_TERLAMBAT];
         }
 
-        return [AbsensiStatus::TERLAMBAT->value, self::SANGAT_TERLAMBAT];
+        // 3. Terlambat: jika setelah jam masuk dan sebelum batas_sangat_terlambat
+        return [AbsensiStatus::TERLAMBAT->value, null];
     }
+
+    /**
+     * Determine check-out status based on DUDI's scheduled departure time.
+     *
+     * Rules:
+     * - waktuCheckOut === null -> Belum Check Out
+     * - waktuCheckOut >= jamPulang -> Tepat Waktu
+     * - waktuCheckOut < jamPulang -> Pulang Sebelum Waktu
+     *
+     * @return array{status: string, key: string, badge_color: string}
+     */
+    public function determineCheckOutStatus(
+        ?CarbonInterface $waktuCheckOut,
+        mixed $jamPulangDudi,
+        ?string $dateString = null
+    ): array {
+        if ($waktuCheckOut === null) {
+            return [
+                'status' => 'Belum Check Out',
+                'key' => 'belum_checkout',
+                'badge_color' => 'bg-blue-100 text-blue-800',
+            ];
+        }
+
+        $timezone = config('app.timezone');
+        $date = $dateString ?? $waktuCheckOut->toDateString();
+
+        $jamPulang = $jamPulangDudi instanceof \DateTimeInterface
+            ? $jamPulangDudi->format('H:i:s')
+            : Carbon::parse((string) $jamPulangDudi, $timezone)->format('H:i:s');
+
+        $jamPulangCarbon = Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $date . ' ' . $jamPulang,
+            $timezone,
+        );
+
+        // Jika check_out >= jam_pulang -> Tepat Waktu
+        if ($waktuCheckOut->gte($jamPulangCarbon)) {
+            return [
+                'status' => 'Tepat Waktu',
+                'key' => 'tepat_waktu',
+                'badge_color' => 'bg-emerald-100 text-emerald-800',
+            ];
+        }
+
+        // Jika check_out < jam_pulang -> Pulang Sebelum Waktu
+        return [
+            'status' => 'Pulang Sebelum Waktu',
+            'key' => 'pulang_sebelum_waktu',
+            'badge_color' => 'bg-amber-100 text-amber-800',
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPresensiStatusDetails(?Absensi $absensi, ?\App\Models\Dudi $dudi = null): array
+    {
+        $timezone = config('app.timezone');
+        $today = Carbon::today($timezone)->toDateString();
+        $dateString = $absensi?->tanggal
+            ? ($absensi->tanggal instanceof \DateTimeInterface ? $absensi->tanggal->format('Y-m-d') : (string) $absensi->tanggal)
+            : $today;
+
+        // Resolve DUDI if not explicitly passed
+        $dudi = $dudi ?? $absensi?->penempatanPKL?->dudi ?? $absensi?->penempatan?->dudi;
+
+        $jamMasukDudi = $dudi?->jam_masuk ?? '08:00:00';
+        $jamPulangDudi = $dudi?->jam_pulang ?? '16:00:00';
+        $batasSangatTerlambat = $dudi?->getEffectiveBatasSangatTerlambat() ?? '09:00:00';
+        $batasTerlambat = $dudi?->getEffectiveBatasTerlambat() ?? '08:15:00';
+
+        // Check In Details
+        $checkInCarbon = $absensi?->jam_masuk
+            ? $this->parseTimeToCarbon($absensi->jam_masuk, $dateString, $timezone)
+            : null;
+
+        $checkInStatus = 'Belum Check In';
+        $checkInColor = 'bg-amber-100 text-amber-800';
+        $checkInTimeFormatted = $checkInCarbon ? $checkInCarbon->format('H:i') : null;
+
+        if ($checkInCarbon !== null) {
+            // Handle non-attendance enum cases if present (izin/sakit/alpha)
+            if ($absensi?->status === AbsensiStatus::IZIN->value) {
+                $checkInStatus = 'Izin';
+                $checkInColor = 'bg-blue-100 text-blue-800';
+            } elseif ($absensi?->status === AbsensiStatus::SAKIT->value) {
+                $checkInStatus = 'Sakit';
+                $checkInColor = 'bg-orange-100 text-orange-800';
+            } elseif ($absensi?->status === AbsensiStatus::ALPHA->value) {
+                $checkInStatus = 'Tidak Hadir';
+                $checkInColor = 'bg-red-100 text-red-800';
+            } else {
+                [$statusVal, $keteranganVal] = $this->determineCheckInStatus(
+                    $checkInCarbon,
+                    $jamMasukDudi,
+                    $batasTerlambat,
+                    $batasSangatTerlambat,
+                );
+
+                if ($statusVal === AbsensiStatus::HADIR->value) {
+                    $checkInStatus = 'Tepat Waktu';
+                    $checkInColor = 'bg-emerald-100 text-emerald-800';
+                } elseif ($keteranganVal === self::SANGAT_TERLAMBAT || $absensi?->keterangan === self::SANGAT_TERLAMBAT) {
+                    $checkInStatus = 'Sangat Terlambat';
+                    $checkInColor = 'bg-red-100 text-red-800';
+                } else {
+                    $checkInStatus = 'Terlambat';
+                    $checkInColor = 'bg-amber-100 text-amber-800';
+                }
+            }
+        }
+
+        // Check Out Details
+        $checkOutCarbon = $absensi?->jam_keluar
+            ? $this->parseTimeToCarbon($absensi->jam_keluar, $dateString, $timezone)
+            : null;
+
+        $checkOutTimeFormatted = $checkOutCarbon ? $checkOutCarbon->format('H:i') : null;
+        $checkOutResult = $this->determineCheckOutStatus($checkOutCarbon, $jamPulangDudi, $dateString);
+
+        return [
+            'check_in' => [
+                'time' => $checkInTimeFormatted,
+                'status' => $checkInStatus,
+                'badge_color' => $checkInColor,
+                'is_valid' => $checkInCarbon !== null,
+            ],
+            'check_out' => [
+                'time' => $checkOutTimeFormatted,
+                'status' => $checkOutResult['status'],
+                'badge_color' => $checkOutResult['badge_color'],
+                'is_valid' => $checkOutCarbon !== null,
+            ],
+        ];
+    }
+
+    /**
+     * Safely parse mixed time format to a Carbon instance for accurate comparisons.
+     */
+    private function parseTimeToCarbon(mixed $time, string $dateString, string $timezone): ?Carbon
+    {
+        if ($time === null || $time === '') {
+            return null;
+        }
+
+        if ($time instanceof CarbonInterface) {
+            return $time->copy()->setTimezone($timezone);
+        }
+
+        if ($time instanceof \DateTimeInterface) {
+            return Carbon::instance($time)->setTimezone($timezone);
+        }
+
+        $str = trim((string) $time);
+        if (preg_match('/^\d{2}:\d{2}$/', $str)) {
+            $str .= ':00';
+        }
+
+        try {
+            if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $str)) {
+                return Carbon::createFromFormat('Y-m-d H:i:s', $dateString . ' ' . $str, $timezone);
+            }
+
+            return Carbon::parse($str, $timezone);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
 
     /**
      * Store a camera or fallback-upload photo only after attendance validation.

@@ -38,8 +38,8 @@ class UpdateGuruRequest extends FormRequest
         $userId = $guru instanceof \App\Models\Guru ? $guru->user_id : null;
 
         return [
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
-            'nip' => ['required', 'string', 'max:30', Rule::unique('guru', 'nip')->ignore($guruId)],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)->withoutTrashed()],
+            'nip' => ['required', 'string', 'max:30', Rule::unique('guru', 'nip')->ignore($guruId)->withoutTrashed()],
             'nama' => ['required', 'string', 'max:255'],
             'jenis_kelamin' => ['nullable', 'string', 'in:L,P'],
             'no_hp' => ['nullable', 'string', 'max:20'],

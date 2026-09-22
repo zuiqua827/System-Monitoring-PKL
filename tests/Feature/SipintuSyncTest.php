@@ -396,3 +396,16 @@ it('does not create automatic PKL penempatan when students are synchronized', fu
     expect(\App\Models\PenempatanPKL::query()->where('siswa_id', $siswa->id)->count())->toBe(0);
 });
 
+it('renders sipintu sync index page with custom dialogs and toast container', function (): void {
+    Role::findOrCreate(UserRole::SUPER_ADMIN->value);
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::SUPER_ADMIN->value);
+
+    $response = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+
+    $response->assertOk();
+    $response->assertSee('custom-toast-container');
+    $response->assertSee('globalDialogManager');
+});
+
+

@@ -84,8 +84,32 @@ public function getPaginated(
     {
         /** @var PenempatanPKL $penempatanPkl */
         $penempatanPkl = $this->transaction(function () use ($data): Model {
-            // Auto-set dibuat_oleh to current authenticated user
             $data['dibuat_oleh'] = Auth::id();
+
+            /** @var PenempatanPKL|null $existing */
+            $existing = PenempatanPKL::withTrashed()
+                ->where('periode_pkl_id', $data['periode_pkl_id'])
+                ->where('siswa_id', $data['siswa_id'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existing->update([
+                    'guru_id' => $data['guru_id'],
+                    'dudi_id' => $data['dudi_id'],
+                    'dibuat_oleh' => $data['dibuat_oleh'],
+                    'approved_by' => $data['approved_by'] ?? null,
+                    'nomor_surat' => $data['nomor_surat'] ?? null,
+                    'tanggal_mulai' => $data['tanggal_mulai'] ?? null,
+                    'tanggal_selesai' => $data['tanggal_selesai'] ?? null,
+                    'status' => $data['status'] ?? 'pending',
+                    'catatan' => $data['catatan'] ?? null,
+                ]);
+
+                return $existing;
+            }
 
             return $this->penempatanPklRepository->create([
                 'periode_pkl_id' => $data['periode_pkl_id'],

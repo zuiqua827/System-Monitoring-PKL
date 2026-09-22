@@ -18,13 +18,7 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
+
 
         {{-- Header --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -46,50 +40,46 @@
                                 Penempatan: <span class="font-semibold text-slate-700">{{ $penempatanAktif->dudi?->nama_perusahaan ?? '-' }}</span>
                             </p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
                             @if($todayAbsensi === null)
-                                <span class="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-bold text-amber-800">
+                                <div class="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-semibold text-amber-800">
                                     <span class="h-2 w-2 rounded-full bg-amber-500"></span>
-                                    Belum Check In
-                                </span>
-                            @elseif($todayAbsensi->jam_keluar === null)
-                                <div class="text-sm text-slate-500">
-                                    <span class="font-bold text-emerald-600">✓ Check In</span>
-                                    <span class="ml-1 font-medium">{{ $todayAbsensi->jam_masuk }}</span>
+                                    Belum Presensi Hari Ini
                                 </div>
-                                <span class="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-bold text-blue-800">
-                                    <span class="h-2 w-2 rounded-full bg-blue-500"></span>
-                                    Belum Check Out
-                                </span>
                             @else
-                                <div class="text-sm">
-                                    <span class="font-bold text-emerald-600">✓ Check In</span>
-                                    <span class="ml-1 text-slate-600">{{ $todayAbsensi->jam_masuk }}</span>
-                                    <span class="mx-2 text-slate-400">|</span>
-                                    <span class="font-bold text-orange-600">✓ Check Out</span>
-                                    <span class="ml-1 text-slate-600">{{ $todayAbsensi->jam_keluar }}</span>
-                                </div>
-                                @php
-                                    $sEnum = AbsensiStatus::tryFrom($todayAbsensi->status);
-                                    $sColors = [
-                                        'hadir' => 'bg-emerald-100 text-emerald-800',
-                                        'terlambat' => 'bg-amber-100 text-amber-800',
-                                        'izin' => 'bg-blue-100 text-blue-800',
-                                        'sakit' => 'bg-orange-100 text-orange-800',
-                                        'alpha' => 'bg-red-100 text-red-800',
-                                    ];
-                                    $statusLabel = $todayAbsensi->status === 'terlambat' && $todayAbsensi->keterangan === 'Sangat Terlambat'
-                                        ? 'Sangat Terlambat'
-                                        : $sEnum?->label();
-                                    $statusColor = $statusLabel === 'Sangat Terlambat'
-                                        ? 'bg-red-100 text-red-800'
-                                        : ($sColors[$todayAbsensi->status] ?? 'bg-slate-100 text-slate-800');
-                                @endphp
-                                @if($sEnum)
-                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold {{ $statusColor }}">
-                                        {{ $statusLabel }}
+                                {{-- Check In Section --}}
+                                <div class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200/80 shadow-sm">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-emerald-600">✓ Check In</span>
+                                        <span class="text-xs font-semibold text-slate-700 font-mono">
+                                            {{ $statusDetails['check_in']['time'] ?? ($todayAbsensi->jam_masuk ? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_masuk)->format('H:i') : '-') }}
+                                        </span>
+                                    </div>
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold {{ $statusDetails['check_in']['badge_color'] }}">
+                                        {{ $statusDetails['check_in']['status'] }}
                                     </span>
-                                @endif
+                                </div>
+
+                                {{-- Separator --}}
+                                <div class="text-slate-300 font-light select-none text-base">|</div>
+
+                                {{-- Check Out Section --}}
+                                <div class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200/80 shadow-sm">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-orange-600">✓ Check Out</span>
+                                        @if($todayAbsensi->jam_keluar)
+                                            <span class="text-xs font-semibold text-slate-700 font-mono">
+                                                {{ $statusDetails['check_out']['time'] ?? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_keluar)->format('H:i') }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold {{ $statusDetails['check_out']['badge_color'] }}">
+                                        @if(!$todayAbsensi->jam_keluar)
+                                            <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                                        @endif
+                                        {{ $statusDetails['check_out']['status'] }}
+                                    </span>
+                                </div>
                             @endif
                         </div>
                     </div>
@@ -231,9 +221,17 @@
                                     </svg>
                                 </div>
                                 <p class="mt-3 text-sm font-bold text-emerald-800">Presensi Hari Ini Sudah Lengkap</p>
-                                <p class="mt-1 text-xs text-emerald-600">
-                                    Check In: {{ $todayAbsensi->jam_masuk }} | Check Out: {{ $todayAbsensi->jam_keluar }}
-                                </p>
+                                <div class="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs">
+                                    <span class="inline-flex items-center gap-1.5 text-slate-700">
+                                        <strong class="text-emerald-700">✓ Check In:</strong> {{ $statusDetails['check_in']['time'] ?? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_masuk)->format('H:i') }}
+                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $statusDetails['check_in']['badge_color'] }}">{{ $statusDetails['check_in']['status'] }}</span>
+                                    </span>
+                                    <span class="text-slate-300">|</span>
+                                    <span class="inline-flex items-center gap-1.5 text-slate-700">
+                                        <strong class="text-orange-700">✓ Check Out:</strong> {{ $statusDetails['check_out']['time'] ?? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_keluar)->format('H:i') }}
+                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $statusDetails['check_out']['badge_color'] }}">{{ $statusDetails['check_out']['status'] }}</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     @endif

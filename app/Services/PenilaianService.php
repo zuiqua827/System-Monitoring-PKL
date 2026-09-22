@@ -124,7 +124,7 @@ class PenilaianService extends Service implements PenilaianServiceInterface
 
             $predikat = $this->calculatePredikat($nilaiAkhir);
 
-            return $this->penilaianRepository->create([
+            $payload = [
                 'penempatan_pkl_id' => $penempatanId,
                 'dinilai_oleh' => Auth::id(),
                 'nilai_kehadiran' => $nilaiKehadiran,
@@ -139,7 +139,23 @@ class PenilaianService extends Service implements PenilaianServiceInterface
                 'tanggal_penilaian' => $data['tanggal_penilaian'] ?? now()->toDateString(),
                 'catatan' => $data['catatan'] ?? null,
                 'catatan_guru' => $data['catatan_guru'] ?? null,
-            ]);
+            ];
+
+            /** @var Penilaian|null $existing */
+            $existing = Penilaian::withTrashed()
+                ->where('penempatan_pkl_id', $penempatanId)
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existing->update($payload);
+
+                return $existing;
+            }
+
+            return $this->penilaianRepository->create($payload);
         });
 
         return $penilaian;

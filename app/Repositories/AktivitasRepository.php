@@ -33,7 +33,7 @@ class AktivitasRepository extends EloquentRepository implements AktivitasReposit
         string $sortDirection = 'desc',
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = $this->newQuery()
+        $query = $this->newQuery()->withTrashed()
             ->with([
                 'penempatanPKL',
                 'penempatanPKL.siswa',

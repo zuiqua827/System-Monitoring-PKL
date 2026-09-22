@@ -229,7 +229,11 @@
                         <p class="truncate text-xs text-slate-500">{{ $roleName }}</p>
                     </div>
                 </div>
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('logout') }}"
+                      data-confirm="Apakah Anda yakin ingin keluar dari akun ini?"
+                      data-confirm-title="Konfirmasi Logout"
+                      data-confirm-type="warning"
+                      data-confirm-btn="Ya, Logout">
                     @csrf
                     <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -291,7 +295,11 @@
                                 </svg>
                                 Pengaturan Akun
                             </a>
-                            <form method="POST" action="{{ route('logout') }}">
+                            <form method="POST" action="{{ route('logout') }}"
+                                  data-confirm="Apakah Anda yakin ingin keluar dari akun ini?"
+                                  data-confirm-title="Konfirmasi Logout"
+                                  data-confirm-type="warning"
+                                  data-confirm-btn="Ya, Logout">
                                 @csrf
                                 <button type="submit" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">

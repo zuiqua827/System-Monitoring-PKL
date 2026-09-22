@@ -56,7 +56,26 @@ class JurusanService extends Service implements JurusanServiceInterface
     public function store(array $data): Jurusan
     {
         /** @var Jurusan $jurusan */
-        $jurusan = $this->transaction(fn (): Model => $this->jurusanRepository->create($data));
+        $jurusan = $this->transaction(function () use ($data): Model {
+            /** @var Jurusan|null $existing */
+            $existing = Jurusan::withTrashed()
+                ->where(function ($q) use ($data): void {
+                    $q->where('kode', $data['kode'])
+                      ->orWhere('nama', $data['nama']);
+                })
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existing->update($data);
+
+                return $existing;
+            }
+
+            return $this->jurusanRepository->create($data);
+        });
 
         return $jurusan;
     }

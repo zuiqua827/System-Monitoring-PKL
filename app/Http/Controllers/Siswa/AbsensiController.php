@@ -68,14 +68,12 @@ class AbsensiController extends Controller
                 'nis' => $siswa->nis,
             ];
         }
-
-        // Determine check-in/out status
+        // Determine check-in/out status
         $sudahCheckIn = $todayAbsensi !== null && $todayAbsensi->jam_masuk !== null;
         $sudahCheckOut = $todayAbsensi !== null && $todayAbsensi->jam_keluar !== null;
 
         // Get paginated absensi history
         $absensis = $this->absensiService->getSiswaAbsensiPaginated($siswa->id, [
-            'sort_by' => $request->query('sort', 'tanggal'),
             'sort_by' => $request->query('sort', 'tanggal'),
             'sort_direction' => $request->query('direction', 'desc'),
             'per_page' => (int) $request->query('per_page', '15'),
@@ -86,6 +84,12 @@ class AbsensiController extends Controller
             $rekapPresensi = $this->absensiService->getRekapPresensi($penempatanAktif->id);
         }
 
+        // Separate check-in and check-out status details
+        $statusDetails = $this->absensiService->getPresensiStatusDetails(
+            $todayAbsensi,
+            $penempatanAktif?->dudi
+        );
+
         return view('siswa.absensi.index', compact(
             'absensis',
             'penempatanAktif',
@@ -94,7 +98,8 @@ class AbsensiController extends Controller
             'watermarkData',
             'sudahCheckIn',
             'sudahCheckOut',
-            'rekapPresensi'
+            'rekapPresensi',
+            'statusDetails'
         ));
     }
 
@@ -114,6 +119,7 @@ class AbsensiController extends Controller
                 ->back()
                 ->with('error', 'Data siswa tidak ditemukan.');
         }
+
 
         // Find active penempatan
         $penempatanAktif = PenempatanPKL::where('siswa_id', $siswa->id)

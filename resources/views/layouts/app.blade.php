@@ -71,6 +71,7 @@
                 </main>
             </div>
         </div>
+        <x-custom-dialogs />
         @stack('scripts')
     </body>
 </html>

@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validation rules for creating a new Siswa.
@@ -31,8 +32,8 @@ class StoreSiswaRequest extends FormRequest
     {
         return [
             'class_id' => ['required', 'integer', 'exists:kelas,id'],
-            'nis' => ['required', 'string', 'max:30', 'unique:siswa,nis'],
-            'nisn' => ['nullable', 'string', 'max:30', 'unique:siswa,nisn'],
+            'nis' => ['required', 'string', 'max:30', Rule::unique('siswa', 'nis')->withoutTrashed()],
+            'nisn' => ['nullable', 'string', 'max:30', Rule::unique('siswa', 'nisn')->withoutTrashed()],
             'nama' => ['required', 'string', 'max:255'],
             'jenis_kelamin' => ['nullable', 'string', 'in:L,P'],
             'tanggal_lahir' => ['required', 'date'],

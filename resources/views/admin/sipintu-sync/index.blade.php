@@ -3,16 +3,89 @@
 @section('title', 'Sinkronisasi SiPintu')
 
 @section('content')
-<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8" x-data="{ syncing: false }">
-    <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
+<div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8" x-data="{
+    syncing: false,
+    syncStep: 1,
+    startSync() {
+        window.showConfirm({
+            type: 'info',
+            title: 'Mulai Sinkronisasi SiPintu?',
+            message: 'Sistem akan mengunduh seluruh data siswa dan guru dari gateway SiPintu dan memperbarui database lokal SIPKL. Disarankan jalankan Preview terlebih dahulu.',
+            confirmText: 'Mulai Sinkronisasi',
+            cancelText: 'Batal',
+            onConfirm: () => {
+                this.syncing = true;
+                this.syncStep = 1;
+                setInterval(() => {
+                    if (this.syncStep < 3) this.syncStep++;
+                }, 1800);
+                this.$refs.syncForm.submit();
+            }
+        });
+    }
+}">
+    {{-- SiPintu Sync Progress Overlay Modal --}}
+    <div x-show="syncing" x-cloak class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-md"></div>
+        <div class="relative w-full max-w-lg rounded-3xl bg-white p-7 shadow-2xl border border-slate-100 z-10 text-center">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-8 ring-blue-50/50">
+                <svg class="h-8 w-8 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+            </div>
+            <h3 class="mt-4 text-xl font-bold text-slate-900">Sinkronisasi SiPintu Berlangsung</h3>
+            <p class="mt-1 text-sm text-slate-500">Menyinkronkan data siswa dan guru dari gateway SiPintu...</p>
 
+            {{-- Interactive Step Tracker --}}
+            <div class="mt-6 space-y-3 text-left">
+                <div class="flex items-center gap-3 rounded-xl p-3" :class="syncStep >= 1 ? 'bg-blue-50/70 text-blue-900' : 'bg-slate-50 text-slate-400'">
+                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" :class="syncStep > 1 ? 'bg-emerald-500 text-white' : (syncStep === 1 ? 'bg-blue-600 text-white animate-pulse' : 'bg-slate-200 text-slate-500')">
+                        <template x-if="syncStep > 1">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                        </template>
+                        <template x-if="syncStep <= 1">
+                            <span class="text-xs font-bold">1</span>
+                        </template>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold">1. Menghubungkan ke API Gateway SiPintu</p>
+                        <p class="text-xs text-slate-500" x-show="syncStep === 1">Memeriksa status koneksi dan otentikasi...</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 rounded-xl p-3" :class="syncStep >= 2 ? 'bg-blue-50/70 text-blue-900' : 'bg-slate-50 text-slate-400'">
+                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" :class="syncStep > 2 ? 'bg-emerald-500 text-white' : (syncStep === 2 ? 'bg-blue-600 text-white animate-pulse' : 'bg-slate-200 text-slate-500')">
+                        <template x-if="syncStep > 2">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                        </template>
+                        <template x-if="syncStep <= 2">
+                            <span class="text-xs font-bold">2</span>
+                        </template>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold">2. Mengambil & Mengunduh Data</p>
+                        <p class="text-xs text-slate-500" x-show="syncStep === 2">Mengunduh data seluruh siswa dan guru...</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 rounded-xl p-3" :class="syncStep >= 3 ? 'bg-blue-50/70 text-blue-900' : 'bg-slate-50 text-slate-400'">
+                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" :class="syncStep >= 3 ? 'bg-blue-600 text-white animate-pulse' : 'bg-slate-200 text-slate-500'">
+                        <span class="text-xs font-bold">3</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold">3. Memproses & Menyimpan ke SIPKL</p>
+                        <p class="text-xs text-slate-500" x-show="syncStep >= 3">Mencocokkan NIS, NIP, dan mapping kelas lokal...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 rounded-2xl bg-amber-50 p-3.5 text-xs text-amber-800 border border-amber-200/80">
+                <span class="font-bold">Pemberitahuan:</span> Harap jangan menutup atau merefresh halaman ini sampai proses sinkronisasi selesai.
+            </div>
+        </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl space-y-6">
         {{-- Header --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -21,7 +94,7 @@
                 <p class="mt-2 text-sm text-slate-500">Sinkronkan data siswa dari gateway SiPintu ke sistem SIPKL.</p>
             </div>
 
-        {{-- Sync / Preview Buttons --}}
+            {{-- Sync / Preview Buttons --}}
             <div class="flex flex-col gap-3 sm:flex-row">
                 <form method="POST" action="{{ route('admin.sipintu-sync.test-connection') }}">
                     @csrf
@@ -37,25 +110,17 @@
                     </svg>
                     Preview (Dry Run)
                 </a>
-                <form method="POST" action="{{ route('admin.sipintu-sync.sync') }}" @submit.prevent="
-                    if (!confirm('Mulai sinkronisasi data siswa dari SiPintu? Disarankan jalankan Preview terlebih dahulu.')) { return; }
-                    syncing = true;
-                    $el.submit();
-                ">
+                <form x-ref="syncForm" method="POST" action="{{ route('admin.sipintu-sync.sync') }}">
                     @csrf
                     <button
-                        type="submit"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        :disabled="syncing"
+                        type="button"
+                        @click="startSync()"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
                     >
-                        <svg x-show="!syncing" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                         </svg>
-                        <svg x-show="syncing" x-cloak class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                        <span x-show="!syncing">Mulai Sinkronisasi</span>
-                        <span x-show="syncing" x-cloak>Menyinkronkan...</span>
+                        <span>Mulai Sinkronisasi</span>
                     </button>
                 </form>
             </div>

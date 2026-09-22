@@ -5,14 +5,6 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
-
         {{-- Header --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -22,7 +14,11 @@
             </div>
 
             @if ($connected)
-                <form method="POST" action="{{ route('admin.sipintu-classroom-mapping.apply') }}" onsubmit="return confirm('Terapkan semua pemetaan ke siswa lokal? Hanya class_id yang diubah.');">
+                <form method="POST" action="{{ route('admin.sipintu-classroom-mapping.apply') }}"
+                      data-confirm="Terapkan semua pemetaan ke data siswa lokal? Hanya kelas (class_id) yang akan disesuaikan."
+                      data-confirm-title="Terapkan Pemetaan Kelas"
+                      data-confirm-type="info"
+                      data-confirm-btn="Ya, Terapkan">
                     @csrf
                     <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

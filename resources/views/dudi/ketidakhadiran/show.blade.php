@@ -11,22 +11,7 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-3xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">
-                <ul class="list-inside list-disc">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+        {{-- Header & Content --}}
 
         <div class="flex items-center gap-3">
             <a href="{{ route('dudi.ketidakhadiran.index') }}" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-slate-50 hover:text-slate-900">
@@ -129,13 +114,25 @@
         
         const catatan = document.getElementById('catatan').value;
         if (status === 'ditolak' && !catatan.trim()) {
-            alert('Catatan wajib diisi jika Anda menolak pengajuan.');
+            window.showAlert({
+                type: 'warning',
+                title: 'Catatan Wajib Diisi',
+                message: 'Catatan wajib diisi jika Anda menolak pengajuan ketidakhadiran.',
+                buttonText: 'Mengerti'
+            });
             return;
         }
         
-        if (confirm(`Apakah Anda yakin ingin ${status === 'disetujui' ? 'menyetujui' : 'menolak'} pengajuan ini?`)) {
-            document.getElementById('process-form').submit();
-        }
+        window.showConfirm({
+            type: status === 'disetujui' ? 'info' : 'danger',
+            title: status === 'disetujui' ? 'Setujui Pengajuan?' : 'Tolak Pengajuan?',
+            message: `Apakah Anda yakin ingin ${status === 'disetujui' ? 'menyetujui' : 'menolak'} pengajuan ketidakhadiran ini?`,
+            confirmText: status === 'disetujui' ? 'Ya, Setujui' : 'Ya, Tolak',
+            cancelText: 'Batal',
+            onConfirm: () => {
+                document.getElementById('process-form').submit();
+            }
+        });
     }
 </script>
 @endpush

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->enum('semester', ['ganjil', 'genap']);
             $table->date('tanggal_mulai');
             $table->date('tanggal_selesai');
-            $table->enum('status', ['draft', 'aktif', 'selesai'])->default('draft');
+            $table->enum('status', ['Persiapan', 'Aktif', 'Selesai', 'Ditutup', 'draft', 'aktif', 'selesai'])->default('Persiapan');
             $table->text('deskripsi')->nullable();
             $table->timestamps();
             $table->softDeletes();

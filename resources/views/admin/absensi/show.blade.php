@@ -132,7 +132,11 @@
                         </a>
                     @endcan
                     @can('delete', $absensi)
-                        <form method="POST" action="{{ route('admin.absensi.destroy', $absensi->id) }}" onsubmit="return confirm('Hapus absensi ini?')">
+                        <form method="POST" action="{{ route('admin.absensi.destroy', $absensi->id) }}"
+                              data-confirm="Hapus data absensi ini? Data akan dipindahkan ke tempat sampah."
+                              data-confirm-title="Hapus Absensi"
+                              data-confirm-type="danger"
+                              data-confirm-btn="Ya, Hapus">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-700">
@@ -145,7 +149,11 @@
                     @endcan
                 @else
                     @can('restore', $absensi)
-                        <form method="POST" action="{{ route('admin.absensi.restore', $absensi->id) }}" onsubmit="return confirm('Pulihkan absensi ini?')">
+                        <form method="POST" action="{{ route('admin.absensi.restore', $absensi->id) }}"
+                              data-confirm="Pulihkan data absensi ini?"
+                              data-confirm-title="Pulihkan Absensi"
+                              data-confirm-type="success"
+                              data-confirm-btn="Pulihkan">
                             @csrf
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-emerald-700">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -156,7 +164,11 @@
                         </form>
                     @endcan
                     @can('forceDelete', $absensi)
-                        <form method="POST" action="{{ route('admin.absensi.force-delete', $absensi->id) }}" onsubmit="return confirm('Hapus permanen absensi ini? Tindakan ini tidak dapat dibatalkan!')">
+                        <form method="POST" action="{{ route('admin.absensi.force-delete', $absensi->id) }}"
+                              data-confirm="Hapus permanen data absensi ini? Tindakan ini tidak dapat dibatalkan!"
+                              data-confirm-title="Hapus Permanen Absensi"
+                              data-confirm-type="danger"
+                              data-confirm-btn="Ya, Hapus Permanen">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-800 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-900">

@@ -66,6 +66,20 @@ class PeriodePKLService extends Service implements PeriodePKLServiceInterface
                 $this->ensureNoActivePeriod();
             }
 
+            /** @var PeriodePKL|null $existing */
+            $existing = PeriodePKL::withTrashed()
+                ->where('nama', $data['nama'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existing->update($data);
+
+                return $existing;
+            }
+
             return $this->periodePklRepository->create($data);
         });
 

@@ -163,7 +163,11 @@
                         </a>
                     @endcan
                     @can('delete', $aktivitas)
-                        <form method="POST" action="{{ route('admin.aktivitas.destroy', $aktivitas->id) }}" onsubmit="return confirm('Hapus aktivitas ini?')">
+                        <form method="POST" action="{{ route('admin.aktivitas.destroy', $aktivitas->id) }}"
+                              data-confirm="Apakah Anda yakin ingin menghapus data aktivitas ini?"
+                              data-confirm-title="Hapus Aktivitas"
+                              data-confirm-type="danger"
+                              data-confirm-btn="Ya, Hapus">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-700">
@@ -176,7 +180,11 @@
                     @endcan
                 @else
                     @can('restore', $aktivitas)
-                        <form method="POST" action="{{ route('admin.aktivitas.restore', $aktivitas->id) }}" onsubmit="return confirm('Pulihkan aktivitas ini?')">
+                        <form method="POST" action="{{ route('admin.aktivitas.restore', $aktivitas->id) }}"
+                              data-confirm="Pulihkan data aktivitas harian ini?"
+                              data-confirm-title="Pulihkan Aktivitas"
+                              data-confirm-type="info"
+                              data-confirm-btn="Ya, Pulihkan">
                             @csrf
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-emerald-700">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -187,7 +195,11 @@
                         </form>
                     @endcan
                     @can('forceDelete', $aktivitas)
-                        <form method="POST" action="{{ route('admin.aktivitas.force-delete', $aktivitas->id) }}" onsubmit="return confirm('Hapus permanen aktivitas ini? Tindakan ini tidak dapat dibatalkan!')">
+                        <form method="POST" action="{{ route('admin.aktivitas.force-delete', $aktivitas->id) }}"
+                              data-confirm="Hapus permanen aktivitas ini? Tindakan ini tidak dapat dibatalkan!"
+                              data-confirm-title="Hapus Permanen Aktivitas"
+                              data-confirm-type="danger"
+                              data-confirm-btn="Ya, Hapus Permanen">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-800 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-900">

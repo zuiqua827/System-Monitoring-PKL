@@ -197,6 +197,18 @@ class GuruService extends Service implements GuruServiceInterface
     public function forceDelete(Guru $guru): bool
     {
         return $this->transaction(function () use ($guru): bool {
+            $activePenempatanCount = $guru->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("Guru \"{$guru->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $guru->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
+            }
+
             $result = $this->guruRepository->forceDelete($guru);
 
             // User cascade delete is handled by foreign key (cascadeOnDelete)

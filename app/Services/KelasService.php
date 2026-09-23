@@ -120,14 +120,18 @@ class KelasService extends Service implements KelasServiceInterface
     public function forceDelete(Kelas $kelas): bool
     {
         return $this->transaction(function () use ($kelas): bool {
-            // Check for siswa (including trashed) that still reference this kelas
-            $totalSiswaCount = $kelas->siswa()->withTrashed()->count();
-            if ($totalSiswaCount > 0) {
+            $activeSiswaCount = $kelas->siswa()->whereNull('deleted_at')->count();
+            if ($activeSiswaCount > 0) {
                 throw new \RuntimeException(
-                    "Kelas \"{$kelas->nama}\" tidak dapat dihapus permanen karena masih memiliki "
-                    . "{$totalSiswaCount} siswa terkait. "
-                    . 'Hapus permanen semua siswa di kelas ini terlebih dahulu.'
+                    "Kelas \"{$kelas->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activeSiswaCount} siswa aktif."
                 );
+            }
+
+            // All remaining siswa are soft-deleted, safe to cascade
+            $trashedSiswa = $kelas->siswa()->onlyTrashed()->get();
+            $siswaService = app(\App\Services\Interfaces\SiswaServiceInterface::class);
+            foreach ($trashedSiswa as $siswa) {
+                $siswaService->forceDelete($siswa);
             }
 
             // Remove sipintu_classroom_mappings that reference this kelas

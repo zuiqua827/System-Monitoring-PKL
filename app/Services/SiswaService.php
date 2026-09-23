@@ -224,6 +224,18 @@ class SiswaService extends Service implements SiswaServiceInterface
     public function forceDelete(Siswa $siswa): bool
     {
         return $this->transaction(function () use ($siswa): bool {
+            $activePenempatanCount = $siswa->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("Siswa \"{$siswa->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $siswa->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
+            }
+
             $result = $this->siswaRepository->forceDelete($siswa);
 
             // User cascade delete is handled by foreign key (cascadeOnDelete)

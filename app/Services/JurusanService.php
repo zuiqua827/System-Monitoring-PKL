@@ -121,32 +121,19 @@ class JurusanService extends Service implements JurusanServiceInterface
     public function forceDelete(Jurusan $jurusan): bool
     {
         return $this->transaction(function () use ($jurusan): bool {
-            // Load all kelas (including trashed) that reference this jurusan
-            $kelasRecords = $jurusan->kelas()->withTrashed()->get();
+            // Check for active child records first
+            $activeKelasCount = $jurusan->kelas()->whereNull('deleted_at')->count();
+            if ($activeKelasCount > 0) {
+                throw new \RuntimeException(
+                    "Jurusan \"{$jurusan->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activeKelasCount} kelas aktif."
+                );
+            }
 
-            if ($kelasRecords->isNotEmpty()) {
-                // Check for kelas that still have siswa (including trashed) — these have
-                // deep FK dependencies (penempatan_pkl → absensi, aktivitas, etc.)
-                // and cannot be safely cascade-deleted from here.
-                foreach ($kelasRecords as $kelas) {
-                    $totalSiswaCount = $kelas->siswa()->withTrashed()->count();
-                    if ($totalSiswaCount > 0) {
-                        throw new \RuntimeException(
-                            "Jurusan \"{$jurusan->nama}\" tidak dapat dihapus permanen karena kelas \"{$kelas->nama}\" "
-                            . "masih memiliki {$totalSiswaCount} siswa terkait. "
-                            . 'Hapus permanen semua siswa di kelas tersebut terlebih dahulu.'
-                        );
-                    }
-                }
-
-                // All kelas are empty (no siswa at all) — safe to cascade
-                $kelasIds = $kelasRecords->pluck('id')->all();
-
-                // Remove sipintu_classroom_mappings that reference these kelas
-                SipintuClassroomMapping::whereIn('kelas_id', $kelasIds)->delete();
-
-                // Force-delete all empty kelas belonging to this jurusan
-                $jurusan->kelas()->withTrashed()->forceDelete();
+            // All remaining kelas are soft-deleted, safe to cascade
+            $trashedKelas = $jurusan->kelas()->onlyTrashed()->get();
+            $kelasService = app(\App\Services\Interfaces\KelasServiceInterface::class);
+            foreach ($trashedKelas as $kelas) {
+                $kelasService->forceDelete($kelas);
             }
 
             return $this->jurusanRepository->forceDelete($jurusan);

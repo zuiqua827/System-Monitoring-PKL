@@ -219,10 +219,16 @@ class DudiService extends Service implements DudiServiceInterface
     public function forceDelete(Dudi $dudi): bool
     {
         return $this->transaction(function () use ($dudi): bool {
-            if ($dudi->penempatan()->withTrashed()->exists()) {
-                throw new \RuntimeException(
-                    "DUDI \"{$dudi->nama_perusahaan}\" tidak dapat dihapus permanen karena masih memiliki data Penempatan PKL terkait."
-                );
+            $activePenempatanCount = $dudi->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("DUDI \"{$dudi->nama_perusahaan}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $dudi->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
             }
 
             $result = $this->dudiRepository->forceDelete($dudi);

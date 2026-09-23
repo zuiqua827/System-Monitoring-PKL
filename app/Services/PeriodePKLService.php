@@ -129,7 +129,21 @@ class PeriodePKLService extends Service implements PeriodePKLServiceInterface
      */
     public function forceDelete(PeriodePKL $periodePkl): bool
     {
-        return $this->periodePklRepository->forceDelete($periodePkl);
+        return $this->transaction(function () use ($periodePkl): bool {
+            $activePenempatanCount = $periodePkl->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("Periode PKL \"{$periodePkl->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $periodePkl->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
+            }
+
+            return $this->periodePklRepository->forceDelete($periodePkl);
+        });
     }
 
     /**

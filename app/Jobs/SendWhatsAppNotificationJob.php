@@ -21,6 +21,11 @@ class SendWhatsAppNotificationJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
+     * The number of seconds the job can run before timing out.
+     */
+    public int $timeout = 30;
+
+    /**
      * The number of times the job may be attempted.
      */
     public int $tries = 3;
@@ -106,6 +111,7 @@ class SendWhatsAppNotificationJob implements ShouldQueue
                     'status' => WhatsAppLog::STATUS_FAILED,
                     'error_reason' => $error,
                     'response_payload' => $result,
+                    'failed_at' => Carbon::now(config('app.timezone')),
                 ]);
                 return;
             }
@@ -130,6 +136,10 @@ class SendWhatsAppNotificationJob implements ShouldQueue
 
             // Let queue handle retry if attempts remaining
             if ($this->attempts() < $this->tries) {
+                throw $e;
+            } else {
+                // Last attempt failed
+                $log->update(['failed_at' => Carbon::now(config('app.timezone'))]);
                 throw $e;
             }
         }

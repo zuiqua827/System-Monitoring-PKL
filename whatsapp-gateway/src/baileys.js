@@ -23,7 +23,7 @@ class BaileysGateway {
   }
 
   async init() {
-    if (this.sock && this.status === 'connected') {
+    if (this.sock && (this.status === 'connected' || this.status === 'connecting')) {
       return;
     }
 
@@ -88,6 +88,7 @@ class BaileysGateway {
           this.status = 'disconnected';
           this.connectedUser = null;
           this.qrCodeData = null;
+          this.rawQr = null;
 
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
@@ -95,11 +96,12 @@ class BaileysGateway {
           console.log(`[Baileys] Koneksi terputus. Status Code: ${statusCode}. Auto-reconnect: ${shouldReconnect}`);
 
           if (shouldReconnect) {
-            this.scheduleReconnect();
+            this.scheduleReconnect(3000);
           } else {
             console.log('[Baileys] Device logged out. Menghapus sesi lama...');
             this.cleanSession();
-            this.scheduleReconnect(1000);
+            this.status = 'logged_out';
+            this.scheduleReconnect(2000);
           }
         }
       });
@@ -147,29 +149,34 @@ class BaileysGateway {
 
   async sendMessage(phone, message) {
     if (this.status !== 'connected' || !this.sock) {
-      throw new Error('WhatsApp Gateway belum terhubung. Silakan pindai QR code terlebih dahulu.');
+      throw new Error('WHATSAPP_NOT_CONNECTED');
     }
 
     if (!phone || typeof phone !== 'string') {
-      throw new Error('Nomor telepon tujuan tidak valid.');
+      throw new Error('INVALID_PHONE');
     }
 
     if (!message || typeof message !== 'string') {
-      throw new Error('Pesan tidak boleh kosong.');
+      throw new Error('INVALID_MESSAGE');
     }
 
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const jid = `${cleanPhone}@s.whatsapp.net`;
 
     try {
-      const result = await this.sock.sendMessage(jid, { text: message });
+      const [result] = await this.sock.onWhatsApp(jid);
+      if (!result || !result.exists) {
+         throw new Error('NOT_ON_WHATSAPP');
+      }
+
+      const sendResult = await this.sock.sendMessage(result.jid, { text: message });
       return {
         success: true,
-        messageId: result?.key?.id || null,
-        timestamp: result?.messageTimestamp || Date.now(),
+        messageId: sendResult?.key?.id || null,
+        timestamp: sendResult?.messageTimestamp || Date.now(),
       };
     } catch (err) {
-      console.error(`[Baileys] Gagal mengirim pesan ke ${phone}:`, err);
+      console.error(`[Baileys] Gagal mengirim pesan ke ${phone}:`, err.message);
       throw err;
     }
   }
@@ -193,7 +200,7 @@ class BaileysGateway {
     }
 
     this.cleanSession();
-    this.status = 'disconnected';
+    this.status = 'logged_out';
     this.connectedUser = null;
     this.qrCodeData = null;
     this.rawQr = null;
@@ -202,6 +209,18 @@ class BaileysGateway {
     this.scheduleReconnect(1000);
 
     return { success: true, message: 'Sesi WhatsApp berhasil diputuskan.' };
+  }
+
+  async gracefulShutdown() {
+    console.log('[Baileys] Menutup koneksi dengan aman...');
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+    if (this.sock) {
+      try {
+        this.sock.end(undefined);
+      } catch (_) {}
+    }
   }
 }
 

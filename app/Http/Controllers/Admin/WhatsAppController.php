@@ -37,7 +37,12 @@ class WhatsAppController extends Controller
             'failed_today' => WhatsAppLog::whereDate('tanggal', $today)->where('status', WhatsAppLog::STATUS_FAILED)->count(),
             'skipped_today' => WhatsAppLog::whereDate('tanggal', $today)->where('status', WhatsAppLog::STATUS_SKIPPED)->count(),
             'total_logs' => WhatsAppLog::count(),
+            'last_sent' => WhatsAppLog::where('status', WhatsAppLog::STATUS_SENT)->latest('sent_at')->value('sent_at'),
+            'last_failed' => WhatsAppLog::where('status', WhatsAppLog::STATUS_FAILED)->latest('failed_at')->value('failed_at') ?? WhatsAppLog::where('status', WhatsAppLog::STATUS_FAILED)->latest('created_at')->value('created_at'),
         ];
+
+        $stats['total_today'] = $stats['sent_today'] + $stats['failed_today'];
+        $stats['success_rate'] = $stats['total_today'] > 0 ? round(($stats['sent_today'] / $stats['total_today']) * 100, 1) : 0;
 
         $recentLogs = WhatsAppLog::with(['siswa', 'penempatan.dudi'])
             ->latest('id')
@@ -183,8 +188,17 @@ class WhatsAppController extends Controller
 
         $logs = $query->paginate(20)->withQueryString();
 
+        // Summary statistics (Global)
+        $summary = [
+            'total' => WhatsAppLog::count(),
+            'sent' => WhatsAppLog::where('status', WhatsAppLog::STATUS_SENT)->count(),
+            'failed' => WhatsAppLog::where('status', WhatsAppLog::STATUS_FAILED)->count(),
+            'pending' => WhatsAppLog::where('status', WhatsAppLog::STATUS_PENDING)->count(),
+        ];
+
         return view('admin.whatsapp.logs', [
             'logs' => $logs,
+            'summary' => $summary,
             'filters' => [
                 'status' => $request->query('status'),
                 'type' => $request->query('type'),

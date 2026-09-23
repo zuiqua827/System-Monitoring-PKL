@@ -1,4 +1,6 @@
 node_modules/
 session/
 .env
-*.log
+npm-debug.log
+yarn-error.log
+.DS_Store

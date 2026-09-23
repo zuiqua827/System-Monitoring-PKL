@@ -61,6 +61,18 @@ app.get('/api/status', authenticateApiKey, (req, res) => {
   }
 });
 
+// Normalize phone number
+const normalizePhone = (phone) => {
+  if (!phone || typeof phone !== 'string') return null;
+  let clean = phone.replace(/[^0-9]/g, '');
+  if (clean.startsWith('0')) {
+    clean = '62' + clean.substring(1);
+  } else if (clean.startsWith('8')) {
+    clean = '62' + clean;
+  }
+  return clean;
+};
+
 // Send Message Endpoint
 app.post('/api/send', authenticateApiKey, async (req, res) => {
   const { phone, message } = req.body;
@@ -69,24 +81,41 @@ app.post('/api/send', authenticateApiKey, async (req, res) => {
     return res.status(400).json({
       success: false,
       error: 'Parameter phone dan message wajib diisi dengan format string yang valid.',
+      errorCode: 'INVALID_PARAMETERS',
     });
   }
 
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
-  if (cleanPhone.length < 10 || cleanPhone.length > 16) {
+  const cleanPhone = normalizePhone(phone);
+  if (!cleanPhone || cleanPhone.length < 10 || cleanPhone.length > 16) {
     return res.status(400).json({
       success: false,
       error: 'Format nomor telepon tidak valid. Panjang harus antara 10-16 digit.',
+      errorCode: 'INVALID_PHONE',
     });
   }
 
   try {
-    const result = await gateway.sendMessage(phone, message);
+    const result = await gateway.sendMessage(cleanPhone, message);
     res.json(result);
   } catch (err) {
-    res.status(500).json({
+    let statusCode = 500;
+    const msg = err.message || '';
+    let errorCode = 'UNKNOWN_ERROR';
+
+    if (msg.includes('WHATSAPP_NOT_CONNECTED')) {
+      statusCode = 503;
+      errorCode = 'WHATSAPP_NOT_CONNECTED';
+    } else if (msg.includes('INVALID_PHONE') || msg.includes('NOT_ON_WHATSAPP')) {
+      statusCode = 422; // Unprocessable Entity (permanent error for client)
+      errorCode = msg.includes('NOT_ON_WHATSAPP') ? 'NOT_ON_WHATSAPP' : 'INVALID_PHONE';
+    } else {
+      errorCode = 'SEND_FAILED';
+    }
+
+    res.status(statusCode).json({
       success: false,
-      error: err.message || 'Gagal mengirim pesan WhatsApp.',
+      error: msg || 'Gagal mengirim pesan WhatsApp.',
+      errorCode: errorCode,
     });
   }
 });
@@ -127,7 +156,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start Express server
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`=============================================`);
   console.log(` SIMONGAN WhatsApp Gateway (Baileys) `);
   console.log(` Server berjalan pada port http://localhost:${PORT}`);
@@ -137,3 +166,16 @@ app.listen(PORT, '0.0.0.0', () => {
   // Initialize Baileys socket connection
   gateway.init();
 });
+
+// Graceful shutdown handlers
+const shutdown = async () => {
+  console.log('\n[Server] Memulai shutdown dengan aman...');
+  await gateway.gracefulShutdown();
+  server.close(() => {
+    console.log('[Server] Proses Node diakhiri.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

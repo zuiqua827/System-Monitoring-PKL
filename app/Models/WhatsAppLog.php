@@ -62,6 +62,7 @@ class WhatsAppLog extends Model
         'response_payload',
         'tanggal',
         'sent_at',
+        'failed_at',
     ];
 
     /**
@@ -76,6 +77,7 @@ class WhatsAppLog extends Model
             'response_payload' => 'array',
             'tanggal' => 'date',
             'sent_at' => 'datetime',
+            'failed_at' => 'datetime',
         ];
     }
 

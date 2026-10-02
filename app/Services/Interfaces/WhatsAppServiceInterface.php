@@ -29,8 +29,9 @@ interface WhatsAppServiceInterface
      *
      * @return array{
      *     success: bool,
-     *     messageId?: string,
-     *     error?: string,
+     *     messageId?: ?string,
+     *     error?: ?string,
+     *     errorCode?: ?string,
      *     is_permanent?: bool
      * }
      */
@@ -63,7 +64,12 @@ interface WhatsAppServiceInterface
     /**
      * Send a single manual test message via WhatsApp Gateway.
      *
-     * @return array{success: bool, status: string, error?: string}
+     * @return array{
+     *     success: bool,
+     *     status: string,
+     *     error: ?string,
+     *     errorCode: ?string
+     * }
      */
     public function sendTestMessage(string $phone, string $message): array;
 

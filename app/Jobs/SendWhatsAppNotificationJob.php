@@ -66,6 +66,11 @@ class SendWhatsAppNotificationJob implements ShouldQueue
             return;
         }
 
+        // If previously marked as permanent/final failed, do not retry
+        if ($log->status === WhatsAppLog::STATUS_FAILED && $log->failed_at !== null) {
+            return;
+        }
+
         // Set status to sending
         $log->update(['status' => WhatsAppLog::STATUS_SENDING]);
 
@@ -89,59 +94,61 @@ class SendWhatsAppNotificationJob implements ShouldQueue
             return;
         }
 
-        try {
-            $result = $waService->executeDirectSend($normalizedPhone, $log->message_content);
+        $result = $waService->executeDirectSend($normalizedPhone, $log->message_content);
 
-            if (($result['success'] ?? false) === true) {
-                $log->update([
-                    'status' => WhatsAppLog::STATUS_SENT,
-                    'error_reason' => null,
-                    'response_payload' => $result,
-                    'sent_at' => Carbon::now(config('app.timezone')),
-                ]);
-                return;
-            }
-
-            // Gateway returned error response
-            $error = $result['error'] ?? 'Pengiriman gagal di WhatsApp Gateway.';
-            $isPermanent = $result['is_permanent'] ?? false;
-
-            if ($isPermanent) {
-                $log->update([
-                    'status' => WhatsAppLog::STATUS_FAILED,
-                    'error_reason' => $error,
-                    'response_payload' => $result,
-                    'failed_at' => Carbon::now(config('app.timezone')),
-                ]);
-                return;
-            }
-
-            // Transient error: update status and throw to trigger queue retry
+        if ($result['success'] === true) {
             $log->update([
-                'status' => WhatsAppLog::STATUS_FAILED,
-                'error_reason' => $error,
+                'status' => WhatsAppLog::STATUS_SENT,
+                'error_reason' => null,
                 'response_payload' => $result,
+                'sent_at' => Carbon::now(config('app.timezone')),
+                'failed_at' => null,
             ]);
+            return;
+        }
 
-            throw new RuntimeException("WhatsApp Gateway transient error: {$error}");
-        } catch (Throwable $e) {
-            $errorMessage = $e->getMessage();
+        // Gateway returned error response
+        $isPermanent = (bool) ($result['is_permanent'] ?? false);
+        $errorCode = $result['errorCode'] ?? 'UNKNOWN_ERROR';
+        $errorMessage = $result['error'] ?? 'Pengiriman gagal di WhatsApp Gateway.';
+        $formattedReason = "[{$errorCode}] {$errorMessage}";
 
+        if ($isPermanent) {
+            // Permanent failure: NOT_ON_WHATSAPP, INVALID_PHONE, INVALID_PARAMETERS
+            // Record failure and complete job without retry
             $log->update([
                 'status' => WhatsAppLog::STATUS_FAILED,
-                'error_reason' => $errorMessage,
+                'error_reason' => $formattedReason,
+                'response_payload' => $result,
+                'failed_at' => Carbon::now(config('app.timezone')),
             ]);
-
-            Log::warning("SendWhatsAppNotificationJob failure (attempt {$this->attempts()}/{$this->tries}) for log ID {$this->logId}: {$errorMessage}");
-
-            // Let queue handle retry if attempts remaining
-            if ($this->attempts() < $this->tries) {
-                throw $e;
-            } else {
-                // Last attempt failed
-                $log->update(['failed_at' => Carbon::now(config('app.timezone'))]);
-                throw $e;
-            }
+            Log::info("SendWhatsAppNotificationJob permanent error for log ID {$this->logId}: {$formattedReason}");
+            return;
         }
+
+        // Transient failure: WHATSAPP_NOT_CONNECTED, TIMEOUT, SEND_FAILED
+        $isLastAttempt = $this->attempts() >= $this->tries;
+
+        if ($isLastAttempt) {
+            // Final attempt failed
+            $log->update([
+                'status' => WhatsAppLog::STATUS_FAILED,
+                'error_reason' => "{$formattedReason} (Batas percobaan {$this->tries}x tercapai)",
+                'response_payload' => $result,
+                'failed_at' => Carbon::now(config('app.timezone')),
+            ]);
+            Log::error("SendWhatsAppNotificationJob exhausted all {$this->tries} attempts for log ID {$this->logId}: {$formattedReason}");
+            throw new RuntimeException("WhatsApp Gateway transient error: {$formattedReason}");
+        }
+
+        // Retries remaining: keep status as PENDING so scheduler suppresses duplicates and queue handles backoff
+        $log->update([
+            'status' => WhatsAppLog::STATUS_PENDING,
+            'error_reason' => "{$formattedReason} (Percobaan {$this->attempts()}/{$this->tries}, dijadwalkan ulang)",
+            'response_payload' => $result,
+            'failed_at' => null,
+        ]);
+        Log::warning("SendWhatsAppNotificationJob failure (attempt {$this->attempts()}/{$this->tries}) for log ID {$this->logId}: {$formattedReason}");
+        throw new RuntimeException("WhatsApp Gateway transient error: {$formattedReason}");
     }
 }

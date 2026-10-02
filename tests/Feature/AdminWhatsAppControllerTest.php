@@ -211,7 +211,9 @@ class AdminWhatsAppControllerTest extends TestCase
             '*/api/send' => Http::response([
                 'success' => false,
                 'error' => 'Nomor WhatsApp tidak terdaftar',
-            ], 400),
+                'errorCode' => 'NOT_ON_WHATSAPP',
+                'isPermanent' => true,
+            ], 422),
         ]);
 
         $waService = app(WhatsAppServiceInterface::class);
@@ -232,6 +234,73 @@ class AdminWhatsAppControllerTest extends TestCase
 
         $log->refresh();
         $this->assertSame(WhatsAppLog::STATUS_FAILED, $log->status);
-        $this->assertStringContainsString('tidak terdaftar', (string) $log->error_reason);
+        $this->assertNotNull($log->failed_at);
+        $this->assertStringContainsString('NOT_ON_WHATSAPP', (string) $log->error_reason);
+    }
+
+    public function test_send_whatsapp_notification_job_keeps_pending_and_throws_on_transient_error_for_queue_retry(): void
+    {
+        Http::fake([
+            '*/api/send' => Http::response([
+                'success' => false,
+                'error' => 'Koneksi ke gateway terputus',
+                'errorCode' => 'WHATSAPP_NOT_CONNECTED',
+                'isPermanent' => false,
+            ], 503),
+        ]);
+
+        $waService = app(WhatsAppServiceInterface::class);
+        $waService->updateSettings(['master_enabled' => true]);
+
+        $log = WhatsAppLog::create([
+            'idempotency_key' => 'job-test-key-transient',
+            'recipient_phone' => '6281234567890',
+            'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
+            'message_content' => 'Pengingat absensi',
+            'status' => WhatsAppLog::STATUS_PENDING,
+            'tanggal' => '2026-09-18',
+        ]);
+
+        $job = new SendWhatsAppNotificationJob($log->id);
+
+        try {
+            $job->handle($waService);
+            $this->fail('Expected transient error to throw RuntimeException for queue retry.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('WHATSAPP_NOT_CONNECTED', $e->getMessage());
+        }
+
+        $log->refresh();
+        // Crucial: status must remain PENDING (ready for retry) and failed_at must be NULL
+        $this->assertSame(WhatsAppLog::STATUS_PENDING, $log->status);
+        $this->assertNull($log->failed_at);
+        $this->assertNotNull($log->response_payload);
+        $this->assertStringContainsString('WHATSAPP_NOT_CONNECTED', (string) $log->error_reason);
+    }
+
+    public function test_send_test_message_populates_failed_at_and_user_friendly_error(): void
+    {
+        Http::fake([
+            '*/api/send' => Http::response([
+                'success' => false,
+                'error' => 'Gateway socket down',
+                'errorCode' => 'WHATSAPP_NOT_CONNECTED',
+                'isPermanent' => false,
+            ], 503),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)->post('/admin/whatsapp/test-send', [
+            'phone' => '081234567890',
+            'message' => 'Tes koneksi gateway',
+        ]);
+
+        $response->assertRedirect('/admin/whatsapp');
+        $response->assertSessionHas('error');
+
+        $log = WhatsAppLog::where('message_type', WhatsAppLog::TYPE_MANUAL_TEST)->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertSame(WhatsAppLog::STATUS_FAILED, $log->status);
+        $this->assertNotNull($log->failed_at);
+        $this->assertStringContainsString('Gateway WhatsApp sedang tidak terhubung', (string) $log->error_reason);
     }
 }

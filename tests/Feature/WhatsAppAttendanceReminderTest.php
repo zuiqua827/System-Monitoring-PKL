@@ -340,4 +340,73 @@ class WhatsAppAttendanceReminderTest extends TestCase
 
         Queue::assertPushed(SendWhatsAppNotificationJob::class, 1);
     }
+
+    public function test_scheduler_does_not_duplicate_job_when_log_failed_or_in_retry(): void
+    {
+        Queue::fake();
+
+        $dudi = Dudi::factory()->create([
+            'jam_masuk' => '07:30:00',
+            'status_aktif' => true,
+            'hari_operasional' => ['jumat'],
+        ]);
+        $user = User::factory()->create(['phone' => '081234567890']);
+        $siswa = Siswa::factory()->create(['user_id' => $user->id]);
+        $this->createActivePlacement($dudi, $siswa);
+
+        $time = Carbon::parse('2026-09-18 07:25:00', config('app.timezone'));
+
+        // First scan queues job
+        $res1 = $this->waService->processAttendanceReminders($time);
+        $this->assertSame(1, $res1['queued']);
+        Queue::assertPushed(SendWhatsAppNotificationJob::class, 1);
+
+        // Simulate log failing transiently and being in PENDING or FAILED state
+        $log = WhatsAppLog::first();
+        $log->update(['status' => WhatsAppLog::STATUS_FAILED, 'failed_at' => Carbon::now()]);
+
+        // Second scan running 1 minute later MUST NOT dispatch another duplicate job!
+        $timeLater = Carbon::parse('2026-09-18 07:26:00', config('app.timezone'));
+        $res2 = $this->waService->processAttendanceReminders($timeLater, true); // force=true to bypass minute check
+
+        $this->assertSame(0, $res2['queued']);
+        $this->assertSame(1, $res2['skipped']);
+        $this->assertSame(1, $res2['reasons']['duplicate_suppressed']);
+
+        // Still only 1 job ever pushed
+        Queue::assertPushed(SendWhatsAppNotificationJob::class, 1);
+    }
+
+    public function test_concurrency_safe_first_or_create_handles_duplicate_key_without_crashing(): void
+    {
+        $idempotencyKey = 'unique-test-key-' . uniqid();
+
+        // Process 1 creates the record
+        $log1 = WhatsAppLog::firstOrCreateSafe(
+            ['idempotency_key' => $idempotencyKey],
+            [
+                'recipient_phone' => '6281234567890',
+                'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
+                'message_content' => 'Test Concurrency',
+                'status' => WhatsAppLog::STATUS_PENDING,
+                'tanggal' => '2026-09-18',
+            ]
+        );
+        $this->assertTrue($log1->wasRecentlyCreated);
+
+        // Process 2 simulates a concurrent attempt with the same idempotency key
+        $log2 = WhatsAppLog::firstOrCreateSafe(
+            ['idempotency_key' => $idempotencyKey],
+            [
+                'recipient_phone' => '6281234567890',
+                'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
+                'message_content' => 'Test Concurrency Second',
+                'status' => WhatsAppLog::STATUS_PENDING,
+                'tanggal' => '2026-09-18',
+            ]
+        );
+
+        $this->assertSame($log1->id, $log2->id);
+        $this->assertFalse($log2->wasRecentlyCreated);
+    }
 }

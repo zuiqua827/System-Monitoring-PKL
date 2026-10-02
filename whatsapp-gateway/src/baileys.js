@@ -9,6 +9,58 @@ import qrcode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * In-memory message store for handling retry receipts from WhatsApp peer devices.
+ * Limits memory consumption with bounded FIFO size and TTL expiration.
+ */
+export class MessageStore {
+  constructor(maxSize = 1000, ttlMs = 24 * 60 * 60 * 1000) {
+    this.messages = new Map();
+    this.maxSize = maxSize;
+    this.ttlMs = ttlMs;
+
+    this.cleanupInterval = setInterval(() => this.cleanup(), 15 * 60 * 1000);
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
+
+  saveMessage(id, message) {
+    if (!id || !message) return;
+    if (this.messages.size >= this.maxSize) {
+      const oldestKey = this.messages.keys().next().value;
+      if (oldestKey) this.messages.delete(oldestKey);
+    }
+    this.messages.set(id, {
+      message,
+      timestamp: Date.now(),
+    });
+  }
+
+  getMessage(id) {
+    const entry = this.messages.get(id);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > this.ttlMs) {
+      this.messages.delete(id);
+      return null;
+    }
+    return entry.message;
+  }
+
+  cleanup() {
+    const now = Date.now();
+    for (const [id, entry] of this.messages.entries()) {
+      if (now - entry.timestamp > this.ttlMs) {
+        this.messages.delete(id);
+      }
+    }
+  }
+
+  clear() {
+    this.messages.clear();
+  }
+}
+
 class BaileysGateway {
   constructor() {
     this.sock = null;
@@ -20,6 +72,7 @@ class BaileysGateway {
     this.reconnectTimeout = null;
     this.isReconnecting = false;
     this.logger = pino({ level: 'warn' });
+    this.messageStore = new MessageStore();
   }
 
   async init() {
@@ -49,6 +102,15 @@ class BaileysGateway {
         },
         generateHighQualityLinkPreview: true,
         browser: ['SIMONGAN PKL', 'Chrome', '1.0.0'],
+        getMessage: async (key) => {
+          if (key && key.id) {
+            const stored = this.messageStore.getMessage(key.id);
+            if (stored) {
+              return stored;
+            }
+          }
+          return undefined;
+        },
       });
 
       this.sock.ev.on('creds.update', saveCreds);
@@ -149,35 +211,87 @@ class BaileysGateway {
 
   async sendMessage(phone, message) {
     if (this.status !== 'connected' || !this.sock) {
-      throw new Error('WHATSAPP_NOT_CONNECTED');
+      const err = new Error('WHATSAPP_NOT_CONNECTED');
+      err.errorCode = 'WHATSAPP_NOT_CONNECTED';
+      err.isPermanent = false;
+      throw err;
     }
 
     if (!phone || typeof phone !== 'string') {
-      throw new Error('INVALID_PHONE');
+      const err = new Error('INVALID_PHONE');
+      err.errorCode = 'INVALID_PHONE';
+      err.isPermanent = true;
+      throw err;
     }
 
-    if (!message || typeof message !== 'string') {
-      throw new Error('INVALID_MESSAGE');
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      const err = new Error('INVALID_MESSAGE');
+      err.errorCode = 'INVALID_MESSAGE';
+      err.isPermanent = true;
+      throw err;
     }
 
     const cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (!cleanPhone.startsWith('628') || cleanPhone.length < 10 || cleanPhone.length > 16) {
+      const err = new Error('INVALID_PHONE');
+      err.errorCode = 'INVALID_PHONE';
+      err.isPermanent = true;
+      throw err;
+    }
+
     const jid = `${cleanPhone}@s.whatsapp.net`;
 
+    // Verify WhatsApp registration via onWhatsApp
     try {
-      const [result] = await this.sock.onWhatsApp(jid);
-      if (!result || !result.exists) {
-         throw new Error('NOT_ON_WHATSAPP');
+      const results = await this.sock.onWhatsApp(jid);
+      const onWa = Array.isArray(results) ? results[0] : results;
+      if (!onWa || !onWa.exists) {
+        const err = new Error('NOT_ON_WHATSAPP');
+        err.errorCode = 'NOT_ON_WHATSAPP';
+        err.isPermanent = true;
+        throw err;
+      }
+    } catch (err) {
+      if (err.errorCode === 'NOT_ON_WHATSAPP') {
+        throw err;
+      }
+      console.warn(`[Baileys] onWhatsApp check encountered issue for ${cleanPhone}:`, err.message);
+      if (this.status !== 'connected' || !this.sock) {
+        const connErr = new Error('WHATSAPP_NOT_CONNECTED');
+        connErr.errorCode = 'WHATSAPP_NOT_CONNECTED';
+        connErr.isPermanent = false;
+        throw connErr;
+      }
+      const isTimeout = err.message?.toLowerCase().includes('timeout') || err.message?.toLowerCase().includes('timed out');
+      const transientErr = new Error(`Gagal memeriksa status WhatsApp: ${err.message}`);
+      transientErr.errorCode = isTimeout ? 'TIMEOUT' : 'SEND_FAILED';
+      transientErr.isPermanent = false;
+      throw transientErr;
+    }
+
+    try {
+      const sendResult = await this.sock.sendMessage(jid, { text: message });
+      if (sendResult?.key?.id && sendResult?.message) {
+        this.messageStore.saveMessage(sendResult.key.id, sendResult.message);
       }
 
-      const sendResult = await this.sock.sendMessage(result.jid, { text: message });
       return {
         success: true,
         messageId: sendResult?.key?.id || null,
         timestamp: sendResult?.messageTimestamp || Date.now(),
+        error: null,
+        errorCode: null,
+        isPermanent: false,
       };
     } catch (err) {
-      console.error(`[Baileys] Gagal mengirim pesan ke ${phone}:`, err.message);
-      throw err;
+      console.error(`[Baileys] Gagal mengirim pesan ke ${cleanPhone}:`, err.message);
+      const isConnError = this.status !== 'connected' || !this.sock || err.message?.includes('connection') || err.message?.includes('Socket');
+      const isTimeout = err.message?.toLowerCase().includes('timed out') || err.message?.toLowerCase().includes('timeout');
+
+      const sendErr = new Error(err.message || 'Gagal mengirim pesan via Baileys.');
+      sendErr.errorCode = isConnError ? 'WHATSAPP_NOT_CONNECTED' : (isTimeout ? 'TIMEOUT' : 'SEND_FAILED');
+      sendErr.isPermanent = false;
+      throw sendErr;
     }
   }
 
@@ -200,6 +314,7 @@ class BaileysGateway {
     }
 
     this.cleanSession();
+    this.messageStore.clear();
     this.status = 'logged_out';
     this.connectedUser = null;
     this.qrCodeData = null;

@@ -88,7 +88,9 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
         if ($normalizedPhone === null) {
             return [
                 'success' => false,
+                'messageId' => null,
                 'error' => 'Nomor WhatsApp tidak valid: "' . $phone . '"',
+                'errorCode' => 'INVALID_PHONE',
                 'is_permanent' => true,
             ];
         }
@@ -96,7 +98,9 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
         if (trim($message) === '') {
             return [
                 'success' => false,
+                'messageId' => null,
                 'error' => 'Pesan WhatsApp tidak boleh kosong.',
+                'errorCode' => 'INVALID_MESSAGE',
                 'is_permanent' => true,
             ];
         }
@@ -120,30 +124,62 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 'message' => $message,
             ]);
 
-            $payload = $response->json();
+            $payload = $response->json() ?? [];
 
             if ($response->successful() && ($payload['success'] ?? false) === true) {
                 return [
                     'success' => true,
                     'messageId' => $payload['messageId'] ?? null,
                     'error' => null,
+                    'errorCode' => null,
                     'is_permanent' => false,
                 ];
             }
 
-            $errorMessage = $payload['error'] ?? 'Gagal mengirim pesan (HTTP ' . $response->status() . ')';
-            // Status code 400 or 422 indicates permanent client error (e.g. invalid phone number)
-            $isPermanent = $response->status() === 400 || $response->status() === 422;
+            $errorCode = $payload['errorCode'] ?? null;
+            $errorMessage = $payload['error'] ?? ('Gagal mengirim pesan (HTTP ' . $response->status() . ')');
+
+            // Determine permanence: payload isPermanent takes precedence, then known permanent errorCodes / HTTP status
+            $isPermanent = false;
+            if (isset($payload['isPermanent'])) {
+                $isPermanent = (bool) $payload['isPermanent'];
+            } elseif (isset($payload['is_permanent'])) {
+                $isPermanent = (bool) $payload['is_permanent'];
+            } elseif ($errorCode !== null) {
+                $isPermanent = in_array($errorCode, ['INVALID_PARAMETERS', 'INVALID_PHONE', 'INVALID_MESSAGE', 'NOT_ON_WHATSAPP'], true);
+            } else {
+                $isPermanent = in_array($response->status(), [400, 422], true);
+            }
+
+            if ($errorCode === null) {
+                if ($response->status() === 503) {
+                    $errorCode = 'WHATSAPP_NOT_CONNECTED';
+                } elseif ($response->status() === 504 || $response->status() === 408) {
+                    $errorCode = 'TIMEOUT';
+                } elseif ($response->status() === 400) {
+                    $errorCode = 'INVALID_PARAMETERS';
+                } elseif ($response->status() === 422) {
+                    $errorCode = 'INVALID_PHONE';
+                } else {
+                    $errorCode = 'SEND_FAILED';
+                }
+            }
 
             return [
                 'success' => false,
+                'messageId' => null,
                 'error' => $errorMessage,
+                'errorCode' => $errorCode,
                 'is_permanent' => $isPermanent,
             ];
         } catch (Throwable $e) {
+            $msg = $e->getMessage();
+            $isTimeout = str_contains(strtolower($msg), 'timeout') || str_contains(strtolower($msg), 'timed out');
             return [
                 'success' => false,
-                'error' => 'Koneksi ke WhatsApp Gateway gagal: ' . $e->getMessage(),
+                'messageId' => null,
+                'error' => 'Koneksi ke WhatsApp Gateway gagal: ' . $msg,
+                'errorCode' => $isTimeout ? 'TIMEOUT' : 'WHATSAPP_NOT_CONNECTED',
                 'is_permanent' => false, // Network/timeout error is transient
             ];
         }
@@ -182,7 +218,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             $dudi = $penempatan->dudi;
             $siswa = $penempatan->siswa;
 
-            if ($dudi === null || !$dudi->status_aktif) {
+            if (!$dudi->status_aktif) {
                 $skipped++;
                 $reasons['dudi_inactive'] = ($reasons['dudi_inactive'] ?? 0) + 1;
                 continue;
@@ -192,12 +228,6 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             if (!$dudi->isHariOperasional($currentTime)) {
                 $skipped++;
                 $reasons['dudi_holiday'] = ($reasons['dudi_holiday'] ?? 0) + 1;
-                continue;
-            }
-
-            if ($siswa === null) {
-                $skipped++;
-                $reasons['missing_siswa'] = ($reasons['missing_siswa'] ?? 0) + 1;
                 continue;
             }
 
@@ -245,7 +275,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
             // Student phone number: prioritize User::$phone (Pengaturan Akun), fallback to Siswa::$no_telepon
             $user = $siswa->user;
-            $rawPhone = trim((string) ($user?->phone ?? $siswa->no_telepon ?? ''));
+            $rawPhone = trim((string) ($user->phone ?? $siswa->no_telepon ?? ''));
             $normalizedPhone = $this->normalizePhoneNumber($rawPhone);
 
             // Render message template
@@ -262,12 +292,12 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
             // If phone is missing or invalid, record as skipped once and do not queue
             if ($normalizedPhone === null) {
-                $log = WhatsAppLog::firstOrCreate(
+                $log = WhatsAppLog::firstOrCreateSafe(
                     ['idempotency_key' => $idempotencyKey],
                     [
                         'penempatan_pkl_id' => $penempatan->id,
                         'siswa_id' => $siswa->id,
-                        'user_id' => $user?->id,
+                        'user_id' => $user->id,
                         'recipient_phone' => $rawPhone ?: '-',
                         'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
                         'message_content' => $message,
@@ -283,12 +313,12 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             }
 
             // Atomically create or fetch log using idempotency key
-            $log = WhatsAppLog::firstOrCreate(
+            $log = WhatsAppLog::firstOrCreateSafe(
                 ['idempotency_key' => $idempotencyKey],
                 [
                     'penempatan_pkl_id' => $penempatan->id,
                     'siswa_id' => $siswa->id,
-                    'user_id' => $user?->id,
+                    'user_id' => $user->id,
                     'recipient_phone' => $normalizedPhone,
                     'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
                     'message_content' => $message,
@@ -298,8 +328,9 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 ]
             );
 
-            // If log was already created and not in failed state, do not dispatch duplicate
-            if (!$log->wasRecentlyCreated && $log->status !== WhatsAppLog::STATUS_FAILED) {
+            // If log was already created earlier, suppress duplicate dispatch!
+            // Queue retry lifecycle manages attempts; scheduler must not re-dispatch.
+            if (!$log->wasRecentlyCreated) {
                 $skipped++;
                 $reasons['duplicate_suppressed'] = ($reasons['duplicate_suppressed'] ?? 0) + 1;
                 continue;
@@ -350,7 +381,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             $dudi = $penempatan->dudi;
             $siswa = $penempatan->siswa;
 
-            if ($dudi === null || !$dudi->status_aktif) {
+            if (!$dudi->status_aktif) {
                 $skipped++;
                 $reasons['dudi_inactive'] = ($reasons['dudi_inactive'] ?? 0) + 1;
                 continue;
@@ -360,12 +391,6 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             if (!$dudi->isHariOperasional($currentTime)) {
                 $skipped++;
                 $reasons['dudi_holiday'] = ($reasons['dudi_holiday'] ?? 0) + 1;
-                continue;
-            }
-
-            if ($siswa === null) {
-                $skipped++;
-                $reasons['missing_siswa'] = ($reasons['missing_siswa'] ?? 0) + 1;
                 continue;
             }
 
@@ -418,7 +443,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
             // Student phone number: prioritize User::$phone (Pengaturan Akun), fallback to Siswa::$no_telepon
             $user = $siswa->user;
-            $rawPhone = trim((string) ($user?->phone ?? $siswa->no_telepon ?? ''));
+            $rawPhone = trim((string) ($user->phone ?? $siswa->no_telepon ?? ''));
             $normalizedPhone = $this->normalizePhoneNumber($rawPhone);
 
             // Render message template
@@ -435,12 +460,12 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
             // If phone is missing or invalid, record as skipped once and do not queue
             if ($normalizedPhone === null) {
-                $log = WhatsAppLog::firstOrCreate(
+                $log = WhatsAppLog::firstOrCreateSafe(
                     ['idempotency_key' => $idempotencyKey],
                     [
                         'penempatan_pkl_id' => $penempatan->id,
                         'siswa_id' => $siswa->id,
-                        'user_id' => $user?->id,
+                        'user_id' => $user->id,
                         'recipient_phone' => $rawPhone ?: '-',
                         'message_type' => WhatsAppLog::TYPE_ATTENDANCE_LATE,
                         'message_content' => $message,
@@ -456,12 +481,12 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             }
 
             // Atomically create or fetch log using idempotency key
-            $log = WhatsAppLog::firstOrCreate(
+            $log = WhatsAppLog::firstOrCreateSafe(
                 ['idempotency_key' => $idempotencyKey],
                 [
                     'penempatan_pkl_id' => $penempatan->id,
                     'siswa_id' => $siswa->id,
-                    'user_id' => $user?->id,
+                    'user_id' => $user->id,
                     'recipient_phone' => $normalizedPhone,
                     'message_type' => WhatsAppLog::TYPE_ATTENDANCE_LATE,
                     'message_content' => $message,
@@ -471,8 +496,9 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 ]
             );
 
-            // If log was already created and not in failed state, do not dispatch duplicate
-            if (!$log->wasRecentlyCreated && $log->status !== WhatsAppLog::STATUS_FAILED) {
+            // If log was already created earlier, suppress duplicate dispatch!
+            // Queue retry lifecycle manages attempts; scheduler must not re-dispatch.
+            if (!$log->wasRecentlyCreated) {
                 $skipped++;
                 $reasons['duplicate_suppressed'] = ($reasons['duplicate_suppressed'] ?? 0) + 1;
                 continue;
@@ -502,11 +528,28 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             return [
                 'success' => false,
                 'status' => 'failed',
-                'error' => 'Format nomor WhatsApp tidak valid. Gunakan format seperti 08123456789 atau 628123456789.',
+                'error' => 'Format nomor WhatsApp tidak valid. Gunakan format nomor seluler Indonesia seperti 08123456789 atau 628123456789.',
+                'errorCode' => 'INVALID_PHONE',
             ];
         }
 
         $result = $this->executeDirectSend($normalizedPhone, $message);
+        $errorCode = $result['errorCode'] ?? null;
+        $isSuccess = $result['success'] === true;
+
+        // User-friendly error message for administrative UI
+        $userFriendlyError = null;
+        if (!$isSuccess) {
+            $userFriendlyError = match ($errorCode) {
+                'NOT_ON_WHATSAPP' => 'Nomor tidak terdaftar di WhatsApp.',
+                'WHATSAPP_NOT_CONNECTED' => 'Gateway WhatsApp sedang tidak terhubung. Silakan periksa koneksi WhatsApp.',
+                'TIMEOUT' => 'Gateway WhatsApp mengalami batas waktu (timeout). Silakan coba lagi.',
+                'INVALID_PHONE' => 'Format nomor WhatsApp tidak valid.',
+                'INVALID_MESSAGE' => 'Pesan WhatsApp tidak boleh kosong.',
+                'INVALID_PARAMETERS' => 'Parameter permintaan tidak valid.',
+                default => $result['error'] ?? 'Terjadi kesalahan saat mengirim pesan via gateway.',
+            };
+        }
 
         // Record audit log for test message
         WhatsAppLog::create([
@@ -517,17 +560,19 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             'recipient_phone' => $normalizedPhone,
             'message_type' => WhatsAppLog::TYPE_MANUAL_TEST,
             'message_content' => $message,
-            'status' => $result['success'] ? WhatsAppLog::STATUS_SENT : WhatsAppLog::STATUS_FAILED,
-            'error_reason' => $result['error'] ?? null,
+            'status' => $isSuccess ? WhatsAppLog::STATUS_SENT : WhatsAppLog::STATUS_FAILED,
+            'error_reason' => $userFriendlyError ?: ($result['error'] ?? null),
             'response_payload' => $result,
             'tanggal' => Carbon::today(config('app.timezone')),
-            'sent_at' => $result['success'] ? Carbon::now(config('app.timezone')) : null,
+            'sent_at' => $isSuccess ? Carbon::now(config('app.timezone')) : null,
+            'failed_at' => !$isSuccess ? Carbon::now(config('app.timezone')) : null,
         ]);
 
         return [
-            'success' => $result['success'],
-            'status' => $result['success'] ? 'sent' : 'failed',
-            'error' => $result['error'] ?? null,
+            'success' => $isSuccess,
+            'status' => $isSuccess ? 'sent' : 'failed',
+            'error' => $userFriendlyError,
+            'errorCode' => $errorCode,
         ];
     }
 
@@ -717,24 +762,26 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             return null;
         }
 
-        // Strip everything except digits and leading plus
-        $hasLeadingPlus = str_starts_with($clean, '+');
+        // Strip everything except digits
         $digitsOnly = preg_replace('/[^0-9]/', '', $clean);
 
         if ($digitsOnly === null || $digitsOnly === '') {
             return null;
         }
 
-        // If had leading +62, digitsOnly already has 62...
-        // Convert leading 08... or 0... to 62...
-        if (str_starts_with($digitsOnly, '0')) {
-            $digitsOnly = '62' . substr($digitsOnly, 1);
+        // Convert leading 08... or 8... to canonical 628...
+        if (str_starts_with($digitsOnly, '08')) {
+            $digitsOnly = '628' . substr($digitsOnly, 2);
         } elseif (str_starts_with($digitsOnly, '8')) {
-            // e.g. 8123456789 -> 628123456789
             $digitsOnly = '62' . $digitsOnly;
         }
 
-        // Validate length: Indonesian WhatsApp numbers are 10 to 15 digits (starting with 628...)
+        // Must start with Indonesian mobile prefix '628'
+        if (!str_starts_with($digitsOnly, '628')) {
+            return null;
+        }
+
+        // Validate length: Indonesian mobile WhatsApp numbers are 10 to 16 digits
         $len = strlen($digitsOnly);
         if ($len < 10 || $len > 16) {
             return null;

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -21,7 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $message_content
  * @property string $status
  * @property string|null $error_reason
- * @property array|null $response_payload
+ * @property array<string, mixed>|null $response_payload
  * @property Carbon $tanggal
  * @property Carbon|null $sent_at
  * @property Carbon|null $created_at
@@ -32,7 +31,6 @@ use Illuminate\Support\Carbon;
  */
 class WhatsAppLog extends Model
 {
-    use HasFactory;
 
     protected $table = 'whatsapp_logs';
 
@@ -87,6 +85,41 @@ class WhatsAppLog extends Model
     public static function generateIdempotencyKey(int $siswaId, string $date, string $type): string
     {
         return hash('sha256', "wa_notif:{$siswaId}:{$date}:{$type}");
+    }
+
+    /**
+     * Concurrency-safe firstOrCreate using unique constraint.
+     * Catches race-condition QueryExceptions on duplicate keys and retrieves existing record.
+     *
+     * @param array<string, mixed> $attributes
+     * @param array<string, mixed> $values
+     * @return WhatsAppLog
+     */
+    public static function firstOrCreateSafe(array $attributes, array $values = []): WhatsAppLog
+    {
+        try {
+            /** @var WhatsAppLog $log */
+            $log = static::firstOrCreate($attributes, $values);
+            return $log;
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorCode = (string) $e->getCode();
+            $sqlState = (string) ($e->errorInfo[0] ?? '');
+            $message = $e->getMessage();
+
+            if (
+                $sqlState === '23000' ||
+                $errorCode === '23000' ||
+                str_contains($message, 'Duplicate entry') ||
+                str_contains($message, 'UNIQUE constraint failed')
+            ) {
+                /** @var static $existing */
+                $existing = static::where($attributes)->firstOrFail();
+                $existing->wasRecentlyCreated = false;
+                return $existing;
+            }
+
+            throw $e;
+        }
     }
 
     /**

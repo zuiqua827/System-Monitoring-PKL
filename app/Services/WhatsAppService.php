@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AbsensiStatus;
 use App\Jobs\SendWhatsAppNotificationJob;
 use App\Models\Absensi;
 use App\Models\PengajuanKetidakhadiran;
@@ -231,26 +232,38 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 continue;
             }
 
-            // Determine DUDI entry time
-            $jamMasuk = Carbon::parse($dudi->jam_masuk ?? '07:00:00', config('app.timezone'));
-            $reminderTime = $jamMasuk->copy()->subMinutes($offsetMinutes)->format('H:i');
+            // Determine DUDI entry time anchored to current date
+            $jamMasuk = $this->parseTimeOnDate($dateStr, $dudi->jam_masuk, '07:00:00');
+            $reminderTime = $jamMasuk->copy()->subMinutes($offsetMinutes);
 
-            // Verify if current time matches reminder time (e.g. 5 min before jam masuk)
-            if (!$force && $currentTime->format('H:i') !== $reminderTime) {
-                $skipped++;
-                $reasons['not_reminder_time'] = ($reasons['not_reminder_time'] ?? 0) + 1;
-                continue;
+            // Catch-up window check:
+            // Reminder is valid if current time has reached reminder time and has not passed jam_masuk
+            if (!$force) {
+                if ($currentTime->lt($reminderTime) || $currentTime->gte($jamMasuk)) {
+                    $skipped++;
+                    $reasons['not_reminder_time'] = ($reasons['not_reminder_time'] ?? 0) + 1;
+                    Log::debug("WhatsApp reminder skipped for student [{$siswa->id}] {$siswa->nama}: not in reminder window [{$reminderTime->format('H:i')} - {$jamMasuk->format('H:i')}] at {$currentTime->format('H:i')}");
+                    continue;
+                }
             }
 
-            // Check if student has already checked in today
+            // Single Source of Truth: Check if student has already recorded attendance today (hadir, terlambat, izin, sakit, alpha)
             $alreadyClockedIn = Absensi::where('penempatan_pkl_id', $penempatan->id)
                 ->whereDate('tanggal', $dateStr)
-                ->whereNotNull('jam_masuk')
+                ->whereIn('status', [
+                    AbsensiStatus::HADIR->value,
+                    AbsensiStatus::TERLAMBAT->value,
+                    AbsensiStatus::IZIN->value,
+                    AbsensiStatus::SAKIT->value,
+                    AbsensiStatus::ALPHA->value,
+                    'alfa',
+                ])
                 ->exists();
 
             if ($alreadyClockedIn) {
                 $skipped++;
                 $reasons['already_clocked_in'] = ($reasons['already_clocked_in'] ?? 0) + 1;
+                Log::debug("WhatsApp reminder skipped for student [{$siswa->id}] {$siswa->nama}: already has attendance record for {$dateStr}");
                 continue;
             }
 
@@ -263,6 +276,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             if ($hasApprovedLeave) {
                 $skipped++;
                 $reasons['approved_leave'] = ($reasons['approved_leave'] ?? 0) + 1;
+                Log::debug("WhatsApp reminder skipped for student [{$siswa->id}] {$siswa->nama}: has approved leave for {$dateStr}");
                 continue;
             }
 
@@ -275,7 +289,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
             // Student phone number: prioritize User::$phone (Pengaturan Akun), fallback to Siswa::$no_telepon
             $user = $siswa->user;
-            $rawPhone = trim((string) ($user->phone ?? $siswa->no_telepon ?? ''));
+            $rawPhone = trim((string) ($user?->phone ?? $siswa->no_telepon ?? ''));
             $normalizedPhone = $this->normalizePhoneNumber($rawPhone);
 
             // Render message template
@@ -297,7 +311,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                     [
                         'penempatan_pkl_id' => $penempatan->id,
                         'siswa_id' => $siswa->id,
-                        'user_id' => $user->id,
+                        'user_id' => $user?->id,
                         'recipient_phone' => $rawPhone ?: '-',
                         'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
                         'message_content' => $message,
@@ -309,6 +323,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
                 $skipped++;
                 $reasons['invalid_or_missing_phone'] = ($reasons['invalid_or_missing_phone'] ?? 0) + 1;
+                Log::warning("WhatsApp reminder skipped for student [{$siswa->id}] {$siswa->nama}: missing or invalid phone number '{$rawPhone}'");
                 continue;
             }
 
@@ -318,7 +333,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 [
                     'penempatan_pkl_id' => $penempatan->id,
                     'siswa_id' => $siswa->id,
-                    'user_id' => $user->id,
+                    'user_id' => $user?->id,
                     'recipient_phone' => $normalizedPhone,
                     'message_type' => WhatsAppLog::TYPE_ATTENDANCE_REMINDER,
                     'message_content' => $message,
@@ -333,11 +348,17 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             if (!$log->wasRecentlyCreated) {
                 $skipped++;
                 $reasons['duplicate_suppressed'] = ($reasons['duplicate_suppressed'] ?? 0) + 1;
+                Log::debug("WhatsApp reminder skipped for student [{$siswa->id}] {$siswa->nama}: duplicate suppressed for {$dateStr}");
                 continue;
             }
 
             // Dispatch to queue
-            SendWhatsAppNotificationJob::dispatch($log->id);
+            Log::info("WhatsApp reminder created pending log [ID: {$log->id}] and dispatched job for student [{$siswa->id}] {$siswa->nama} ({$normalizedPhone})");
+            try {
+                SendWhatsAppNotificationJob::dispatch($log->id);
+            } catch (Throwable $e) {
+                Log::warning("SendWhatsAppNotificationJob dispatch for reminder log ID {$log->id} encountered exception: " . $e->getMessage());
+            }
             $queued++;
         }
 
@@ -394,31 +415,51 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 continue;
             }
 
-            // Determine DUDI entry time
-            $jamMasuk = Carbon::parse($dudi->jam_masuk ?? '07:00:00', config('app.timezone'));
+            // Determine DUDI entry and late deadline anchored to current date
+            $jamMasuk = $this->parseTimeOnDate($dateStr, $dudi->jam_masuk, '07:00:00');
+            if ($dudi->batas_terlambat) {
+                $batasTerlambat = $this->parseTimeOnDate($dateStr, $dudi->batas_terlambat);
+            } else {
+                $toleransi = (int) ($dudi->toleransi_keterlambatan ?? 15);
+                $batasTerlambat = $jamMasuk->copy()->addMinutes($toleransi);
+            }
 
-            // The late notification triggers right at or after jam_masuk
-            // If not forced, it triggers when current time is >= jamMasuk and <= jamMasuk + 30 min, matching the hour:minute or scan
+            // Determine end of DUDI workday (jam_pulang) anchored to current date
+            $jamPulang = $dudi->jam_pulang
+                ? $this->parseTimeOnDate($dateStr, $dudi->jam_pulang)
+                : $jamMasuk->copy()->addHours(9);
+
+            if ($jamPulang->lte($batasTerlambat)) {
+                $jamPulang = $jamMasuk->copy()->addHours(8);
+            }
+
+            // The late notification triggers right at or after batasTerlambat and before workday ends
             if (!$force) {
-                $currentMinutes = $currentTime->hour * 60 + $currentTime->minute;
-                $entryMinutes = $jamMasuk->hour * 60 + $jamMasuk->minute;
-
-                if ($currentMinutes < $entryMinutes || $currentMinutes > $entryMinutes + 30) {
+                if ($currentTime->lt($batasTerlambat) || $currentTime->gt($jamPulang)) {
                     $skipped++;
                     $reasons['not_late_window'] = ($reasons['not_late_window'] ?? 0) + 1;
+                    Log::debug("WhatsApp late notice skipped for student [{$siswa->id}] {$siswa->nama}: not in late window [{$batasTerlambat->format('H:i')} - {$jamPulang->format('H:i')}] at {$currentTime->format('H:i')}");
                     continue;
                 }
             }
 
-            // Check if student has already checked in today
+            // Single Source of Truth: Check if student has already recorded attendance today (hadir, terlambat, izin, sakit, alpha)
             $alreadyClockedIn = Absensi::where('penempatan_pkl_id', $penempatan->id)
                 ->whereDate('tanggal', $dateStr)
-                ->whereNotNull('jam_masuk')
+                ->whereIn('status', [
+                    AbsensiStatus::HADIR->value,
+                    AbsensiStatus::TERLAMBAT->value,
+                    AbsensiStatus::IZIN->value,
+                    AbsensiStatus::SAKIT->value,
+                    AbsensiStatus::ALPHA->value,
+                    'alfa',
+                ])
                 ->exists();
 
             if ($alreadyClockedIn) {
                 $skipped++;
                 $reasons['already_clocked_in'] = ($reasons['already_clocked_in'] ?? 0) + 1;
+                Log::debug("WhatsApp late notice skipped for student [{$siswa->id}] {$siswa->nama}: already has attendance record for {$dateStr}");
                 continue;
             }
 
@@ -431,6 +472,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             if ($hasApprovedLeave) {
                 $skipped++;
                 $reasons['approved_leave'] = ($reasons['approved_leave'] ?? 0) + 1;
+                Log::debug("WhatsApp late notice skipped for student [{$siswa->id}] {$siswa->nama}: has approved leave for {$dateStr}");
                 continue;
             }
 
@@ -443,7 +485,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
             // Student phone number: prioritize User::$phone (Pengaturan Akun), fallback to Siswa::$no_telepon
             $user = $siswa->user;
-            $rawPhone = trim((string) ($user->phone ?? $siswa->no_telepon ?? ''));
+            $rawPhone = trim((string) ($user?->phone ?? $siswa->no_telepon ?? ''));
             $normalizedPhone = $this->normalizePhoneNumber($rawPhone);
 
             // Render message template
@@ -453,6 +495,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 'dudi' => $dudi->nama_perusahaan,
                 'nama_dudi' => $dudi->nama_perusahaan,
                 'jam_masuk' => $jamMasuk->format('H:i'),
+                'batas_terlambat' => $batasTerlambat->format('H:i'),
                 'tanggal' => $currentTime->translatedFormat('d F Y'),
                 'waktu' => $currentTime->format('H:i'),
                 'status' => 'TERLAMBAT',
@@ -465,7 +508,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                     [
                         'penempatan_pkl_id' => $penempatan->id,
                         'siswa_id' => $siswa->id,
-                        'user_id' => $user->id,
+                        'user_id' => $user?->id,
                         'recipient_phone' => $rawPhone ?: '-',
                         'message_type' => WhatsAppLog::TYPE_ATTENDANCE_LATE,
                         'message_content' => $message,
@@ -477,6 +520,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
 
                 $skipped++;
                 $reasons['invalid_or_missing_phone'] = ($reasons['invalid_or_missing_phone'] ?? 0) + 1;
+                Log::warning("WhatsApp late notice skipped for student [{$siswa->id}] {$siswa->nama}: missing or invalid phone number '{$rawPhone}'");
                 continue;
             }
 
@@ -486,7 +530,7 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
                 [
                     'penempatan_pkl_id' => $penempatan->id,
                     'siswa_id' => $siswa->id,
-                    'user_id' => $user->id,
+                    'user_id' => $user?->id,
                     'recipient_phone' => $normalizedPhone,
                     'message_type' => WhatsAppLog::TYPE_ATTENDANCE_LATE,
                     'message_content' => $message,
@@ -501,11 +545,17 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
             if (!$log->wasRecentlyCreated) {
                 $skipped++;
                 $reasons['duplicate_suppressed'] = ($reasons['duplicate_suppressed'] ?? 0) + 1;
+                Log::debug("WhatsApp late notice skipped for student [{$siswa->id}] {$siswa->nama}: duplicate suppressed for {$dateStr}");
                 continue;
             }
 
             // Dispatch to queue
-            SendWhatsAppNotificationJob::dispatch($log->id);
+            Log::info("WhatsApp late notice created pending log [ID: {$log->id}] and dispatched job for student [{$siswa->id}] {$siswa->nama} ({$normalizedPhone})");
+            try {
+                SendWhatsAppNotificationJob::dispatch($log->id);
+            } catch (Throwable $e) {
+                Log::warning("SendWhatsAppNotificationJob dispatch for late notice log ID {$log->id} encountered exception: " . $e->getMessage());
+            }
             $queued++;
         }
 
@@ -818,16 +868,25 @@ class WhatsAppService extends Service implements WhatsAppServiceInterface
      *
      * @return \Illuminate\Database\Eloquent\Collection<int, PenempatanPKL>
      */
-    private function getActivePlacementsForDate(string $dateStr)
+     private function getActivePlacementsForDate(string $dateStr)
+     {
+         return PenempatanPKL::where('status', 'aktif')
+             ->where(function ($q) use ($dateStr) {
+                 $q->whereNull('tanggal_mulai')->orWhere('tanggal_mulai', '<=', $dateStr);
+             })
+             ->where(function ($q) use ($dateStr) {
+                 $q->whereNull('tanggal_selesai')->orWhere('tanggal_selesai', '>=', $dateStr);
+             })
+             ->with(['siswa.user', 'dudi'])
+             ->get();
+     }
+
+    /**
+     * Resolve a DUDI time setting (string or Carbon) into a Carbon instance anchored to a specific date in app timezone.
+     */
+    private function parseTimeOnDate(string $dateStr, mixed $timeVal, string $default = '07:00:00'): Carbon
     {
-        return PenempatanPKL::where('status', 'aktif')
-            ->where(function ($q) use ($dateStr) {
-                $q->whereNull('tanggal_mulai')->orWhere('tanggal_mulai', '<=', $dateStr);
-            })
-            ->where(function ($q) use ($dateStr) {
-                $q->whereNull('tanggal_selesai')->orWhere('tanggal_selesai', '>=', $dateStr);
-            })
-            ->with(['siswa.user', 'dudi'])
-            ->get();
+        $timeStr = $timeVal !== null ? Carbon::parse($timeVal)->format('H:i:s') : $default;
+        return Carbon::parse("{$dateStr} {$timeStr}", config('app.timezone'));
     }
 }

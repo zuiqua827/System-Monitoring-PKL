@@ -73,6 +73,7 @@ class SendWhatsAppNotificationJob implements ShouldQueue
 
         // Set status to sending
         $log->update(['status' => WhatsAppLog::STATUS_SENDING]);
+        Log::info("Processing WhatsApp notification job [Log ID: {$this->logId}] for {$log->recipient_phone}");
 
         $settings = $waService->getSettings();
         if (!$settings['enabled']) {
@@ -104,6 +105,7 @@ class SendWhatsAppNotificationJob implements ShouldQueue
                 'sent_at' => Carbon::now(config('app.timezone')),
                 'failed_at' => null,
             ]);
+            Log::info("WhatsApp notification sent successfully [Log ID: {$this->logId}] to {$log->recipient_phone}");
             return;
         }
 

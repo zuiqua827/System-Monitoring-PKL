@@ -51,7 +51,7 @@ interface LaporanRepositoryInterface
      *
      * @param array<string, mixed> $filters
      */
-    public function getAbsensiExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder;
+    public function getAbsensiExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder|\App\Exports\AbsensiExportStreamer|iterable;
 
     /**
      * Get the eager-loaded, filtered absensi report records for PDF rendering.
@@ -59,7 +59,7 @@ interface LaporanRepositoryInterface
      * @param array<string, mixed> $filters
      * @return Collection<int, \App\Models\Absensi>
      */
-    public function getAbsensiReportForPdf(array $filters, int $limit): Collection;
+    public function getAbsensiReportForPdf(array $filters, int $limit = 500): Collection;
 
     /**
      * Get display-ready descriptions of active absensi report filters.

@@ -51,6 +51,7 @@
                     ['label' => 'Dashboard', 'route' => 'guru.dashboard', 'active' => ['guru.dashboard'], 'icon' => 'dashboard'],
                     ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
+                    ['label' => 'Rekap Bulanan', 'route' => 'guru.rekap-bulanan.index', 'active' => ['guru.rekap-bulanan.*', 'guru.siswa.rekap-bulanan'], 'icon' => 'calendar'],
                     ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
                     ['label' => 'Laporan PKL', 'route' => 'guru.laporan.index', 'active' => ['guru.laporan.*'], 'icon' => 'report'],
                     ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
@@ -78,6 +79,7 @@
                 'items' => [
                     ['label' => 'Dashboard', 'route' => 'dudi.dashboard', 'active' => ['dudi.dashboard'], 'icon' => 'dashboard'],
                     ['label' => 'Data Siswa PKL', 'route' => 'dudi.siswa.index', 'active' => ['dudi.siswa.*'], 'icon' => 'students'],
+                    ['label' => 'Rekap Bulanan', 'route' => 'dudi.rekap-bulanan.index', 'active' => ['dudi.rekap-bulanan.*', 'dudi.siswa.rekap-bulanan'], 'icon' => 'calendar'],
                     ['label' => 'Absensi', 'route' => 'dudi.absensi.index', 'active' => ['dudi.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Ketidakhadiran', 'route' => 'dudi.ketidakhadiran.index', 'active' => ['dudi.ketidakhadiran.*'], 'icon' => 'calendar'],
                     ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],

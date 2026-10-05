@@ -15,7 +15,9 @@ use App\Http\Controllers\Guru\AbsensiController as GuruAbsensiController;
 use App\Http\Controllers\Guru\AktivitasController as GuruAktivitasController;
 use App\Http\Controllers\Guru\DashboardController as GuruDashboardController;
 use App\Http\Controllers\Guru\PenilaianController as GuruPenilaianController;
+use App\Http\Controllers\Guru\RekapBulananController as GuruRekapBulananController;
 use App\Http\Controllers\Dudi\DashboardController as DudiDashboardController;
+use App\Http\Controllers\Dudi\RekapBulananController as DudiRekapBulananController;
 use App\Http\Controllers\Siswa\AbsensiController as SiswaAbsensiController;
 use App\Http\Controllers\Siswa\AktivitasController as SiswaAktivitasController;
 use App\Http\Controllers\Siswa\DashboardController as SiswaDashboardController;
@@ -178,6 +180,10 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
 Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/dashboard', [GuruDashboardController::class, 'index'])->name('dashboard');
 
+    // Rekap Bulanan Siswa
+    Route::get('/rekap-bulanan', [GuruRekapBulananController::class, 'index'])->name('rekap-bulanan.index');
+    Route::get('/siswa/{siswa}/rekap-bulanan', [GuruRekapBulananController::class, 'show'])->name('siswa.rekap-bulanan');
+
     // Absensi Siswa Bimbingan
     Route::get('/absensi', [GuruAbsensiController::class, 'index'])->name('absensi.index');
     Route::get('/absensi/{id}', [GuruAbsensiController::class, 'show'])->name('absensi.show');
@@ -226,6 +232,10 @@ Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi
     Route::get('/dashboard', [DudiDashboardController::class, 'index'])->name('dashboard');
     Route::get('/siswa', [\App\Http\Controllers\Dudi\SiswaController::class, 'index'])->name('siswa.index');
     Route::get('/siswa/{id}', [\App\Http\Controllers\Dudi\SiswaController::class, 'show'])->name('siswa.show');
+    
+    // Rekap Bulanan Siswa
+    Route::get('/rekap-bulanan', [DudiRekapBulananController::class, 'index'])->name('rekap-bulanan.index');
+    Route::get('/siswa/{siswa}/rekap-bulanan', [DudiRekapBulananController::class, 'show'])->name('siswa.rekap-bulanan');
     Route::get('/absensi', [\App\Http\Controllers\Dudi\AbsensiController::class, 'index'])->name('absensi.index');
     Route::get('/absensi/{id}', [\App\Http\Controllers\Dudi\AbsensiController::class, 'show'])->name('absensi.show');
     Route::get('/aktivitas', [\App\Http\Controllers\Dudi\AktivitasController::class, 'index'])->name('aktivitas.index');

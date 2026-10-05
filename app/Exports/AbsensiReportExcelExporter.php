@@ -13,10 +13,10 @@ final class AbsensiReportExcelExporter
      * Write the report directly to the response stream without materializing
      * the full result set in memory.
      *
-     * @param Builder<\App\Models\Absensi> $query
+     * @param Builder<\App\Models\Absensi>|iterable<\App\Models\Absensi>|AbsensiExportStreamer $query
      * @param array<string, int> $stats
      */
-    public function stream(Builder $query, array $stats): void
+    public function stream(Builder|iterable|AbsensiExportStreamer $query, array $stats): void
     {
         $writer = SimpleExcelWriter::create('php://output', 'xlsx');
 
@@ -31,7 +31,7 @@ final class AbsensiReportExcelExporter
             'terlambat' => 'Terlambat',
             'izin' => 'Izin',
             'sakit' => 'Sakit',
-            'alpha' => 'Alpha',
+            'alpha' => 'Alfa',
         ] as $key => $label) {
             $writer->addRow($this->row([
                 'No' => $label,
@@ -57,29 +57,40 @@ final class AbsensiReportExcelExporter
         ]));
 
         $number = 1;
-        $query->chunk(500, function ($records) use ($writer, &$number): void {
-            foreach ($records as $absensi) {
-                $penempatan = $absensi->penempatanPKL;
-
-                $writer->addRow($this->row([
-                    'No' => $number++,
-                    'Tanggal' => $absensi->tanggal?->format('d/m/Y') ?? '-',
-                    'NIS' => $penempatan?->siswa?->nis ?? '-',
-                    'Nama Siswa' => $penempatan?->siswa?->nama ?? '-',
-                    'Kelas' => $penempatan?->siswa?->kelas?->nama ?? '-',
-                    'Jurusan' => $penempatan?->siswa?->kelas?->jurusan?->nama ?? '-',
-                    'DUDI' => $penempatan?->dudi?->nama_perusahaan ?? '-',
-                    'Guru Pembimbing' => $penempatan?->guru?->nama ?? '-',
-                    'Periode PKL' => $penempatan?->periodePKL?->nama ?? '-',
-                    'Status Absensi' => ucfirst($absensi->status),
-                    'Jam Masuk' => $absensi->jam_masuk?->format('H:i') ?? '-',
-                    'Jam Pulang' => $absensi->jam_keluar?->format('H:i') ?? '-',
-                    'Keterangan' => $absensi->keterangan ?? '-',
-                ]));
+        if (method_exists($query, 'chunk')) {
+            $query->chunk(500, function ($records) use ($writer, &$number): void {
+                foreach ($records as $absensi) {
+                    $this->writeRecordRow($writer, $absensi, $number++);
+                }
+            });
+        } else {
+            foreach ($query as $absensi) {
+                $this->writeRecordRow($writer, $absensi, $number++);
             }
-        });
+        }
 
         $writer->close();
+    }
+
+    private function writeRecordRow(SimpleExcelWriter $writer, $absensi, int $number): void
+    {
+        $penempatan = $absensi->penempatanPKL;
+
+        $writer->addRow($this->row([
+            'No' => $number,
+            'Tanggal' => $absensi->tanggal?->format('d/m/Y') ?? '-',
+            'NIS' => $penempatan?->siswa?->nis ?? '-',
+            'Nama Siswa' => $penempatan?->siswa?->nama ?? '-',
+            'Kelas' => $penempatan?->siswa?->kelas?->nama ?? '-',
+            'Jurusan' => $penempatan?->siswa?->kelas?->jurusan?->nama ?? '-',
+            'DUDI' => $penempatan?->dudi?->nama_perusahaan ?? '-',
+            'Guru Pembimbing' => $penempatan?->guru?->nama ?? '-',
+            'Periode PKL' => $penempatan?->periodePKL?->nama ?? '-',
+            'Status Absensi' => in_array(strtolower((string) $absensi->status), ['alpha', 'alfa'], true) ? 'Alfa' : ucfirst((string) $absensi->status),
+            'Jam Masuk' => $absensi->jam_masuk?->format('H:i') ?? '-',
+            'Jam Pulang' => $absensi->jam_keluar?->format('H:i') ?? '-',
+            'Keterangan' => $absensi->keterangan ?? '-',
+        ]));
     }
 
     /** @return array<string, int|string> */

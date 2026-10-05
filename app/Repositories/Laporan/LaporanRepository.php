@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 namespace App\Repositories\Laporan;
 
+use App\Exports\AbsensiExportStreamer;
 use App\Models\PenempatanPKL;
 use App\Repositories\Laporan\Interfaces\LaporanRepositoryInterface;
+use App\Services\Interfaces\AbsensiServiceInterface;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class LaporanRepository implements LaporanRepositoryInterface
 {
+    public function __construct(
+        private readonly ?AbsensiServiceInterface $absensiService = null,
+    ) {}
+
+    private function getAbsensiService(): AbsensiServiceInterface
+    {
+        return $this->absensiService ?? app(AbsensiServiceInterface::class);
+    }
     public function getPenempatanSummary(array $filters): LengthAwarePaginator|Collection
     {
         $query = PenempatanPKL::query()
@@ -110,87 +120,48 @@ class LaporanRepository implements LaporanRepositoryInterface
 
     public function getAbsensiReport(array $filters): LengthAwarePaginator|Collection
     {
-        $query = \App\Models\Absensi::query()
-            ->with([
-                'penempatanPKL.siswa.kelas.jurusan',
-                'penempatanPKL.guru',
-                'penempatanPKL.dudi',
-                'penempatanPKL.periodePKL',
-            ]);
-
-        $this->applyAbsensiFilters($query, $filters);
-
-        $query->orderBy('tanggal', 'desc');
+        $data = $this->getAbsensiService()->getLaporanAbsensiData($filters);
+        $records = $data['records'];
 
         $perPage = (int) ($filters['per_page'] ?? 15);
-        
-        return $query->paginate($perPage);
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $currentItems = $records->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        return new LengthAwarePaginator(
+            $currentItems,
+            $records->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => LengthAwarePaginator::resolveCurrentPath(),
+                'query' => request()->query(),
+            ]
+        );
     }
 
     public function getAbsensiSummaryStats(array $filters): array
     {
-        $query = \App\Models\Absensi::query();
-
-        $this->applyAbsensiFilters($query, $filters);
-
-        $stats = $query->selectRaw('
-            COUNT(DISTINCT penempatan_pkl_id) as total_siswa,
-            COUNT(*) as total_absensi,
-            SUM(CASE WHEN status = "hadir" THEN 1 ELSE 0 END) as hadir,
-            SUM(CASE WHEN status = "terlambat" THEN 1 ELSE 0 END) as terlambat,
-            SUM(CASE WHEN status = "izin" THEN 1 ELSE 0 END) as izin,
-            SUM(CASE WHEN status = "sakit" THEN 1 ELSE 0 END) as sakit,
-            SUM(CASE WHEN status = "alpha" THEN 1 ELSE 0 END) as alpha
-        ')->first();
-
-        if (!$stats) {
-            return [
-                'total_siswa' => 0, 'total_absensi' => 0, 'hadir' => 0,
-                'terlambat' => 0, 'izin' => 0, 'sakit' => 0, 'alpha' => 0,
-            ];
-        }
-
-        return [
-            'total_siswa' => (int) $stats->total_siswa,
-            'total_absensi' => (int) $stats->total_absensi,
-            'hadir' => (int) $stats->hadir,
-            'terlambat' => (int) $stats->terlambat,
-            'izin' => (int) $stats->izin,
-            'sakit' => (int) $stats->sakit,
-            'alpha' => (int) $stats->alpha,
-        ];
+        $data = $this->getAbsensiService()->getLaporanAbsensiData($filters);
+        return $data['stats'];
     }
 
-    public function getAbsensiExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder
+    public function getAbsensiExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder|AbsensiExportStreamer|iterable
     {
-        $query = \App\Models\Absensi::query()
-            ->with([
-                'penempatanPKL.siswa.kelas.jurusan',
-                'penempatanPKL.guru',
-                'penempatanPKL.dudi',
-                'penempatanPKL.periodePKL',
-            ]);
-
-        $this->applyAbsensiFilters($query, $filters);
-
-        return $query
-            ->orderByDesc('tanggal')
-            ->orderByDesc('id');
+        $data = $this->getAbsensiService()->getLaporanAbsensiData($filters);
+        return new AbsensiExportStreamer($data['records']);
     }
 
-    public function getAbsensiReportForPdf(array $filters, int $limit): Collection
+    public function getAbsensiReportForPdf(array $filters, int $limit = 500): Collection
     {
-        $query = \App\Models\Absensi::query()
-            ->with([
-                'penempatanPKL.siswa.kelas.jurusan',
-                'penempatanPKL.guru',
-                'penempatanPKL.dudi',
-                'penempatanPKL.periodePKL',
-            ]);
+        $data = $this->getAbsensiService()->getLaporanAbsensiData($filters);
+        // Sort ascending by tanggal for chronological PDF display
+        $records = $data['records']->sortBy([
+            ['tanggal', 'asc'],
+            ['penempatan_pkl_id', 'asc'],
+        ])->values();
 
-        $this->applyAbsensiFilters($query, $filters);
-
-        return $query->orderBy('tanggal', 'asc')->orderBy('id')->limit($limit)->get();
+        $items = $records->take($limit);
+        return new Collection($items->all());
     }
 
     public function getAbsensiPdfFilterSummary(array $filters): array

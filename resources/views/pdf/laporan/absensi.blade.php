@@ -141,7 +141,7 @@
         <span class="filter-item"><span class="filter-label">Terlambat:</span> {{ $stats['terlambat'] ?? 0 }}</span>
         <span class="filter-item"><span class="filter-label">Izin:</span> {{ $stats['izin'] ?? 0 }}</span>
         <span class="filter-item"><span class="filter-label">Sakit:</span> {{ $stats['sakit'] ?? 0 }}</span>
-        <span class="filter-item"><span class="filter-label">Alpha:</span> {{ $stats['alpha'] ?? 0 }}</span>
+        <span class="filter-item"><span class="filter-label">Alfa:</span> {{ $stats['alpha'] ?? 0 }}</span>
     </section>
 
     <table>
@@ -183,9 +183,9 @@
                     <td>{{ $item->penempatanPKL?->siswa?->kelas?->nama ?? '-' }}</td>
                     <td>{{ $item->penempatanPKL?->dudi?->nama_perusahaan ?? '-' }}</td>
                     <td>{{ $item->penempatanPKL?->guru?->nama ?? '-' }}</td>
-                    <td class="center">{{ ucfirst($item->status) }}</td>
+                    <td class="center">{{ in_array(strtolower((string) $item->status), ['alpha', 'alfa'], true) ? 'Alfa' : ucfirst((string) $item->status) }}</td>
                     <td class="center">{{ $item->jam_masuk ? \Carbon\Carbon::parse($item->jam_masuk)->format('H:i') : '-' }}</td>
-                    <td class="center">{{ $item->jam_pulang ? \Carbon\Carbon::parse($item->jam_pulang)->format('H:i') : '-' }}</td>
+                    <td class="center">{{ ($item->jam_keluar ?? $item->jam_pulang) ? \Carbon\Carbon::parse($item->jam_keluar ?? $item->jam_pulang)->format('H:i') : '-' }}</td>
                     <td>{{ $item->keterangan ?? '-' }}</td>
                 </tr>
             @endforeach

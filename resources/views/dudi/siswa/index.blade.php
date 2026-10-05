@@ -85,6 +85,9 @@
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1">
                                         <a href="{{ route('dudi.siswa.show', $penempatan->id) }}" class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">Detail</a>
+                                        @if($penempatan->siswa_id)
+                                            <a href="{{ route('dudi.siswa.rekap-bulanan', $penempatan->siswa_id) }}" class="inline-flex items-center rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100">Rekap</a>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

@@ -72,6 +72,7 @@ class ServiceServiceProvider extends ServiceProvider
         UserAuthenticationServiceInterface::class => UserAuthenticationService::class,
         UserProfileServiceInterface::class => UserProfileService::class,
         WhatsAppServiceInterface::class => WhatsAppService::class,
+        \App\Services\Interfaces\RekapBulananServiceInterface::class => \App\Services\RekapBulananService::class,
     ];
 
     public function register(): void

@@ -63,6 +63,7 @@ class RepositoryServiceProvider extends ServiceProvider
         SipintuClassroomMappingRepositoryInterface::class => SipintuClassroomMappingRepository::class,
         SipintuSyncLogRepositoryInterface::class => SipintuSyncLogRepository::class,
         UserRepositoryInterface::class => UserRepository::class,
+        \App\Repositories\Interfaces\RekapBulananRepositoryInterface::class => \App\Repositories\RekapBulananRepository::class,
     ];
 
     public function register(): void

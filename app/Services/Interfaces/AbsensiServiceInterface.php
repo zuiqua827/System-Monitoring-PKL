@@ -137,6 +137,42 @@ interface AbsensiServiceInterface
      *     check_out: array{time: string|null, status: string, badge_color: string, is_valid: bool}
      * }
      */
-    public function getPresensiStatusDetails(?Absensi $absensi, ?\App\Models\Dudi $dudi = null): array;
+    /**
+     * Get list of operational / required PKL dates for a placement within an optional date range.
+     *
+     * @param \App\Models\PenempatanPKL $penempatan
+     * @param \Carbon\CarbonInterface|string|null $startDate
+     * @param \Carbon\CarbonInterface|string|null $endDate
+     * @return list<string> Array of date strings in 'Y-m-d' format.
+     */
+    public function getHariWajibPKL(\App\Models\PenempatanPKL $penempatan, $startDate = null, $endDate = null): array;
+
+    /**
+     * Calculate centralized attendance for a placement over an optional period.
+     *
+     * @param \App\Models\PenempatanPKL|int $penempatan
+     * @param \Carbon\CarbonInterface|string|null $startDate
+     * @param \Carbon\CarbonInterface|string|null $endDate
+     * @return array<string, mixed>
+     */
+    public function calculateAttendance(\App\Models\PenempatanPKL|int $penempatan, $startDate = null, $endDate = null): array;
+
+    /**
+     * Get canonical monthly attendance recap for a placement or student.
+     *
+     * @param \App\Models\PenempatanPKL|int $penempatan
+     * @param int $month
+     * @param int $year
+     * @return array<string, mixed>
+     */
+    public function getRekapAbsensiBulanan(\App\Models\PenempatanPKL|int $penempatan, int $month, int $year): array;
+
+    /**
+     * Get unified report data (records and stats) for Laporan PKL.
+     *
+     * @param array<string, mixed> $filters
+     * @return array{records: \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection, stats: array<string, int>}
+     */
+    public function getLaporanAbsensiData(array $filters): array;
 }
 

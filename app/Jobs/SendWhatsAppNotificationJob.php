@@ -16,9 +16,24 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Queue Job untuk mengirimkan notifikasi WhatsApp di latar belakang (asynchronous).
+ *
+ * Mengapa Menggunakan Queue?
+ * - Menghubungi HTTP Gateway luar butuh waktu 1-3 detik per pesan.
+ * - Memproses pengiriman secara sinkron akan membuat web atau scheduler lambat/macet (lag/timeout).
+ * - Dengan Queue, dispatch job hanya memakan waktu milidetik, sementara worker memproses di background.
+ *
+ * Fitur Keamanan:
+ * 1. Idempotency Guard : Mengecek log status agar tidak pernah mengirim pesan duplikat/dobel.
+ * 2. Exponential Backoff: Jika terjadi kendala jaringan sementara, job mencoba ulang setelah jeda
+ *    10 detik, 30 detik, dan 60 detik (maksimal 3 kali).
+ * 3. Permanent vs Transient Error: Error permanen (nomor tidak ada WA) langsung dihentikan tanpa retry.
+ */
 class SendWhatsAppNotificationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
 
     /**
      * The number of seconds the job can run before timing out.

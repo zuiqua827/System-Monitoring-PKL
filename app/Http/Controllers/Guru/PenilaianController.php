@@ -77,6 +77,16 @@ class PenilaianController extends Controller
         return view('guru.penilaian.show', compact('penilaian'));
     }
 
+    // ============================================================
+    // GENERATOR DOKUMEN RESMI RAPOR PKL (PDF)
+    // ============================================================
+    // Menggunakan package Barryvdh DomPDF:
+    // 1. Memeriksa otorisasi exportPdf di PenilaianPolicy (hanya Guru bimbingan & Super Admin).
+    // 2. Memuat relasi lengkap: Siswa, Kelas, Jurusan, Guru, DUDI, Periode, dan Penilai.
+    // 3. Merender view 'pdf.penilaian' ke ukuran kertas A4 Portrait.
+    // 4. Menghasilkan stream unduhan file dengan nama 'Rapor_PKL_{Nama_Siswa}.pdf'.
+    // ============================================================
+
     /**
      * Download PDF Rapor PKL. Restricted to Guru Pembimbing & Super Admin.
      */
@@ -111,6 +121,25 @@ class PenilaianController extends Controller
     {
         return $this->downloadPdf($id);
     }
+
+    // ============================================================
+    // AJAX AUTO-CALCULATION SKOR KEHADIRAN
+    // ============================================================
+    // Alur Permintaan AJAX:
+    // Browser (Form Penilaian)
+    //    ↓
+    // AJAX GET Request (/penilaian/ajax/attendance-score/{id})
+    //    ↓
+    // Guru\PenilaianController@calculateAttendanceAjax
+    //    ↓
+    // PenilaianService::calculateKehadiranScore()
+    //    ↓
+    // AbsensiService (SSOT hitung persentase kehadiran)
+    //    ↓
+    // JSON Response: {"success": true, "nilai_kehadiran": 95}
+    //    ↓
+    // Browser: Input field nilai kehadiran otomatis terisi tanpa refresh halaman.
+    // ============================================================
 
     /**
      * Ajax calculation of attendance score for form auto-population.

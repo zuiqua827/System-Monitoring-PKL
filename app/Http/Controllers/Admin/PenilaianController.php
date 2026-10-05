@@ -15,13 +15,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 /**
- * Controller for Admin Penilaian CRUD.
+ * Controller untuk pengelolaan data Penilaian PKL oleh Super Admin.
  *
- * Super Admin has full access:
- * - View all penilaian
- * - Create, Edit, Delete, Restore, Force Delete
+ * Wewenang Penuh Super Admin (Full CRUD):
+ * - Melihat seluruh data penilaian dari semua DUDI dan semua Guru.
+ * - Mengedit nilai dalam kondisi khusus (perbaikan administrasi).
+ * - Soft Delete, Restore, dan Force Delete (hapus permanen) nilai siswa.
  */
 class PenilaianController extends Controller
+
 {
     public function __construct(
         private readonly PenilaianServiceInterface $penilaianService,

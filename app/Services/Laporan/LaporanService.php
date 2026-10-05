@@ -9,9 +9,24 @@ use App\Services\Laporan\Interfaces\LaporanServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
+/**
+ * Service untuk menyusun dan mengekspor Laporan Monitoring PKL (Excel & PDF).
+ *
+ * Konsolidasi Data:
+ * - Menggabungkan entitas Siswa, Guru Pembimbing, DUDI, dan Periode PKL.
+ * - Menyajikan 3 jenis laporan utama:
+ *   1. Laporan Siswa PKL (Daftar siswa, status penempatan, DUDI).
+ *   2. Laporan Absensi PKL (Rekap kehadiran, terlambat, izin, sakit, alpha).
+ *   3. Laporan Aktivitas PKL (Jurnal harian dan verifikasi pembimbing).
+ *
+ * Keamanan Memori (Memory Safety):
+ * - Membatasi ekspor PDF maksimal 1000 baris (PDF_ROW_LIMIT) guna mencegah
+ *   Memory Exhaustion / Crash server saat data dalam jumlah masif.
+ */
 class LaporanService implements LaporanServiceInterface
 {
     private const PDF_ROW_LIMIT = 1000;
+
 
     public function __construct(
         private readonly LaporanRepositoryInterface $laporanRepository,

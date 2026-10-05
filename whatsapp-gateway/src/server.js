@@ -1,3 +1,17 @@
+// ============================================================
+// MICROSERVICE WHATSAPP GATEWAY (EXPRESS.JS + BAILEYS)
+// ============================================================
+// Peran Layanan:
+// - Berjalan sebagai microservice terpisah di PORT 3005 (dikonfigurasi via .env).
+// - Menerima perintah pengiriman pesan dari Laravel melalui REST API.
+// - Menghubungkan aplikasi web ke server WhatsApp melalui Baileys WebSocket.
+//
+// Endpoint Utama:
+// 1. GET  /health           : Health check publik uptime layanan.
+// 2. GET  /api/status       : Cek status koneksi WA, nomor aktif, atau string QR code.
+// 3. POST /api/send-message : Menerima nomor telepon dan teks pesan untuk dikirimkan.
+// ============================================================
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -11,6 +25,7 @@ const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN || process.env.API_KEY || null
 
 app.use(cors());
 app.use(express.json());
+
 
 // API Key / Bearer Token authentication middleware
 const authenticateApiKey = (req, res, next) => {

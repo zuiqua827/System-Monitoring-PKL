@@ -22,11 +22,27 @@ class RekapBulananService implements RekapBulananServiceInterface
         private readonly \App\Services\Interfaces\AbsensiServiceInterface $absensiService,
     ) {}
 
+    // ============================================================
+    // REKAP BULANAN SISWA (ABSENSI & AKTIVITAS)
+    // ============================================================
+    // Perhitungan absensi dipusatkan pada service ini agar
+    // seluruh fitur menggunakan sumber perhitungan yang konsisten,
+    // seperti rekap bulanan, laporan PKL, dan penilaian.
+    //
+    // Alur Kerja:
+    // 1. Sanitasi bulan (1-12) dan tahun.
+    // 2. Mengambil Penempatan PKL aktif siswa pada rentang bulan tersebut.
+    // 3. Mengambil rekap absensi melalui AbsensiService (Single Source of Truth).
+    // 4. Mengambil seluruh riwayat jurnal aktivitas siswa di bulan tersebut.
+    // 5. Menggabungkan data per tanggal untuk tampilan kalender/tabel monitoring.
+    // ============================================================
+
     /**
      * {@inheritDoc}
      */
     public function getMonthlyRecap(Siswa $siswa, int $month, int $year): array
     {
+
         $timezone = (string) config('app.timezone', 'Asia/Jakarta');
 
         // Sanitize month and year

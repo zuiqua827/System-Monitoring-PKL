@@ -16,11 +16,25 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * Controller untuk menangani Single Sign-On (SSO) SiPintu SMKN 1 Bangsri.
+ *
+ * Alur Kerja OAuth2 Authorization Code:
+ * 1. redirect():
+ *    - Mengarahkan pengguna ke server otorisasi SiPintu (/oauth/authorize).
+ *    - Membawa parameter: client_id, redirect_uri, response_type=code, dan state (CSRF guard).
+ * 2. callback():
+ *    - Menerima kode otorisasi (code) dari server SiPintu.
+ *    - Menukarkan kode dengan Access Token via HTTP request backend-to-backend.
+ *    - Mengambil data profil user (/api/user) dari SiPintu.
+ *    - Mencari akun lokal berdasarkan nomor induk (NIS/NIP) atau email, lalu melakukan login otomatis.
+ */
 class SipintuSsoController extends Controller
 {
     public function __construct(
         private readonly UserAuthenticationServiceInterface $authenticationService,
     ) {}
+
 
     /**
      * Redirect user to SiPintu SSO Authorization Endpoint (SP-initiated).

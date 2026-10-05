@@ -1,8 +1,22 @@
+{{--
+==========================================================================
+DOKUMEN RESMI RAPOR PRAKTIK KERJA LAPANGAN (PKL) - FORMAT A4 PORTRAIT
+==========================================================================
+Komponen Isi Rapor:
+1. Kop Surat Resmi SMKN 1 Bangsri.
+2. Identitas Siswa, Kelas, Jurusan, Guru Pembimbing, dan Tempat DUDI.
+3. Rekapitulasi Kehadiran (Single Source of Truth dari AbsensiService).
+4. Tabel Nilai 6 Aspek Kompetensi & Nilai Akhir (Formula Bobot 14).
+5. Predikat Huruf & Narasi Deskripsi Capaian Kompetensi.
+6. Kolom Tanda Tangan Resmi (Kepala Sekolah, Guru Pembimbing, Pembimbing DUDI).
+==========================================================================
+--}}
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
     <title>Rapor_PKL_{{ str_replace(' ', '_', $penilaian->penempatanPKL?->siswa?->nama ?? 'Siswa') }}</title>
+
     <style>
         @page {
             size: A4 portrait;

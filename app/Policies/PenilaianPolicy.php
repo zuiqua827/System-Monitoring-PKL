@@ -155,9 +155,12 @@ class PenilaianPolicy
     }
 
     /**
-     * Determine whether the user can export/print/download PDF of the penilaian.
-     * ONLY Guru Pembimbing (for their bimbingan students) and Super Admin are permitted.
-     * Siswa and DUDI are strictly DENIED.
+     * Menentukan apakah pengguna diizinkan mengunduh, mencetak, atau mengekspor PDF Rapor PKL.
+     *
+     * Aturan Kebijakan (Business Rule):
+     * - Rapor PKL adalah dokumen legal sekolah yang hanya boleh diterbitkan oleh pihak sekolah.
+     * - HANYA Guru Pembimbing (khusus untuk siswa yang berada dalam bimbingannya) dan Super Admin yang diizinkan.
+     * - Siswa dan DUDI diblokir (return false -> HTTP 403 Forbidden).
      */
     public function exportPdf(User $user, Penilaian $penilaian): bool
     {

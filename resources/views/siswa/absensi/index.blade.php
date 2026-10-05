@@ -29,8 +29,22 @@
             </div>
         </div>
 
-        {{-- Card Check In / Check Out with Camera --}}
+        {{--
+        ==================================================================
+        FITUR INTERAKTIF PRESENSI SISWA (KAMERA SELFIE + GPS GEOFENCING)
+        ==================================================================
+        Alur Pengoperasian Siswa:
+        1. Akses modul kamera real-time dengan tombol buka kamera.
+        2. Sistem mengambil koordinat Latitude & Longitude perangkat siswa.
+        3. Siswa membidik selfie; sistem menempelkan watermark identitas:
+           - Nama Siswa & NIS
+           - Nama Perusahaan DUDI
+           - Waktu pengambilan presensi
+        4. Sistem memverifikasi radius maksimal 100 meter ke titik DUDI.
+        ==================================================================
+        --}}
         @if($penempatanAktif)
+
             <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
                 <div class="p-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

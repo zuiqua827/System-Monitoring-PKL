@@ -31,21 +31,34 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| ARSITEKTUR & RUTE UTAMA APLIKASI (WEB ROUTES)
 |--------------------------------------------------------------------------
 |
-| Route structure:
-| - Health Check: /health & /api/v1/health
-| - SiPintu SSO: /auth/callback & /auth/sipintu
-| - Webhook: /api/v1/sipintu/sync-user
-| - Guest: welcome page
-| - Authenticated: role-based dashboard redirect
-| - Super Admin: /admin/*
-| - Guru: /guru/*
-| - DUDI: /dudi/*
-| - Siswa: /siswa/*
+| Alur Permintaan Data (Request Lifecycle):
+| Browser (Klien)
+|    ↓
+| Route (routes/web.php & routes/auth.php)
+|    ↓
+| Middleware (auth, verified, role, permission, ForceChangePassword)
+|    ↓
+| Controller (app/Http/Controllers/*)
+|    ↓
+| Service (app/Services/* — Logika Bisnis & Perhitungan SSOT)
+|    ↓
+| Repository / Model (app/Repositories/* & app/Models/* — Eloquent ORM)
+|    ↓
+| Database (MySQL / SQLite)
+|
+| Pengelompokan Hak Akses Rute:
+| 1. Health Check & Webhook SiPintu : Pemantauan status sistem & sinkronisasi pengguna.
+| 2. SiPintu SSO                   : Integrasi login terpusat SMKN 1 Bangsri.
+| 3. Super Admin (/admin/*)         : Pengelolaan penuh master data, penempatan, dan log.
+| 4. Guru Pembimbing (/guru/*)     : Monitoring siswa bimbingan & cetak Rapor PKL (PDF).
+| 5. DUDI (/dudi/*)                : Pembimbing lapangan, operasional, & input nilai PKL.
+| 6. Siswa (/siswa/*)              : Check-in/out selfie GPS, jurnal harian, & izin/sakit.
 |
 */
+
 
 // Health Check Endpoints (SiPintu monitoring)
 Route::get('/health', [HealthController::class, 'check'])->name('health.check');

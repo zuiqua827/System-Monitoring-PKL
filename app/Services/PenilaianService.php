@@ -241,6 +241,20 @@ class PenilaianService extends Service implements PenilaianServiceInterface
         return $this->penilaianRepository->forceDelete($penilaian);
     }
 
+    // ============================================================
+    // RUMUS PERHITUNGAN NILAI AKHIR RAPOR PKL
+    // ============================================================
+    // Rumus nilai akhir menggunakan Rata-Rata Tertimbang (Weighted Average):
+    // ((Kehadiran × 4) +
+    //  (Kerja Sama × 2) +
+    //  (Komunikasi × 2) +
+    //  (Problem Solving × 2) +
+    //  (Kemampuan Teknis × 2) +
+    //  (Inisiatif × 2)) / 14
+    //
+    // Total Pembagi Bobot = 4 + 2 + 2 + 2 + 2 + 2 = 14
+    // ============================================================
+
     /**
      * {@inheritDoc}
      */
@@ -273,13 +287,21 @@ class PenilaianService extends Service implements PenilaianServiceInterface
     /**
      * {@inheritDoc}
      */
-    /**
-     * {@inheritDoc}
-     */
     public function calculatePredikat(?float $nilaiAkhir): ?string
     {
         return self::calculatePredikatStatic($nilaiAkhir);
     }
+
+    // ============================================================
+    // PENENTUAN PREDIKAT RAPOR PKL
+    // ============================================================
+    // Rentang Nilai (0 - 100):
+    // 95 - 100 : A+ (Sangat Baik / Sangat Kompeten)
+    // 90 - 94  : A  (Baik Sekali / Kompeten)
+    // 80 - 89  : B  (Baik / Cukup Kompeten)
+    // 70 - 79  : C  (Cukup)
+    // < 70     : D  (Kurang)
+    // ============================================================
 
     /**
      * Static helper to calculate predicate from score (0-100).
@@ -298,6 +320,7 @@ class PenilaianService extends Service implements PenilaianServiceInterface
             default => 'D',
         };
     }
+
 
     /**
      * {@inheritDoc}
@@ -394,11 +417,29 @@ class PenilaianService extends Service implements PenilaianServiceInterface
         return $this->absensiService->getRekapAbsensiData($penempatanPklId);
     }
 
+    // ============================================================
+    // PERHITUNGAN SKOR KEHADIRAN OTOMATIS DARI ABSENSI RIIL
+    // ============================================================
+    // Nilai Kehadiran (skala 0 - 100) dihitung otomatis oleh sistem
+    // menggunakan data absensi Single Source of Truth (SSOT).
+    //
+    // Bobot Konversi Poin Kehadiran per Hari:
+    // - Hadir Tepat Waktu : 100% (1.00 poin)
+    // - Terlambat         : 90%  (0.90 poin)
+    // - Sangat Terlambat  : 75%  (0.75 poin)
+    // - Sakit             : 85%  (0.85 poin)
+    // - Izin              : 70%  (0.70 poin)
+    // - Alpha (Bolos)     : 0%   (0.00 poin)
+    //
+    // Rumus Skor = (Total Poin / Total Hari Wajib PKL) × 100
+    // ============================================================
+
     /**
      * {@inheritDoc}
      */
     public function calculateKehadiranScore(int $penempatanPklId): int
     {
+
         $rekap = $this->getRekapAbsensiData($penempatanPklId);
         if ($rekap['total_hari'] <= 0) {
             return 0;

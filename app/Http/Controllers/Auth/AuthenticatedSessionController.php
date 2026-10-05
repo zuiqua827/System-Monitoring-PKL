@@ -16,19 +16,25 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 /**
- * Handles user authentication sessions (login/logout).
+ * Controller untuk mengelola sesi autentikasi pengguna (Login & Logout).
  *
- * Login flow:
- * 1. Authenticate credentials
- * 2. Record login metadata (timestamp + IP)
- * 3. Redirect based on role (Super Admin, Guru, DUDI, Siswa)
- * 4. If must_change_password is true, ForceChangePassword middleware will intercept
- *
- * Two entry points:
- *  - /admin/login  -> Super Admin only (email + password)
- *  - /login        -> PKL users (Siswa, Guru, DUDI) via role tabs
+ * Alur Proses Login:
+ * 1. Autentikasi Kredensial:
+ *    - Super Admin melalui email + password pada rute /admin/login.
+ *    - Siswa melalui NIS + password (tanggal lahir atau password baru) pada rute /login.
+ *    - Guru & DUDI melalui email/username + password pada rute /login.
+ * 2. Session Regeneration:
+ *    - Meregenerasi ID sesi untuk mencegah serangan Session Fixation.
+ * 3. Pencatatan Metadata Login:
+ *    - Mencatat waktu login terakhir dan alamat IP klien.
+ * 4. Pengalihan Berbasis Role (Role-based Redirection):
+ *    - RoleRedirectHelper menentukan URL dashboard tujuan (/admin/dashboard, /guru/dashboard, dst).
+ * 5. Pencegatan Password Sementara:
+ *    - Jika user memiliki flag `must_change_password = true`, middleware ForceChangePassword
+ *      akan mencegat dan mengarahkan pengguna ke form penggantian password.
  */
 class AuthenticatedSessionController extends Controller
+
 {
     public function __construct(
         private readonly UserAuthenticationServiceInterface $authenticationService,

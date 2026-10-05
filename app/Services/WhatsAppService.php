@@ -19,7 +19,29 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+// ============================================================
+// ARSITEKTUR INTEGRASI NOTIFIKASI WHATSAPP
+// ============================================================
+// Pipeline Alur Kerja:
+// Laravel Scheduler (routes/console.php - tiap menit)
+//    ↓
+// Artisan Command (whatsapp:attendance-reminders)
+//    ↓
+// WhatsAppService (Pindai penempatan aktif, hitung H-5 menit & keterlambatan)
+//    ↓
+// Queue Job (SendWhatsAppNotificationJob - dengan retry & idempotency)
+//    ↓
+// HTTP POST Request (http://127.0.0.1:3005/api/send-message)
+//    ↓
+// WhatsApp Gateway Microservice (Node.js Express di Port 3005)
+//    ↓
+// Baileys Library (Koneksi WebSocket terenkripsi)
+//    ↓
+// WhatsApp Network (Tiba di ponsel siswa)
+// ============================================================
+
 class WhatsAppService extends Service implements WhatsAppServiceInterface
+
 {
     public const DEFAULT_REMINDER_TEMPLATE = "⚠️ *PERINGATAN ABSENSI PKL*\n\nHalo {nama},\n\nAnda belum melakukan absensi masuk PKL hari ini.\n\nDUDI: {dudi}\nJam masuk: {jam_masuk}\nTanggal: {tanggal}\n\nSilakan segera melakukan absensi sebelum batas waktu untuk menghindari status terlambat.\n\n— Sistem Monitoring PKL";
 

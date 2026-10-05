@@ -103,11 +103,25 @@ class AbsensiController extends Controller
         ));
     }
 
+    // ============================================================
+    // PROSES PRESENSI CHECK-IN SISWA
+    // ============================================================
+    // Alur Kerja:
+    // 1. Memeriksa identitas profil Siswa dan record Penempatan PKL aktif.
+    // 2. Otorisasi kepemilikan melalui PenempatanPKLPolicy@checkIn.
+    // 3. Form Request (CheckInRequest) memvalidasi foto base64 dan koordinat GPS.
+    // 4. AbsensiService::checkIn() melakukan:
+    //    - Validasi jarak Haversine ke lokasi DUDI (maksimal 100 meter).
+    //    - Penentuan status keterlambatan (Tepat Waktu / Terlambat / Sangat Terlambat).
+    //    - Penyimpanan foto selfie ber-watermark ke media storage.
+    // ============================================================
+
     /**
      * Process Check In with camera photo and GPS.
      */
     public function checkIn(CheckInRequest $request): RedirectResponse
     {
+
         /** @var \App\Models\User $user */
         $user = Auth::user();
 

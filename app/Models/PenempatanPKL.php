@@ -126,25 +126,43 @@ class PenempatanPKL extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-/** @return HasMany<Absensi, $this> */
+    // ============================================================
+    // RELASI DATA OPERASIONAL PKL (OPERATIONAL MONITORING RELATIONS)
+    // ============================================================
+    // Seluruh catatan kegiatan siswa (absensi, jurnal aktivitas, penilaian)
+    // diikat pada record Penempatan PKL ini, bukan berdiri sendiri.
+
+    /**
+     * Riwayat absensi harian siswa selama masa penempatan ini.
+     * @return HasMany<Absensi, $this>
+     */
     public function absensi(): HasMany
     {
         return $this->hasMany(Absensi::class, 'penempatan_pkl_id', 'id');
     }
 
-    /** @return HasMany<Aktivitas, $this> */
+    /**
+     * Catatan jurnal aktivitas harian siswa selama penempatan ini.
+     * @return HasMany<Aktivitas, $this>
+     */
     public function aktivitas(): HasMany
     {
         return $this->hasMany(Aktivitas::class, 'penempatan_pkl_id', 'id');
     }
 
-    /** @return HasOne<Penilaian, $this> */
+    /**
+     * Lembar nilai akhir PKL yang diisi oleh pembimbing DUDI.
+     * @return HasOne<Penilaian, $this>
+     */
     public function penilaian(): HasOne
     {
         return $this->hasOne(Penilaian::class, 'penempatan_pkl_id');
     }
 
-    /** @return HasOne<Laporan, $this> */
+    /**
+     * Berkas laporan akhir PKL siswa.
+     * @return HasOne<Laporan, $this>
+     */
     public function laporan(): HasOne
     {
         return $this->hasOne(Laporan::class, 'penempatan_pkl_id');

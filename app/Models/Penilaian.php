@@ -43,6 +43,21 @@ class Penilaian extends Model
 
     protected $table = 'penilaian';
 
+    // ============================================================
+    // 6 ASPEK PENILAIAN PKL & PEMBOBOTAN
+    // ============================================================
+    // 1. Kehadiran (nilai_kehadiran)          : Bobot 4 (Otomatis dari absensi)
+    // 2. Kerja Sama (nilai_kerjasama)         : Bobot 2 (Diisi oleh DUDI)
+    // 3. Komunikasi (nilai_komunikasi)        : Bobot 2 (Diisi oleh DUDI)
+    // 4. Problem Solving (nilai_problem_solving): Bobot 2 (Diisi oleh DUDI)
+    // 5. Inisiatif (nilai_inisiatif)          : Bobot 2 (Diisi oleh DUDI)
+    // 6. Kemampuan Teknis (nilai_teknis)      : Bobot 2 (Diisi oleh DUDI)
+    // Total Pembagi Bobot = 14
+    //
+    // Predikat:
+    // A+ (>=95), A (90-94), B (80-89), C (70-79), D (<70)
+    // Status: 'draft' (bisa diedit) -> 'final' (dikunci, tidak bisa diedit)
+
     /**
      * @var list<string>
      */
@@ -64,6 +79,7 @@ class Penilaian extends Model
         'catatan',
         'catatan_guru',
     ];
+
 
     /**
      * @var list<string>

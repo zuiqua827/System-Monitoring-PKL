@@ -24,6 +24,15 @@ class CheckInRequest extends FormRequest
         return true;
     }
 
+    // ============================================================
+    // VALIDASI FORM PRESENSI CHECK-IN SISWA
+    // ============================================================
+    // Mendukung dua input utama:
+    // 1. Foto Selfie Kamera: Dikirim dalam format string Base64 dari canvas browser.
+    // 2. Koordinat Geolocation: Latitude (-90 s.d 90) dan Longitude (-180 s.d 180)
+    //    yang diperoleh dari GPS perangkat siswa untuk dihitung jarak radiusnya.
+    // ============================================================
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -31,6 +40,7 @@ class CheckInRequest extends FormRequest
      */
     public function rules(): array
     {
+
         return [
             'foto_masuk' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
             'foto_base64' => ['nullable', 'string'],

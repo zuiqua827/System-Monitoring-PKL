@@ -34,6 +34,19 @@ class WhatsAppLog extends Model
 
     protected $table = 'whatsapp_logs';
 
+    // ============================================================
+    // STATUS SIKLUS PENGIRIMAN NOTIFIKASI WHATSAPP
+    // ============================================================
+    // 1. pending : Pesan telah dijadwalkan dan masuk antrean Queue.
+    // 2. sending : Sedang dalam proses transmisi HTTP ke Gateway Port 3005.
+    // 3. sent    : Berhasil terkirim ke WhatsApp penerima.
+    // 4. failed  : Gagal setelah mencoba berulang (retry exhausted) atau error fatal.
+    // 5. skipped : Dilewati (misal: nomor tidak valid, fitur dinonaktifkan).
+    //
+    // Kolom 'idempotency_key' menjamin pesan pengingat tidak dikirimkan
+    // lebih dari satu kali untuk siswa dan tanggal yang sama.
+    // ============================================================
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_SENDING = 'sending';
     public const STATUS_SENT = 'sent';
@@ -43,6 +56,7 @@ class WhatsAppLog extends Model
     public const TYPE_ATTENDANCE_REMINDER = 'attendance_warning';
     public const TYPE_ATTENDANCE_LATE = 'attendance_late';
     public const TYPE_MANUAL_TEST = 'manual_test';
+
 
     /**
      * @var list<string>

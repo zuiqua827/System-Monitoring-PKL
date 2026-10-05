@@ -101,17 +101,29 @@ class Absensi extends Model
         ];
     }
 
-/** @return BelongsTo<PenempatanPKL, $this> */
+    // ============================================================
+    // RELASI PENEMPATAN PKL
+    // ============================================================
+    // Setiap record absensi selalu merujuk pada satu data penempatan PKL aktif.
+
+    /**
+     * Relasi ke data Penempatan PKL siswa terkait.
+     * @return BelongsTo<PenempatanPKL, $this>
+     */
     public function penempatanPKL(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
 
-    /** @return BelongsTo<PenempatanPKL, $this> */
+    /**
+     * Alias relasi penempatan untuk fleksibilitas pemanggilan.
+     * @return BelongsTo<PenempatanPKL, $this>
+     */
     public function penempatan(): BelongsTo
     {
         return $this->belongsTo(PenempatanPKL::class, 'penempatan_pkl_id', 'id');
     }
+
 
     /**
      * Get separated check-in and check-out status details.

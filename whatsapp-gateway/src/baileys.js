@@ -1,3 +1,13 @@
+// ============================================================
+// MODUL KONEKSI BAILEYS WHATSAPP WEB MULTI-DEVICE
+// ============================================================
+// Keunggulan Arsitektur:
+// 1. Menggunakan protokol WebSocket langsung ke server WhatsApp (bukan Puppeteer/browser).
+// 2. Sangat hemat memori RAM (sekitar 30 - 50 MB).
+// 3. Sesi multi-device disimpan secara persisten di folder 'session/'.
+//    Sistem tetap terhubung meskipun ponsel pengelola dalam keadaan mati/offline.
+// ============================================================
+
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
@@ -8,6 +18,7 @@ import pino from 'pino';
 import qrcode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
+
 
 /**
  * In-memory message store for handling retry receipts from WhatsApp peer devices.

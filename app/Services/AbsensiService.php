@@ -826,11 +826,26 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         return $wajibDates;
     }
 
+    // ============================================================
+    // SINGLE SOURCE OF TRUTH (SSOT) PERHITUNGAN ABSENSI
+    // ============================================================
+    // Perhitungan absensi dipusatkan pada service ini agar
+    // seluruh fitur menggunakan sumber perhitungan yang konsisten,
+    // seperti rekap bulanan, laporan PKL, dan penilaian.
+    //
+    // Alur Kerja:
+    // 1. Menentukan rentang tanggal efektif PKL berdasarkan hari operasional DUDI.
+    // 2. Mengambil record absensi riil (hadir, terlambat, sangat terlambat).
+    // 3. Mengambil data pengajuan ketidakhadiran yang disetujui DUDI (izin, sakit).
+    // 4. Hari kerja yang terlewat tanpa check-in/pengajuan dihitung sebagai 'bolos/alpha'.
+    // ============================================================
+
     /**
      * {@inheritDoc}
      */
     public function calculateAttendance(PenempatanPKL|int $penempatan, $startDate = null, $endDate = null): array
     {
+
         $emptyRekap = [
             'total_hari' => 0,
             'hari_berjalan' => 0,

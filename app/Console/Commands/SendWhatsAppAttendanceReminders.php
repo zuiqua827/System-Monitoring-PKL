@@ -27,11 +27,24 @@ class SendWhatsAppAttendanceReminders extends Command
      */
     protected $description = 'Memindai penempatan PKL aktif dan mengirimkan pengingat absensi H-5 serta notifikasi keterlambatan via WhatsApp.';
 
+    // ============================================================
+    // PEMINDAIAN DUA TAHAP REMINDER WHATSAPP
+    // ============================================================
+    // Command ini dijalankan oleh scheduler setiap 1 menit.
+    // Tahap 1: Memindai siswa yang belum absen pada H-5 menit jam masuk DUDI.
+    // Tahap 2: Memindai siswa yang belum absen setelah melewati jam masuk DUDI (Terlambat).
+    // Opsi Simulasi:
+    // - --force : Mengabaikan validasi kecocokan window waktu (berguna untuk demo penguji).
+    // - --time  : Menyimulasikan jam saat ini (contoh: --time=07:55).
+    // - --date  : Menyimulasikan tanggal tertentu.
+    // ============================================================
+
     /**
      * Execute the console command.
      */
     public function handle(WhatsAppServiceInterface $waService): int
     {
+
         $timezone = config('app.timezone', 'Asia/Jakarta');
 
         $dateStr = $this->option('date');

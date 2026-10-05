@@ -21,6 +21,15 @@ class StorePenilaianRequest extends FormRequest
         return true;
     }
 
+    // ============================================================
+    // ATURAN VALIDASI FORM PENILAIAN PKL
+    // ============================================================
+    // 1. penempatan_pkl_id: Wajib ada dan unik (1 penempatan hanya boleh memiliki 1 penilaian aktif).
+    // 2. Nilai 5 Aspek Kompetensi: Wajib diisi dalam rentang 0 s.d. 100.
+    // 3. nilai_kehadiran: Boleh kosong/nullable karena sistem akan menghitungnya otomatis
+    //    dari data absensi jika tidak diisi secara eksplisit.
+    // ============================================================
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -28,6 +37,7 @@ class StorePenilaianRequest extends FormRequest
      */
     public function rules(): array
     {
+
         return [
             'penempatan_pkl_id' => [
                 'required', 

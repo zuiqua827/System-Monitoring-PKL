@@ -13,21 +13,33 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Authentication Routes
+| RUTE AUTENTIKASI (AUTHENTICATION ROUTES)
 |--------------------------------------------------------------------------
 |
-| Public registration is disabled. User accounts are created by Super Admin.
-| Siswa login with NIS as username and tanggal_lahir as initial password.
+| 1. Registrasi Publik Dinonaktifkan:
+|    Akun pengguna (Siswa, Guru, DUDI) dibuat dan dikelola oleh Super Admin
+|    atau disinkronkan langsung dari SiPintu Gateway.
+|
+| 2. Dua Gerbang Login:
+|    - /admin/login : Khusus Super Admin (Email + Password).
+|    - /login       : Pengguna PKL (Siswa via NIS, Guru/DUDI via Email/Username).
+|
+| 3. Keamanan Tambahan:
+|    - Siswa yang login pertama kali dengan tanggal lahir dipaksa mengubah
+|      password melalui rute 'force-change-password'.
 |
 */
 
 Route::middleware('guest')->group(function () {
-    // Registration disabled — accounts are created by Super Admin
+    // Registrasi publik dinonaktifkan demi integritas data sekolah
     // Route::get('register', ...);
     // Route::post('register', ...);
 
-    // Super Admin dedicated login
+    // ============================================================
+    // LOGIN KHUSUS SUPER ADMIN
+    // ============================================================
     Route::get('admin/login', [AuthenticatedSessionController::class, 'createAdmin'])
+
         ->name('admin.login');
 
     Route::post('admin/login', [AuthenticatedSessionController::class, 'storeAdmin']);

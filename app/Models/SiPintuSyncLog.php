@@ -21,6 +21,10 @@ use Illuminate\Support\Carbon;
  * @property int $teacher_updated
  * @property int $teacher_deleted
  * @property int $teacher_skipped
+ * @property int $dudi_added
+ * @property int $dudi_updated
+ * @property int $dudi_deleted
+ * @property int $dudi_skipped
  * @property int $duration_ms
  * @property string|null $message
  * @property Carbon|null $created_at
@@ -46,6 +50,10 @@ class SiPintuSyncLog extends Model
         'teacher_updated',
         'teacher_deleted',
         'teacher_skipped',
+        'dudi_added',
+        'dudi_updated',
+        'dudi_deleted',
+        'dudi_skipped',
         'duration_ms',
         'message',
     ];
@@ -70,6 +78,10 @@ class SiPintuSyncLog extends Model
             'teacher_updated' => 'integer',
             'teacher_deleted' => 'integer',
             'teacher_skipped' => 'integer',
+            'dudi_added' => 'integer',
+            'dudi_updated' => 'integer',
+            'dudi_deleted' => 'integer',
+            'dudi_skipped' => 'integer',
             'duration_ms' => 'integer',
         ];
     }

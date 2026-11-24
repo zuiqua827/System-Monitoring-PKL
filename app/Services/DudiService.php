@@ -150,14 +150,16 @@ class DudiService extends Service implements DudiServiceInterface
     {
         /** @var Dudi $updated */
         $updated = $this->transaction(function () use ($dudi, $data): Model {
-            // 1. Update the associated User account
-            $userUpdateData = ['name' => $data['nama_perusahaan']];
+            // 1. Update the associated User account if one exists
+            if ($dudi->user !== null) {
+                $userUpdateData = ['name' => $data['nama_perusahaan']];
 
-            if (isset($data['email'])) {
-                $userUpdateData['email'] = $data['email'];
+                if (isset($data['email'])) {
+                    $userUpdateData['email'] = $data['email'];
+                }
+
+                $this->userRepository->update($dudi->user, $userUpdateData);
             }
-
-            $this->userRepository->update($dudi->user, $userUpdateData);
 
             // 2. Update Dudi record
             $dudiUpdateData = [
@@ -191,7 +193,7 @@ class DudiService extends Service implements DudiServiceInterface
     public function destroy(Dudi $dudi): bool
     {
         return $this->transaction(function () use ($dudi): bool {
-            $dudi->user->delete();
+            $dudi->user?->delete();
 
             return $this->dudiRepository->delete($dudi);
         });

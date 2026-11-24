@@ -38,7 +38,7 @@
             [
                 'label' => 'Integrasi',
                 'items' => [
-                    ['label' => 'Sinkronisasi SiPintu', 'route' => 'admin.sipintu-sync.index', 'active' => ['admin.sipintu-sync.*'], 'icon' => 'sync'],
+                    ['label' => 'Sinkronisasi SiPintu', 'route' => 'admin.sipintu-sync.index', 'active' => ['admin.sipintu-sync.*', 'admin.sipintu-dudi-mapping.*', 'admin.sipintu-classroom-mapping.*'], 'icon' => 'sync'],
                     ['label' => 'WhatsApp Gateway', 'route' => 'admin.whatsapp.index', 'active' => ['admin.whatsapp.*'], 'icon' => 'whatsapp'],
                 ],
             ],

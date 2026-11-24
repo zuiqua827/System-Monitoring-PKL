@@ -36,9 +36,26 @@ interface SiPintuRepositoryInterface
     public function fetchTeachers(?string $nip = null, ?string $search = null): array;
 
     /**
+     * Fetch the list of DUDI companies from the SiPintu SIJUNA endpoint.
+     *
+     * @return array<int, mixed> The decoded JSON "data" array of DUDI companies.
+     *
+     * @throws SiPintuApiException On connection error, invalid credentials, timeout,
+     *                             or any non-2xx API response.
+     */
+    public function fetchDudi(?string $search = null): array;
+
+    /**
      * Test connection to the SiPintu API.
      *
-     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null, detail: string|null, troubleshooting: string|null}
      */
     public function testConnection(): array;
+
+    /**
+     * Check HTTP status of an endpoint on SiPintu Gateway (lightweight probe).
+     *
+     * @return array{status: int|null, success: bool, message: string}
+     */
+    public function checkEndpointStatus(string $endpoint): array;
 }

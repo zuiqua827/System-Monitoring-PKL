@@ -124,6 +124,20 @@ class SiPintuRepository implements SiPintuRepositoryInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function fetchDudi(?string $search = null): array
+    {
+        $query = [];
+
+        if ($search !== null && $search !== '') {
+            $query['search'] = $search;
+        }
+
+        return $this->fetchFromEndpoint('/api/v1/sijuna/dudi', $query, 'dudi');
+    }
+
+    /**
      * Fetch all records from an endpoint, handling multi-page pagination if present.
      *
      * @param  array<string, mixed>  $query
@@ -135,7 +149,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         $url = $baseUrl.$endpoint;
 
         $response = $this->executeGetRequest($url, $query, $logLabel);
-        $firstPageData = $this->parseResponse($response);
+        $firstPageData = $this->parseResponse($response, $logLabel);
 
         // Check if the response indicates pagination (e.g. last_page > 1 or links.next)
         $body = $response->json();
@@ -152,7 +166,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         for ($page = 2; $page <= $lastPage; $page++) {
             $pageQuery = array_merge($query, ['page' => $page]);
             $pageResponse = $this->executeGetRequest($url, $pageQuery, "{$logLabel} (halaman {$page})");
-            $pageData = $this->parseResponse($pageResponse);
+            $pageData = $this->parseResponse($pageResponse, $logLabel);
             foreach ($pageData as $record) {
                 $allData[] = $record;
             }
@@ -221,7 +235,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
      *
      * @return array<int, array<string, mixed>>
      */
-    private function parseResponse(Response $response): array
+    private function parseResponse(Response $response, string $logLabel = ''): array
     {
         if ($response->unauthorized()) {
             Log::warning('SiPintu API auth error (401)', [
@@ -238,7 +252,8 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         }
 
         if ($response->status() === 404) {
-            throw SiPintuApiException::apiError('Endpoint API SiPintu tidak ditemukan (HTTP 404).');
+            $desc = $logLabel !== '' ? " ({$logLabel})" : '';
+            throw SiPintuApiException::apiError("Endpoint API SiPintu{$desc} tidak ditemukan (HTTP 404).");
         }
 
         if ($response->status() === 422) {
@@ -278,7 +293,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             }
 
             /** @var array<int, array<string, mixed>> $data */
-            $data = is_array($body['data']) && ! array_is_list($body['data']) && (isset($body['data']['nis']) || isset($body['data']['nip']))
+            $data = ! array_is_list($body['data']) && (isset($body['data']['nis']) || isset($body['data']['nip']))
                 ? [$body['data']]
                 : array_values($body['data']);
         } elseif (is_array($body) && ! array_is_list($body) && (isset($body['nis']) || isset($body['nip']))) {
@@ -326,7 +341,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
 
         try {
             // Lightweight test: enforce max 5 seconds timeout so Test Connection is responsive and never hangs
-            $client = $this->httpClient()->timeout(min(5, (int) config('services.sipintu.timeout', 60)));
+            $client = $this->httpClient()->timeout(max(15, (int) config('services.sipintu.timeout', 60)));
             $response = $client->get($healthEndpoint);
 
             Log::debug('SiPintu test connection response.', [
@@ -522,5 +537,37 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             'detail' => $this->sanitizeMessage($detail),
             'troubleshooting' => $this->sanitizeMessage($troubleshooting),
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function checkEndpointStatus(string $endpoint): array
+    {
+        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
+        $url = $baseUrl . $endpoint;
+
+        try {
+            $client = $this->httpClient()->timeout(max(15, (int) config('services.sipintu.timeout', 60)));
+            $response = $client->get($url, ['page' => 1, 'limit' => 1, 'per_page' => 1]);
+
+            $isAvailable = $response->status() >= 200 && $response->status() < 300;
+
+            return [
+                'status' => $response->status(),
+                'success' => $isAvailable,
+                'message' => $isAvailable
+                    ? 'Endpoint aktif (HTTP ' . $response->status() . ').'
+                    : ($response->status() === 404
+                        ? "Endpoint {$endpoint} belum tersedia di server SiPintu (HTTP 404)."
+                        : 'Respons gagal (HTTP ' . $response->status() . ').'),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => null,
+                'success' => false,
+                'message' => (string) $this->sanitizeMessage($e->getMessage()),
+            ];
+        }
     }
 }

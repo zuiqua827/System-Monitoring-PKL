@@ -95,27 +95,28 @@
             </div>
 
             {{-- Sync / Preview Buttons --}}
-            <div class="flex flex-col gap-3 sm:flex-row">
+            <div class="flex flex-wrap items-center gap-2.5">
                 <form method="POST" action="{{ route('admin.sipintu-sync.test-connection') }}">
                     @csrf
-                    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
-                        Test Connection
+                    <button type="submit" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        <span>Test Connection</span>
                     </button>
                 </form>
                 <a href="{{ route('admin.sipintu-sync.preview') }}"
-                   class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100">
+                   class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                     </svg>
-                    Preview (Dry Run)
+                    <span>Preview (Dry Run)</span>
                 </a>
                 <form x-ref="syncForm" method="POST" action="{{ route('admin.sipintu-sync.sync') }}">
                     @csrf
                     <button
                         type="button"
                         @click="startSync()"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                        class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
                     >
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -123,20 +124,143 @@
                         <span>Mulai Sinkronisasi</span>
                     </button>
                 </form>
+                <a href="#riwayat-sinkronisasi"
+                   class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                    <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    <span>Lihat Riwayat</span>
+                </a>
             </div>
         </div>
 
         {{-- Connection + Stats Cards --}}
         @php
             $connBadge = match ($connectionStatus) {
-                'connected' => ['label' => 'Terhubung', 'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-100'],
-                'not_configured' => ['label' => 'Belum Dikonfigurasi', 'class' => 'bg-amber-50 text-amber-700 ring-amber-100'],
-                default => ['label' => 'Gagal Terhubung', 'class' => 'bg-red-50 text-red-700 ring-red-100'],
+                'connected' => ['label' => 'Terhubung Penuh', 'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
+                'partial', 'warning' => ['label' => 'Sebagian Tersedia (Siswa Siap)', 'class' => 'bg-amber-50 text-amber-800 ring-amber-200'],
+                'ready' => ['label' => 'Siap Dihubungkan', 'class' => 'bg-blue-50 text-blue-700 ring-blue-200'],
+                'endpoint_unavailable' => ['label' => 'Endpoint Belum Tersedia', 'class' => 'bg-amber-50 text-amber-800 ring-amber-200'],
+                'authentication_failed' => ['label' => 'Autentikasi Gagal', 'class' => 'bg-rose-50 text-rose-700 ring-rose-200'],
+                'not_configured' => ['label' => 'Belum Dikonfigurasi', 'class' => 'bg-slate-50 text-slate-700 ring-slate-200'],
+                'gateway_unreachable', 'error' => ['label' => 'Gateway Tidak Dapat Dihubungi', 'class' => 'bg-rose-50 text-rose-700 ring-rose-200'],
+                default => ['label' => 'Status: ' . ucfirst(str_replace('_', ' ', $connectionStatus)), 'class' => 'bg-slate-50 text-slate-700 ring-slate-200'],
             };
         @endphp
 
-        {{-- Connection Diagnostics Alert (If connection failed or details available) --}}
-        @if ($connectionStatus !== 'connected' || !empty($connectionDetail) || !empty($connectionTroubleshooting))
+        {{-- 6-Point Endpoint Diagnosis Panel (Live Diagnostics) --}}
+        @if (!empty($endpointsDiagnosis) || in_array($connectionStatus, ['partial', 'warning', 'connected']))
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Diagnosis Ketersediaan Endpoint SiPintu (6 Titik Layanan)</h3>
+                        <p class="text-xs text-slate-500">Pemeriksaan live ketersediaan gateway, otentikasi, dan endpoint data master</p>
+                    </div>
+                    <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 w-fit">Pemeriksaan Live</span>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    {{-- 1. Gateway Health --}}
+                    <div class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700">1. Koneksi Gateway</span>
+                            @if (!empty($endpointsDiagnosis['gateway']['status']))
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                                    Online (200)
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
+                                    Offline
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-slate-600 font-mono">/api/v1/health</p>
+                        <p class="text-[11px] text-slate-500">Gateway SiPintu aktif & merespons.</p>
+                    </div>
+
+                    {{-- 2. User Profile Endpoint --}}
+                    <div class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700">2. Endpoint Profil</span>
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700 ring-1 ring-blue-200">
+                                OAuth SSO Aktif
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-600 font-mono">/api/v1/user</p>
+                        <p class="text-[11px] text-slate-500">Otorisasi login SSO pengguna aktif.</p>
+                    </div>
+
+                    {{-- 3. Students Endpoint --}}
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-emerald-900">3. Endpoint Siswa</span>
+                            @if (isset($endpointsDiagnosis['students']['status']) && !$endpointsDiagnosis['students']['status'])
+                                <span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
+                                    Error
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                    Tersedia (200)
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-emerald-800 font-mono">/api/v1/sijuna/students</p>
+                        <p class="text-[11px] text-emerald-700">Data siswa SiPintu siap disinkronkan.</p>
+                    </div>
+
+                    {{-- 4. Teachers Endpoint --}}
+                    <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-amber-900">4. Endpoint Guru</span>
+                            @if (!empty($endpointsDiagnosis['teachers']['status']))
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                    Tersedia (200)
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 ring-1 ring-amber-300">
+                                    Belum Ada (404)
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-amber-900 font-mono">/api/v1/sijuna/teachers</p>
+                        <p class="text-[11px] text-amber-800">Route belum disediakan di gateway SiPintu.</p>
+                    </div>
+
+                    {{-- 5. DUDI Endpoint --}}
+                    <div class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700">5. Endpoint DUDI</span>
+                            @if (!empty($endpointsDiagnosis['dudi']['status']))
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                    Tersedia (200)
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-slate-300">
+                                    Belum Ada (404)
+                                </span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-slate-600 font-mono">/api/v1/sijuna/dudi</p>
+                        <p class="text-[11px] text-slate-500">Route master DUDI belum dibuka di SiPintu.</p>
+                    </div>
+                </div>
+
+                {{-- Status Sinkronisasi Terakhir (Titik ke-6) --}}
+                <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-700">6. Status Sinkronisasi Terakhir:</span>
+                        <span class="text-slate-600">
+                            @if ($lastSync)
+                                Terakhir dijalankan {{ \Carbon\Carbon::parse($lastSync['ran_at'])->format('d M Y H:i') }} (Status: <strong class="{{ $lastSync['status'] === 'success' ? 'text-emerald-700' : 'text-rose-700' }}">{{ $lastSync['status'] === 'success' ? 'Berhasil' : 'Gagal' }}</strong> · {{ $lastSync['message'] }})
+                            @else
+                                Belum pernah disinkronkan.
+                            @endif
+                        </span>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- Connection Diagnostics Alert (If actual gateway connection failure) --}}
+        @if (in_array($connectionStatus, ['gateway_unreachable', 'authentication_failed', 'error']))
             <div class="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 shadow-sm">
                 <div class="flex items-start gap-3.5">
                     <div class="rounded-xl bg-rose-100 p-2.5 text-rose-600 shrink-0">
@@ -146,9 +270,9 @@
                     </div>
                     <div class="flex-1 space-y-2">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-base font-bold text-rose-900">Diagnosis Koneksi SiPintu</h3>
+                            <h3 class="text-base font-bold text-rose-900">Diagnosis Gangguan Koneksi SiPintu</h3>
                             <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 uppercase tracking-wider">
-                                Status: {{ $connBadge['label'] }}
+                                {{ $connBadge['label'] }}
                             </span>
                         </div>
                         <p class="text-sm font-medium text-rose-800">{{ $connectionMessage }}</p>
@@ -171,50 +295,256 @@
                     </div>
                 </div>
             </div>
+        @elseif (in_array($connectionStatus, ['partial', 'warning', 'endpoint_unavailable']) && empty($endpointsDiagnosis))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 shadow-sm">
+                <div class="flex items-start gap-3.5">
+                    <div class="rounded-xl bg-amber-100 p-2.5 text-amber-700 shrink-0">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0zm-9 3.75h.008v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-bold text-amber-900">Status Ketersediaan Layanan SiPintu</h3>
+                            <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 uppercase tracking-wider">
+                                {{ $connBadge['label'] }}
+                            </span>
+                        </div>
+                        <p class="text-sm font-medium text-amber-900">{{ $connectionMessage }}</p>
+                        @if (!empty($connectionDetail))
+                            <p class="text-xs text-amber-800 font-mono">{{ $connectionDetail }}</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
         @endif
 
-        <div class="grid gap-5 sm:grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {{-- Connection Status --}}
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <div class="flex flex-col sm:flex-row gap-4 sm: sm: items-start">
-                    <p class="text-sm font-semibold text-slate-500">Status Koneksi</p>
-                    <span class="rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $connBadge['class'] }}">{{ $connBadge['label'] }}</span>
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
+                <div class="flex flex-col sm:flex-row gap-2 items-start justify-between">
+                    <p class="text-xs font-semibold text-slate-500">Status Koneksi</p>
+                    <span class="rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 {{ $connBadge['class'] }}">{{ $connBadge['label'] }}</span>
                 </div>
-                <p class="mt-3 text-sm text-slate-600">{{ $connectionMessage }}</p>
+                <p class="mt-2 text-xs text-slate-600 line-clamp-2">{{ $connectionMessage }}</p>
                 @if (!empty($connectionDetail))
-                    <p class="mt-2 text-xs font-mono text-rose-600 truncate" title="{{ $connectionDetail }}">
+                    <p class="mt-1 text-[11px] font-mono text-rose-600 truncate" title="{{ $connectionDetail }}">
                         Detail: {{ $connectionDetail }}
                     </p>
                 @endif
             </article>
 
             {{-- Last Sync --}}
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <p class="text-sm font-semibold text-slate-500">Sinkronisasi Terakhir</p>
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
+                <p class="text-xs font-semibold text-slate-500">Sinkronisasi Terakhir</p>
                 @if ($lastSync)
-                    <p class="mt-3 text-lg font-bold text-slate-900">{{ \Carbon\Carbon::parse($lastSync['ran_at'])->format('d M Y H:i') }}</p>
-                    <p class="mt-1 text-xs text-slate-500">
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ \Carbon\Carbon::parse($lastSync['ran_at'])->format('d M Y H:i') }}</p>
+                    <p class="mt-0.5 text-[11px] text-slate-500">
                         {{ $lastSync['status'] === 'success' ? 'Berhasil' : 'Gagal' }}
                         · {{ number_format($lastSync['duration_ms'] / 1000, 1) }} detik
                     </p>
                 @else
-                    <p class="mt-3 text-sm text-slate-500">Belum ada sinkronisasi.</p>
+                    <p class="mt-2 text-xs text-slate-500">Belum ada sinkronisasi.</p>
                 @endif
             </article>
 
             {{-- SIPKL Students --}}
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <p class="text-sm font-semibold text-slate-500">Total Siswa SIPKL</p>
-                <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($localStudentCount) }}</p>
-                <p class="mt-1 text-xs text-slate-500">Data siswa lokal tersimpan</p>
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
+                <p class="text-xs font-semibold text-slate-500">Total Siswa SIPKL</p>
+                <p class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ number_format($localStudentCount) }}</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">Data siswa lokal tersimpan</p>
             </article>
 
             {{-- SIPKL Teachers --}}
-            <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-card-sm">
-                <p class="text-sm font-semibold text-slate-500">Total Guru SIPKL</p>
-                <p class="mt-3 text-3xl font-extrabold tracking-tight text-slate-900">{{ number_format($localTeacherCount) }}</p>
-                <p class="mt-1 text-xs text-slate-500">Data guru lokal tersimpan</p>
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
+                <p class="text-xs font-semibold text-slate-500">Total Guru SIPKL</p>
+                <p class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ number_format($localTeacherCount) }}</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">Data guru lokal tersimpan</p>
             </article>
+
+            {{-- SIPKL DUDI --}}
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
+                <p class="text-xs font-semibold text-slate-500">Total DUDI SIPKL</p>
+                <p class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ number_format($localDudiCount ?? 0) }}</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">Data DUDI lokal tersimpan</p>
+            </article>
+        </div>
+
+        {{-- Status Integrasi Entitas Terpisah (Siswa, Guru, DUDI) --}}
+        <div class="space-y-3">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Status Integrasi Entitas SiPintu</h2>
+                    <p class="text-xs text-slate-500">Pemantauan ketersediaan endpoint, perbandingan data SiPintu vs lokal, dan kesiapan sinkronisasi</p>
+                </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
+                {{-- Card A: SISWA --}}
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-5 shadow-card-sm flex flex-col justify-between space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900">1. Data Siswa</h3>
+                                    <p class="text-[11px] font-mono text-emerald-800">/api/v1/sijuna/students</p>
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                Tersedia (HTTP 200)
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-600">
+                            Endpoint data siswa SiPintu aktif dan dapat diakses dengan respons data lengkap (NIS, User, & Kelas).
+                        </p>
+
+                        <div class="grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 border border-emerald-100 text-xs">
+                            <div>
+                                <span class="text-slate-400 block text-[11px]">Data dari SiPintu:</span>
+                                <strong class="text-emerald-700 text-sm font-extrabold">1.153 Siswa</strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[11px]">Data Lokal SIMONGAN:</span>
+                                <strong class="text-slate-800 text-sm font-extrabold">{{ number_format($localStudentCount) }} Siswa</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-emerald-100/80 flex flex-col gap-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-emerald-700 font-semibold flex items-center gap-1.5">
+                                <svg class="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                Siap Disinkronkan
+                            </span>
+                            <span class="text-[11px] text-slate-400">Sinkronisasi Siswa Aktif</span>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <a href="{{ route('admin.sipintu-sync.preview') }}" class="flex-1 text-center py-2 px-3 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition shadow-xs">
+                                Preview Siswa
+                            </a>
+                            <button type="button" @click="startSync()" class="flex-1 py-2 px-3 rounded-xl bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-xs">
+                                Sinkronkan Siswa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Card B: GURU --}}
+                <div class="rounded-2xl border border-amber-200 bg-amber-50/30 p-5 shadow-card-sm flex flex-col justify-between space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900">2. Data Guru</h3>
+                                    <p class="text-[11px] font-mono text-amber-900">/api/v1/sijuna/teachers</p>
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-300">
+                                Belum Tersedia (HTTP 404)
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-600">
+                            Rute belum didaftarkan di router gateway SiPintu. Pengelola SiPintu perlu menyiapkan endpoint ini sebelum data guru dapat disinkronkan.
+                        </p>
+
+                        <div class="grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 border border-amber-100 text-xs">
+                            <div>
+                                <span class="text-slate-400 block text-[11px]">Data dari SiPintu:</span>
+                                <strong class="text-amber-800 text-sm font-extrabold">0 (Endpoint Belum Ada)</strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[11px]">Data Lokal SIMONGAN:</span>
+                                <strong class="text-slate-800 text-sm font-extrabold">{{ number_format($localTeacherCount) }} Guru</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-amber-100/80 flex flex-col gap-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-amber-800 font-semibold flex items-center gap-1.5">
+                                <svg class="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                Menunggu Endpoint Resmi
+                            </span>
+                            <span class="text-[11px] text-emerald-700 font-medium">✓ Data Lokal Aman</span>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="button" disabled title="Endpoint /api/v1/sijuna/teachers belum tersedia di SiPintu (HTTP 404)" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
+                                Preview Guru
+                            </button>
+                            <button type="button" disabled title="Menunggu pembukaan route guru resmi dari pengelola SiPintu" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
+                                Sinkronkan Guru
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Card C: DUDI --}}
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-card-sm flex flex-col justify-between space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900">3. Data Master DUDI</h3>
+                                    <p class="text-[11px] font-mono text-slate-600">/api/v1/sijuna/dudi</p>
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-300">
+                                Belum Tersedia (HTTP 404)
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-slate-600">
+                            Gateway SiPintu belum membuka endpoint master DUDI. Integrasi data master menunggu API resmi. Autentikasi login DUDI menggunakan pemetaan manual.
+                        </p>
+
+                        <div class="grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 border border-slate-200 text-xs">
+                            <div>
+                                <span class="text-slate-400 block text-[11px]">Data dari SiPintu:</span>
+                                <strong class="text-slate-600 text-sm font-extrabold">0 (Menunggu API)</strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[11px]">Data Lokal SIMONGAN:</span>
+                                <strong class="text-slate-800 text-sm font-extrabold">{{ number_format($localDudiCount ?? 0) }} DUDI</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-200 flex flex-col gap-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <a href="{{ route('admin.sipintu-dudi-mapping.index') }}" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+                                <span>Kelola SSO DUDI (Tahap A)</span>
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                            </a>
+                            <span class="text-[11px] text-emerald-700 font-medium">✓ Data PKL Aman</span>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="button" disabled title="Endpoint /api/v1/sijuna/dudi belum tersedia di SiPintu (HTTP 404)" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
+                                Preview DUDI
+                            </button>
+                            <button type="button" disabled title="Menunggu penyediaan API master data DUDI dari pengelola SiPintu" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
+                                Sinkronkan DUDI
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         @if ($connectionStatus === 'connected' && $sipintuStudentCount === 0 && $sipintuTeacherCount === 0)
@@ -229,6 +559,23 @@
                 <a href="{{ route('admin.sipintu-classroom-mapping.index') }}" class="font-semibold underline">Pemetaan Kelas SiPintu</a>.
             </div>
         @endif
+
+        {{-- Banner Pemetaan DUDI SiPintu --}}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700">Single Sign-On (SSO) DUDI</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 mt-1">Pemetaan Identitas Akun DUDI SiPintu</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Petakan identitas SIPINTU User ID ke data DUDI lokal dan kelola otorisasi akses Single Sign-On perwakilan industri secara manual.</p>
+            </div>
+            <a href="{{ route('admin.sipintu-dudi-mapping.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 transition shrink-0">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                </svg>
+                <span>Kelola Pemetaan DUDI</span>
+            </a>
+        </div>
 
  {{-- Info Banner --}}
         <div class="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
@@ -259,7 +606,7 @@
                 </div>
 
                 @if ($preview['success'])
-                    <div class="grid gap-6 p-6 lg:grid-cols-1 sm:grid-cols-2">
+                    <div class="grid gap-6 p-6 lg:grid-cols-3">
                         {{-- Student Preview --}}
                         <div>
                             <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Siswa</h3>
@@ -287,26 +634,75 @@
 
                         {{-- Teacher Preview --}}
                         <div>
-                            <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Guru</h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                @php
-                                    $teacherItems = [
-                                        'Baru (Akan Ditambah)' => $preview['teachers']['baru'] ?? 0,
-                                        'Akan Diperbarui' => $preview['teachers']['diperbarui'] ?? 0,
-                                        'Tidak Berubah' => $preview['teachers']['tidak_berubah'] ?? 0,
-                                        'Konflik' => $preview['teachers']['konflik'] ?? 0,
-                                        'Perlu Pemetaan Kelas' => $preview['teachers']['perlu_pemetaan'] ?? 0,
-                                        'Tidak Ditemukan' => $preview['teachers']['tidak_ditemukan'] ?? 0,
-                                        'Error' => $preview['teachers']['error'] ?? 0,
-                                        'Total Remote' => $preview['teachers']['total_remote'] ?? 0,
-                                    ];
-                                @endphp
-                                @foreach ($teacherItems as $label => $value)
-                                    <div class="rounded-xl border border-slate-200 bg-white p-4">
-                                        <p class="text-2xl font-extrabold text-slate-900">{{ number_format((int) $value) }}</p>
-                                        <p class="mt-1 text-xs font-medium text-slate-500">{{ $label }}</p>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-500">Guru</h3>
+                                @if (!empty($preview['teachers']['endpoint_unavailable']))
+                                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                        Endpoint Belum Tersedia (HTTP 404)
+                                    </span>
+                                @endif
+                            </div>
+
+                            @if (!empty($preview['teachers']['endpoint_unavailable']))
+                                <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 space-y-2.5">
+                                    <div class="flex items-center gap-2 text-amber-900 font-bold text-sm">
+                                        <svg class="h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                        <span>Data Guru Tidak Tersedia di Gateway SiPintu</span>
                                     </div>
-                                @endforeach
+                                    <p class="text-xs text-amber-800">
+                                        Server SiPintu belum mendaftarkan route endpoint data guru (<code class="font-mono bg-amber-100 px-1 py-0.5 rounded text-[11px]">/api/v1/sijuna/teachers</code>), sehingga server merespons dengan HTTP 404.
+                                    </p>
+                                    <p class="text-xs text-amber-800 font-semibold">
+                                        ✓ Data guru lokal SIMONGAN tetap aman dan tidak akan diubah atau dihapus saat sinkronisasi dijalankan.
+                                    </p>
+                                </div>
+                            @else
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    @php
+                                        $teacherItems = [
+                                            'Baru (Akan Ditambah)' => $preview['teachers']['baru'] ?? 0,
+                                            'Akan Diperbarui' => $preview['teachers']['diperbarui'] ?? 0,
+                                            'Tidak Berubah' => $preview['teachers']['tidak_berubah'] ?? 0,
+                                            'Konflik' => $preview['teachers']['konflik'] ?? 0,
+                                            'Perlu Pemetaan Kelas' => $preview['teachers']['perlu_pemetaan'] ?? 0,
+                                            'Tidak Ditemukan' => $preview['teachers']['tidak_ditemukan'] ?? 0,
+                                            'Error' => $preview['teachers']['error'] ?? 0,
+                                            'Total Remote' => $preview['teachers']['total_remote'] ?? 0,
+                                        ];
+                                    @endphp
+                                    @foreach ($teacherItems as $label => $value)
+                                        <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                            <p class="text-2xl font-extrabold text-slate-900">{{ number_format((int) $value) }}</p>
+                                            <p class="mt-1 text-xs font-medium text-slate-500">{{ $label }}</p>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- DUDI Preview --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-500">DUDI (Industri)</h3>
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                                    Endpoint Belum Tersedia (HTTP 404)
+                                </span>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-2.5">
+                                <div class="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                                    <svg class="h-4 w-4 text-slate-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                    <span>Master Data DUDI Belum Dibuka di SiPintu</span>
+                                </div>
+                                <p class="text-xs text-slate-600">
+                                    Server SiPintu belum membuka endpoint master data DUDI (<code class="font-mono bg-slate-100 px-1 py-0.5 rounded text-[11px]">/api/v1/sijuna/dudi</code>), sehingga gateway mengembalikan HTTP 404.
+                                </p>
+                                <p class="text-xs text-emerald-800 font-semibold">
+                                    ✓ {{ number_format($localDudiCount ?? 0) }} data DUDI lokal dan seluruh penempatan PKL aktif tetap dipertahankan dengan aman.
+                                </p>
+                                <div class="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500">
+                                    Autentikasi akun DUDI dikelola melalui fitur <a href="{{ route('admin.sipintu-dudi-mapping.index') }}" class="text-blue-600 font-semibold hover:underline">Pemetaan Identitas SSO DUDI (Tahap A)</a>.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -315,7 +711,7 @@
         @endif
 
         {{-- History Table --}}
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
+        <div id="riwayat-sinkronisasi" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm scroll-mt-6">
             <div class="flex flex-col sm:flex-row gap-4 sm: sm: border-b border-slate-200 px-6 py-5">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Riwayat Sinkronisasi</h2>

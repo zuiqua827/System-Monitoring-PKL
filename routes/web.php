@@ -146,6 +146,14 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     Route::post('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'store'])->name('sipintu-classroom-mapping.store');
     Route::post('/sipintu-classroom-mapping/apply', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'apply'])->name('sipintu-classroom-mapping.apply');
 
+    // Pemetaan Akun DUDI SiPintu (Tahap A)
+    Route::prefix('sipintu-dudi-mapping')->name('sipintu-dudi-mapping.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'index'])->name('index');
+        Route::post('/{dudi}', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'store'])->name('store');
+        Route::delete('/{dudi}', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'destroy'])->name('destroy');
+        Route::post('/{dudi}/toggle-sso', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'toggleSso'])->name('toggle-sso');
+    });
+
     // WhatsApp Gateway & Notifikasi
     Route::get('/whatsapp', [\App\Http\Controllers\Admin\WhatsAppController::class, 'index'])->name('whatsapp.index');
     Route::get('/whatsapp/status-ajax', [\App\Http\Controllers\Admin\WhatsAppController::class, 'statusAjax'])->name('whatsapp.status-ajax');

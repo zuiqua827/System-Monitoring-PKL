@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Exceptions\SiPintuApiException;
+use App\Models\Dudi;
 use App\Models\Guru;
 use App\Models\Kelas;
 use App\Models\SipintuClassroomMapping;
@@ -201,5 +202,133 @@ describe('SiPintu Connection & Diagnosis Test Suite', function () {
         $students = $repo->fetchStudents();
 
         expect($students)->toBeArray()->toBeEmpty();
+    });
+
+    it('12. checkEndpointStatus checks individual endpoint status accurately (200 vs 404)', function () {
+        Http::fake([
+            'https://sipintu.test/api/v1/sijuna/students*' => Http::response(['status' => 'success'], 200),
+            'https://sipintu.test/api/v1/sijuna/teachers*' => Http::response(['message' => 'The route api/v1/sijuna/teachers could not be found.'], 404),
+        ]);
+
+        $repo = app(SiPintuRepositoryInterface::class);
+
+        $studentStatus = $repo->checkEndpointStatus('/api/v1/sijuna/students');
+        $teacherStatus = $repo->checkEndpointStatus('/api/v1/sijuna/teachers');
+
+        expect($studentStatus['success'])->toBeTrue()
+            ->and($studentStatus['status'])->toBe(200)
+            ->and($teacherStatus['success'])->toBeFalse()
+            ->and($teacherStatus['status'])->toBe(404)
+            ->and($teacherStatus['message'])->toContain('HTTP 404');
+    });
+
+    it('13. preview and runSync continue student synchronization when teachers endpoint returns HTTP 404', function () {
+        Role::findOrCreate(UserRole::SISWA->value);
+        Role::findOrCreate(UserRole::GURU->value);
+        Role::findOrCreate(UserRole::SUPER_ADMIN->value);
+
+        $kelas = Kelas::factory()->create();
+        SipintuClassroomMapping::query()->create([
+            'classroom_id' => 909,
+            'kelas_id' => $kelas->id,
+        ]);
+
+        $repo = Mockery::mock(SiPintuRepositoryInterface::class);
+        $repo->shouldReceive('fetchStudents')->andReturn([[
+            'nis' => 'NIS-404-TEST',
+            'nama' => 'Siswa Lolos Sync Saat Guru 404',
+            'classroom_id' => 909,
+            'jk' => 'L',
+        ]]);
+        $repo->shouldReceive('fetchTeachers')->andThrow(
+            SiPintuApiException::apiError('Endpoint API SiPintu (teachers) tidak ditemukan (HTTP 404).')
+        );
+
+        $service = new SiPintuService(
+            $repo,
+            app(\App\Repositories\Interfaces\SiswaRepositoryInterface::class),
+            app(\App\Repositories\Interfaces\GuruRepositoryInterface::class),
+            app(\App\Repositories\Interfaces\UserRepositoryInterface::class),
+            app(\App\Services\Interfaces\SipintuClassroomMappingServiceInterface::class),
+        );
+
+        $syncService = new SipintuSyncService($service, app(SipintuSyncLogRepositoryInterface::class));
+
+        // Preview should succeed for students despite teachers 404
+        $preview = $syncService->preview();
+        expect($preview['success'])->toBeTrue()
+            ->and($preview['students']['baru'])->toBe(1)
+            ->and($preview['teachers']['endpoint_unavailable'])->toBe(1);
+
+        // RunSync should succeed for students without aborting
+        Role::findOrCreate(UserRole::SUPER_ADMIN->value);
+        $admin = User::factory()->create(['name' => 'Admin Test 404']);
+        $result = $syncService->runSync($admin);
+
+        expect($result['success'])->toBeTrue()
+            ->and($result['stats']['students']['created'])->toBe(1)
+            ->and(Siswa::query()->where('nis', 'NIS-404-TEST')->count())->toBe(1);
+    });
+
+    it('14. Test Connection probes Siswa, Guru, and DUDI independently and diagnoses partial availability', function () {
+        Http::fake([
+            'https://sipintu.test/api/v1/health' => Http::response(['status' => 'ok', 'client' => 'SiMongan'], 200),
+            'https://sipintu.test/api/v1/sijuna/students*' => Http::response(['data' => []], 200),
+            'https://sipintu.test/api/v1/sijuna/teachers*' => Http::response(['message' => 'The route api/v1/sijuna/teachers could not be found.'], 404),
+            'https://sipintu.test/api/v1/sijuna/dudi*' => Http::response(['message' => 'The route api/v1/sijuna/dudi could not be found.'], 404),
+        ]);
+
+        $syncService = app(SipintuSyncService::class);
+        $result = $syncService->testConnection();
+
+        expect($result['success'])->toBeTrue()
+            ->and($result['endpoint_warning'])->toBeTrue()
+            ->and($result['endpoints']['gateway']['status'])->toBeTrue()
+            ->and($result['endpoints']['students']['status'])->toBeTrue()
+            ->and($result['endpoints']['teachers']['status'])->toBeFalse()
+            ->and($result['endpoints']['dudi']['status'])->toBeFalse()
+            ->and($result['detail'])->toContain('Guru (HTTP 404)')
+            ->and($result['detail'])->toContain('DUDI (HTTP 404)');
+    });
+
+    it('15. Dashboard index view displays accurate local counts and separate status for Siswa, Guru, and DUDI', function () {
+        Role::findOrCreate(UserRole::SUPER_ADMIN->value);
+        $admin = User::factory()->create();
+        $admin->assignRole(UserRole::SUPER_ADMIN->value);
+
+        $response = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+
+        $response->assertOk()
+            ->assertViewHas('localDudiCount')
+            ->assertSee('1. Data Siswa')
+            ->assertSee('2. Data Guru')
+            ->assertSee('3. Data Master DUDI')
+            ->assertSee('/api/v1/sijuna/students')
+            ->assertSee('/api/v1/sijuna/teachers')
+            ->assertSee('/api/v1/sijuna/dudi')
+            ->assertSee('Total DUDI SIPKL')
+            ->assertSee('Preview Siswa')
+            ->assertSee('Sinkronkan Siswa')
+            ->assertSee('Preview Guru')
+            ->assertSee('Sinkronkan Guru')
+            ->assertSee('Preview DUDI')
+            ->assertSee('Sinkronkan DUDI')
+            ->assertSee('Lihat Riwayat');
+    });
+
+    it('16. sync rejects entity=guru and entity=dudi with graceful message while allowing safe student sync', function () {
+        Role::findOrCreate(UserRole::SUPER_ADMIN->value);
+        $admin = User::factory()->create();
+        $admin->assignRole(UserRole::SUPER_ADMIN->value);
+
+        // Submitting guru sync should gracefully return error notice
+        $guruResponse = $this->actingAs($admin)->post(route('admin.sipintu-sync.sync'), ['entity' => 'guru']);
+        $guruResponse->assertRedirect(route('admin.sipintu-sync.index'))
+            ->assertSessionHas('error', 'Endpoint API Guru SiPintu (/api/v1/sijuna/teachers) belum tersedia (HTTP 404). Data guru lokal tidak diubah.');
+
+        // Submitting dudi sync should gracefully return error notice
+        $dudiResponse = $this->actingAs($admin)->post(route('admin.sipintu-sync.sync'), ['entity' => 'dudi']);
+        $dudiResponse->assertRedirect(route('admin.sipintu-sync.index'))
+            ->assertSessionHas('error', 'Endpoint API Master DUDI SiPintu (/api/v1/sijuna/dudi) belum tersedia (HTTP 404). Data DUDI lokal tidak diubah.');
     });
 });

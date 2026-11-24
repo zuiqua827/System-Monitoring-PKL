@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Helpers\RoleRedirectHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Dudi;
 use App\Models\User;
 use App\Services\Interfaces\UserAuthenticationServiceInterface;
 use Illuminate\Http\RedirectResponse;
@@ -196,32 +197,102 @@ class SipintuSsoController extends Controller
             $userData = $userResponse->json();
             $userPayload = is_array($userData) ? ($userData['data'] ?? $userData) : [];
 
+            $sipintuUserId = ! empty($userPayload['id']) ? (string) $userPayload['id'] : null;
             $email = ! empty($userPayload['email']) ? trim((string) $userPayload['email']) : null;
             $nis = ! empty($userPayload['nis']) ? trim((string) $userPayload['nis']) : null;
             $nip = ! empty($userPayload['nip']) ? trim((string) $userPayload['nip']) : null;
             $username = ! empty($userPayload['username']) ? trim((string) $userPayload['username']) : null;
 
-            // 7. Match local user strictly by available schema identifiers (email, siswa.nis, guru.nip)
+            // 7. Match local user strictly by available schema identifiers (sipintu_user_id for DUDI, nis, nip, email)
             /** @var User|null $user */
             $user = null;
 
-            // Priority 1: email in users table
-            if ($email !== null && $email !== '') {
-                $user = User::query()->where('email', $email)->first();
+            // Priority 1: DUDI resolution strictly by mapped SIPINTU User ID
+            if ($sipintuUserId !== null) {
+                /** @var Dudi|null $mappedDudi */
+                $mappedDudi = Dudi::query()
+                    ->with('user.roles')
+                    ->where('sipintu_user_id', $sipintuUserId)
+                    ->first();
+
+                if ($mappedDudi !== null) {
+                    if (! $mappedDudi->user || ! $mappedDudi->user->hasRole('DUDI')) {
+                        Log::warning('SiPintu SSO rejected: mapped DUDI has invalid or missing local DUDI role', [
+                            'sipintu_user_id' => $sipintuUserId,
+                            'dudi_id' => $mappedDudi->id,
+                        ]);
+
+                        $invalidRoleMsg = 'Akun lokal yang terhubung tidak memiliki peran DUDI yang valid. Silakan hubungi Super Admin.';
+
+                        return redirect()->route('login')
+                            ->with('error', $invalidRoleMsg)
+                            ->withErrors(['login' => $invalidRoleMsg]);
+                    }
+
+                    if (! $mappedDudi->status_aktif) {
+                        Log::warning('SiPintu SSO rejected: mapped DUDI is inactive', [
+                            'sipintu_user_id' => $sipintuUserId,
+                            'dudi_id' => $mappedDudi->id,
+                        ]);
+
+                        $inactiveMsg = 'Akun DUDI Anda sedang dinonaktifkan. Silakan hubungi Super Admin.';
+
+                        return redirect()->route('login')
+                            ->with('error', $inactiveMsg)
+                            ->withErrors(['login' => $inactiveMsg]);
+                    }
+
+                    if (! $mappedDudi->sso_enabled) {
+                        Log::warning('SiPintu SSO rejected: mapped DUDI SSO is not enabled by Super Admin', [
+                            'sipintu_user_id' => $sipintuUserId,
+                            'dudi_id' => $mappedDudi->id,
+                        ]);
+
+                        $ssoNotEnabledMsg = 'Akses login SSO SiPintu untuk akun DUDI ini belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi dan aktivasi.';
+
+                        return redirect()->route('login')
+                            ->with('error', $ssoNotEnabledMsg)
+                            ->withErrors(['login' => $ssoNotEnabledMsg]);
+                    }
+
+                    $user = $mappedDudi->user;
+                }
             }
 
-            // Priority 2: nis in siswa table
+            // Priority 2: nis in siswa table (Siswa)
             if (! $user && $nis !== null && $nis !== '') {
                 $user = User::query()
                     ->whereHas('siswa', fn ($q) => $q->where('nis', $nis))
                     ->first();
             }
 
-            // Priority 3: nip in guru table
+            // Priority 3: nip in guru table (Guru)
             if (! $user && $nip !== null && $nip !== '') {
                 $user = User::query()
                     ->whereHas('guru', fn ($q) => $q->where('nip', $nip))
                     ->first();
+            }
+
+            // Priority 4: email in users table (with role isolation)
+            if (! $user && $email !== null && $email !== '') {
+                $matchedEmailUser = User::query()->where('email', $email)->first();
+                if ($matchedEmailUser !== null) {
+                    // Isolation: DUDI accounts CANNOT login by email fallback alone without mapped sipintu_user_id & sso_enabled!
+                    if ($matchedEmailUser->hasRole('DUDI')) {
+                        Log::warning('SiPintu SSO rejected: DUDI email matched but sipintu_user_id is not mapped or verified', [
+                            'email' => $email,
+                            'sipintu_user_id' => $sipintuUserId,
+                        ]);
+
+                        $unmappedDudiMsg = 'Akun SIPINTU Anda belum terhubung dengan data DUDI SIMONGAN atau belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi akun.';
+
+                        return redirect()->route('login')
+                            ->with('error', $unmappedDudiMsg)
+                            ->withErrors(['login' => $unmappedDudiMsg]);
+                    }
+
+                    $user = $matchedEmailUser;
+                }
             }
 
             // Fallback for username attribute if sent as NIS, NIP, or email
@@ -237,7 +308,10 @@ class SipintuSsoController extends Controller
                 }
 
                 if (! $user && filter_var($username, FILTER_VALIDATE_EMAIL)) {
-                    $user = User::query()->where('email', $username)->first();
+                    $matchedUsernameUser = User::query()->where('email', $username)->first();
+                    if ($matchedUsernameUser !== null && ! $matchedUsernameUser->hasRole('DUDI')) {
+                        $user = $matchedUsernameUser;
+                    }
                 }
             }
 
@@ -248,6 +322,7 @@ class SipintuSsoController extends Controller
                     'has_nis' => ! empty($nis),
                     'has_nip' => ! empty($nip),
                     'has_username' => ! empty($username),
+                    'has_sipintu_user_id' => ! empty($sipintuUserId),
                 ]);
 
                 $userNotFoundMsg = 'Akun SiPintu belum terdaftar pada aplikasi.';

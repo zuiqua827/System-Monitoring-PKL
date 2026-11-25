@@ -34,6 +34,7 @@ interface SipintuSyncServiceInterface
      *     local_teacher_count: int,
      *     local_dudi_count: int,
      *     classroom_mapping_count: int,
+     *     needs_mapping_count: int,
      *     history: \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\SiPintuSyncLog>
      * }
      */
@@ -68,6 +69,8 @@ interface SipintuSyncServiceInterface
      *
      * @return array{
      *     success: bool,
+     *     status?: string,
+     *     warning?: bool,
      *     message: string,
      *     stats: array{
      *         students: array<string, int>,
@@ -76,5 +79,5 @@ interface SipintuSyncServiceInterface
      *     }
      * }
      */
-    public function runSync(User $admin): array;
+    public function runSync(User $admin, string $entityScope = 'all'): array;
 }

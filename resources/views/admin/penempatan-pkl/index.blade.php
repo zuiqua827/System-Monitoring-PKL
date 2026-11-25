@@ -148,6 +148,14 @@
                                     @if($penempatanPkl->trashed())
                                         <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800 ml-1">Dihapus</span>
                                     @endif
+                                    <div class="mt-1 flex flex-wrap gap-1">
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold {{ $penempatanPkl->getEffectiveModeKerja() === 'WFH' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800' }}">
+                                            {{ $penempatanPkl->getEffectiveModeKerja() }}
+                                        </span>
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold {{ ($penempatanPkl->validasi_lokasi ?? true) ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
+                                            {{ ($penempatanPkl->validasi_lokasi ?? true) ? 'Geofence ON' : 'Geofence OFF' }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1">
@@ -156,6 +164,9 @@
                                         @endcan
 
                                         @unless($penempatanPkl->trashed())
+                                            @can('manageLocation', $penempatanPkl)
+                                                <a href="{{ route('admin.penempatan-pkl.location.edit', $penempatanPkl->id) }}" class="inline-flex items-center rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100">Lokasi</a>
+                                            @endcan
                                             @can('update', $penempatanPkl)
                                                 <a href="{{ route('admin.penempatan-pkl.edit', $penempatanPkl->id) }}" class="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">Edit</a>
                                             @endcan

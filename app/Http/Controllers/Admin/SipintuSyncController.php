@@ -47,6 +47,7 @@ class SipintuSyncController extends Controller
             'localTeacherCount' => $data['local_teacher_count'],
             'localDudiCount' => $data['local_dudi_count'],
             'classroomMappingCount' => $data['classroom_mapping_count'],
+            'needsMappingCount' => $data['needs_mapping_count'],
             'history' => $data['history'],
             'preview' => null,
         ]);
@@ -112,14 +113,16 @@ class SipintuSyncController extends Controller
         @ini_set('max_execution_time', '0');
         @ini_set('memory_limit', '512M');
 
-        $data = $this->syncService->getDashboardData();
         $preview = $this->syncService->preview();
+        $data = $this->syncService->getDashboardData();
+        $conn = $this->resolveConnectionState($data, session('connectionTestResult'));
 
         return view('admin.sipintu-sync.index', [
-            'connectionStatus' => $data['connection_status'],
-            'connectionMessage' => $data['connection_message'],
-            'connectionDetail' => $data['connection_detail'] ?? null,
-            'connectionTroubleshooting' => $data['connection_troubleshooting'] ?? null,
+            'connectionStatus' => $conn['status'],
+            'connectionMessage' => $conn['message'],
+            'connectionDetail' => $conn['detail'],
+            'connectionTroubleshooting' => $conn['troubleshooting'],
+            'endpointsDiagnosis' => $conn['endpoints'],
             'lastSync' => $data['last_sync'],
             'sipintuStudentCount' => $data['sipintu_student_count'],
             'sipintuTeacherCount' => $data['sipintu_teacher_count'],
@@ -128,6 +131,7 @@ class SipintuSyncController extends Controller
             'localTeacherCount' => $data['local_teacher_count'],
             'localDudiCount' => $data['local_dudi_count'],
             'classroomMappingCount' => $data['classroom_mapping_count'],
+            'needsMappingCount' => $data['needs_mapping_count'],
             'history' => $data['history'],
             'preview' => [
                 'success' => $preview['success'],
@@ -190,7 +194,14 @@ class SipintuSyncController extends Controller
         /** @var User $admin */
         $admin = $request->user();
 
-        $result = $this->syncService->runSync($admin);
+        $entityScope = $entity !== '' ? $entity : 'all';
+        $result = $this->syncService->runSync($admin, $entityScope);
+
+        if (($result['status'] ?? '') === 'partial' || ! empty($result['warning'])) {
+            return redirect()
+                ->route('admin.sipintu-sync.index')
+                ->with('warning', $result['message']);
+        }
 
         if ($result['success']) {
             return redirect()

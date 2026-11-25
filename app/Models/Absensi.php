@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $penempatan_pkl_id
  * @property Carbon $tanggal
  * @property string $status
+ * @property string|null $mode_kerja
  * @property Carbon|null $jam_masuk
  * @property Carbon|null $jam_keluar
  * @property string|null $device
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $jarak
  * @property float|null $accuracy
  * @property bool $lokasi_valid
+ * @property bool $validasi_lokasi_aktif
  * @property string|null $foto_masuk
  * @property string|null $foto_pulang
  * @property string|null $lokasi_masuk
@@ -54,6 +56,7 @@ class Absensi extends Model
         'penempatan_pkl_id',
         'tanggal',
         'status',
+        'mode_kerja',
         'jam_masuk',
         'jam_keluar',
         'device',
@@ -67,6 +70,7 @@ class Absensi extends Model
         'jarak',
         'accuracy',
         'lokasi_valid',
+        'validasi_lokasi_aktif',
         'foto_masuk',
         'foto_pulang',
         'lokasi_masuk',
@@ -97,6 +101,7 @@ class Absensi extends Model
             'jarak' => 'decimal:2',
             'accuracy' => 'decimal:2',
             'lokasi_valid' => 'boolean',
+            'validasi_lokasi_aktif' => 'boolean',
             'deleted_at' => 'datetime',
         ];
     }

@@ -21,7 +21,7 @@ beforeEach(function (): void {
     Role::findOrCreate(UserRole::DUDI->value);
 });
 
-function dudiSyncService(object $repository): SiPintuService
+function dudiSyncService(SiPintuRepositoryInterface $repository): SiPintuService
 {
     return new SiPintuService(
         $repository,
@@ -86,7 +86,7 @@ it('previews remote DUDI correctly and keeps preview strictly read-only', functi
         ->and(Dudi::query()->count())->toBe(1); // Read-only: no new record created
 });
 
-it('synchronizes new DUDI companies without automatically creating User accounts', function (): void {
+it('synchronizes new DUDI companies with User account according to CREATE policy', function (): void {
     $userCountBefore = User::query()->count();
 
     $repo = Mockery::mock(SiPintuRepositoryInterface::class);
@@ -107,14 +107,66 @@ it('synchronizes new DUDI companies without automatically creating User accounts
     $stats = $service->syncDudi();
 
     expect($stats['created'])->toBe(1)
-        ->and(User::query()->count())->toBe($userCountBefore); // No user account auto-created!
+        ->and(User::query()->count())->toBe($userCountBefore + 1);
 
     $createdDudi = Dudi::query()->where('sipintu_id', 'DUDI-AUTO-01')->first();
     expect($createdDudi)->not->toBeNull()
-        ->and($createdDudi->user_id)->toBeNull()
+        ->and($createdDudi->user_id)->not->toBeNull()
         ->and($createdDudi->nama_perusahaan)->toBe('CV Karya Mandiri')
         ->and($createdDudi->status_aktif)->toBeTrue()
-        ->and($createdDudi->sso_enabled)->toBeFalse(); // SSO false by default
+        ->and($createdDudi->sso_enabled)->toBeFalse();
+
+    $user = $createdDudi->user;
+    expect($user)->not->toBeNull()
+        ->and($user->email)->toBe('karya@mandiri.id')
+        ->and($user->hasRole(UserRole::DUDI->value))->toBeTrue()
+        ->and($user->must_change_password)->toBeTrue()
+        ->and($user->email_verified_at)->toBeNull();
+});
+
+it('creates DUDI without user account when remote email is missing without failing sync', function (): void {
+    $userCountBefore = User::query()->count();
+
+    $repo = Mockery::mock(SiPintuRepositoryInterface::class);
+    $repo->shouldReceive('fetchDudi')->andReturn([
+        [
+            'id' => 'DUDI-NO-EMAIL',
+            'nama_perusahaan' => 'Bengkel Tanpa Email',
+            'email_perusahaan' => null,
+            'status_aktif' => 1,
+        ],
+    ]);
+
+    $service = dudiSyncService($repo);
+    $stats = $service->syncDudi();
+
+    expect($stats['created'])->toBe(1)
+        ->and(User::query()->count())->toBe($userCountBefore);
+
+    $dudi = Dudi::query()->where('sipintu_id', 'DUDI-NO-EMAIL')->first();
+    expect($dudi)->not->toBeNull()
+        ->and($dudi->user_id)->toBeNull();
+});
+
+it('detects email collision with non-DUDI account as conflict without corrupting data', function (): void {
+    $admin = User::factory()->create(['email' => 'admin_pkl@smk.id']);
+    $admin->assignRole(UserRole::SUPER_ADMIN->value);
+
+    $repo = Mockery::mock(SiPintuRepositoryInterface::class);
+    $repo->shouldReceive('fetchDudi')->andReturn([
+        [
+            'id' => 'DUDI-COLLISION',
+            'nama_perusahaan' => 'PT Tabrakan Email',
+            'email_perusahaan' => 'admin_pkl@smk.id',
+            'status_aktif' => 1,
+        ],
+    ]);
+
+    $service = dudiSyncService($repo);
+    $stats = $service->syncDudi();
+
+    expect($stats['conflicts'])->toBe(1)
+        ->and(Dudi::query()->where('sipintu_id', 'DUDI-COLLISION')->exists())->toBeFalse();
 });
 
 it('updates existing DUDI matched by sipintu_id without affecting unrelated records', function (): void {

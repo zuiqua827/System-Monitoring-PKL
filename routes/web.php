@@ -127,6 +127,8 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     // Master Penempatan PKL
     Route::get('penempatan-pkl/students', [PenempatanPKLController::class, 'searchStudents'])->name('penempatan-pkl.students');
     Route::resource('penempatan-pkl', PenempatanPKLController::class);
+    Route::get('penempatan-pkl/{penempatan_pkl}/lokasi', [PenempatanPKLController::class, 'editLocation'])->name('penempatan-pkl.location.edit');
+    Route::put('penempatan-pkl/{penempatan_pkl}/lokasi', [PenempatanPKLController::class, 'updateLocation'])->name('penempatan-pkl.location.update');
     Route::post('penempatan-pkl/{penempatan_pkl}/restore', [PenempatanPKLController::class, 'restore'])->name('penempatan-pkl.restore')->withTrashed();
     Route::delete('penempatan-pkl/{penempatan_pkl}/force-delete', [PenempatanPKLController::class, 'forceDelete'])->name('penempatan-pkl.force-delete')->withTrashed();
 
@@ -144,7 +146,9 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     // Pemetaan Kelas SiPintu
     Route::get('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'index'])->name('sipintu-classroom-mapping.index');
     Route::post('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'store'])->name('sipintu-classroom-mapping.store');
+    Route::post('/sipintu-classroom-mapping/auto-map', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'autoMap'])->name('sipintu-classroom-mapping.auto-map');
     Route::post('/sipintu-classroom-mapping/apply', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'apply'])->name('sipintu-classroom-mapping.apply');
+    Route::delete('/sipintu-classroom-mapping/{mapping}', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'destroy'])->name('sipintu-classroom-mapping.destroy');
 
     // Pemetaan Akun DUDI SiPintu (Tahap A)
     Route::prefix('sipintu-dudi-mapping')->name('sipintu-dudi-mapping.')->group(function () {
@@ -209,6 +213,11 @@ Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru
     Route::get('/absensi', [GuruAbsensiController::class, 'index'])->name('absensi.index');
     Route::get('/absensi/{id}', [GuruAbsensiController::class, 'show'])->name('absensi.show');
     Route::post('/absensi/{id}/verify', [GuruAbsensiController::class, 'verify'])->name('absensi.verify');
+
+    // Pengaturan Lokasi WFO / WFH Siswa Bimbingan
+    Route::get('/penempatan-pkl', [\App\Http\Controllers\Guru\PenempatanLocationController::class, 'index'])->name('penempatan-pkl.index');
+    Route::get('/penempatan-pkl/{penempatan_pkl}/lokasi', [\App\Http\Controllers\Guru\PenempatanLocationController::class, 'edit'])->name('penempatan-pkl.location.edit');
+    Route::put('/penempatan-pkl/{penempatan_pkl}/lokasi', [\App\Http\Controllers\Guru\PenempatanLocationController::class, 'update'])->name('penempatan-pkl.location.update');
 
     // Aktivitas Siswa Bimbingan
     Route::get('/aktivitas', [GuruAktivitasController::class, 'index'])->name('aktivitas.index');

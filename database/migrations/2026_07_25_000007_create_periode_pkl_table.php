@@ -18,7 +18,11 @@ return new class extends Migration
             $table->enum('semester', ['ganjil', 'genap']);
             $table->date('tanggal_mulai');
             $table->date('tanggal_selesai');
-            $table->enum('status', ['Persiapan', 'Aktif', 'Selesai', 'Ditutup', 'draft', 'aktif', 'selesai'])->default('Persiapan');
+            if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                $table->string('status')->default('Persiapan');
+            } else {
+                $table->enum('status', ['Persiapan', 'Aktif', 'Selesai', 'Ditutup'])->default('Persiapan');
+            }
             $table->text('deskripsi')->nullable();
             $table->timestamps();
             $table->softDeletes();

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Helpers\RoleRedirectHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Dudi;
 use App\Models\User;
 use App\Services\Interfaces\UserAuthenticationServiceInterface;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,10 +27,11 @@ use Throwable;
  *    - Mengarahkan pengguna ke server otorisasi SiPintu (/oauth/authorize).
  *    - Membawa parameter: client_id, redirect_uri, response_type=code, dan state (CSRF guard).
  * 2. callback():
- *    - Menerima kode otorisasi (code) dari server SiPintu.
- *    - Menukarkan kode dengan Access Token via HTTP request backend-to-backend.
- *    - Mengambil data profil user (/api/user) dari SiPintu.
- *    - Mencari akun lokal berdasarkan nomor induk (NIS/NIP) atau email, lalu melakukan login otomatis.
+ *    - Memvalidasi error OAuth, parameter code, state (CSRF), dan replay code.
+ *    - Menukarkan kode otorisasi dengan Access Token dan mengambil profil /api/v1/user.
+ *    - Mencocokkan akun lokal secara ketat per peran (DUDI via sipintu_user_id + sso_enabled,
+ *      Siswa via NIS/email, Guru via NIP/email) tanpa menimpa password atau role lokal.
+ *    - Menolak Super Admin serta DUDI tanpa profil aktif / SSO aktif.
  */
 class SipintuSsoController extends Controller
 {
@@ -36,21 +39,29 @@ class SipintuSsoController extends Controller
         private readonly UserAuthenticationServiceInterface $authenticationService,
     ) {}
 
-
     /**
      * Redirect user to SiPintu SSO Authorization Endpoint (SP-initiated).
      * GET /auth/sipintu
      */
     public function redirect(Request $request): RedirectResponse
     {
-        $gatewayUrl = rtrim((string) (config('services.sipintu.api_url') ?: config('services.sipintu.base_url', 'https://sipintu.smkn1bangsri.sch.id')), '/');
-        $clientId = (string) config('services.sipintu.client_id');
-        $callbackUrl = (string) (config('services.sipintu.sso_callback_url') ?: config('services.sipintu.redirect_uri', route('oauth.callback')));
+        $gatewayUrl = $this->gatewayUrl();
+        $clientId = trim((string) config('services.sipintu.client_id'));
+        $callbackUrl = $this->callbackUrl();
+
+        if ($gatewayUrl === '' || $clientId === '') {
+            Log::warning('SiPintu SSO redirect aborted: incomplete client configuration');
+
+            return $this->rejectToLogin(
+                $request,
+                'Konfigurasi SSO SiPintu belum lengkap. Silakan hubungi administrator.',
+            );
+        }
 
         $state = bin2hex(random_bytes(16));
         $request->session()->put('sso_state', $state);
 
-        $authorizeUrl = $gatewayUrl . '/oauth/authorize?' . http_build_query([
+        $authorizeUrl = $gatewayUrl.'/oauth/authorize?'.http_build_query([
             'client_id' => $clientId,
             'redirect_uri' => $callbackUrl,
             'response_type' => 'code',
@@ -62,294 +73,116 @@ class SipintuSsoController extends Controller
 
     /**
      * Handle callback from SiPintu SSO.
-     * GET /auth/callback /oauth/callback
+     * GET /auth/callback | GET /oauth/callback
      */
     public function callback(Request $request): RedirectResponse
     {
-        // 1. Handle OAuth errors returned from the authorization server
-        $error = $request->query('error');
-        $errorDescription = $request->query('error_description');
-
-        if (! empty($error)) {
-            Log::warning('SiPintu SSO callback returned error', [
-                'error' => (string) $error,
-            ]);
-
-            $errorMessage = match ((string) $error) {
-                'access_denied' => 'Login SSO SiPintu dibatalkan atau ditolak oleh pengguna.',
-                'invalid_request' => 'Permintaan otorisasi SSO tidak valid.',
-                'invalid_grant' => 'Kode otorisasi SSO tidak valid atau sudah kedaluwarsa.',
-                default => 'Login SSO SiPintu gagal: ' . ($errorDescription ? (string) $errorDescription : (string) $error),
-            };
-
-            return redirect()->route('login')
-                ->with('error', $errorMessage)
-                ->withErrors(['login' => $errorMessage]);
+        $oauthError = $request->query('error');
+        if ($oauthError !== null && $oauthError !== '') {
+            return $this->handleOAuthError(
+                $request,
+                is_string($oauthError) ? $oauthError : 'unknown_error',
+                is_string($request->query('error_description')) ? $request->query('error_description') : null,
+            );
         }
 
-        // 2. Validate authorization code
         $code = $request->query('code');
-        if (empty($code) || ! is_string($code) || trim($code) === '') {
-            $missingCodeMsg = 'Kode otorisasi SSO tidak ditemukan.';
-
-            return redirect()->route('login')
-                ->with('error', $missingCodeMsg)
-                ->withErrors(['login' => $missingCodeMsg]);
+        if (! is_string($code) || trim($code) === '') {
+            return $this->rejectToLogin($request, 'Kode otorisasi SSO tidak ditemukan.');
         }
         $code = trim($code);
 
-        // 3. Validate state parameter if state was initiated in session (SP-initiated flow)
         if ($request->session()->has('sso_state')) {
             $expectedState = (string) $request->session()->pull('sso_state');
-            $incomingState = (string) $request->query('state');
+            $incomingStateRaw = $request->query('state');
+            $incomingState = is_string($incomingStateRaw) ? $incomingStateRaw : '';
 
             if (! hash_equals($expectedState, $incomingState)) {
                 Log::warning('SiPintu SSO callback state mismatch detected (potential CSRF)');
 
-                $stateMismatchMsg = 'Sesi login SSO tidak valid (state mismatch). Silakan coba lagi.';
-
-                return redirect()->route('login')
-                    ->with('error', $stateMismatchMsg)
-                    ->withErrors(['login' => $stateMismatchMsg]);
+                return $this->rejectToLogin(
+                    $request,
+                    'Sesi login SSO tidak valid (state mismatch). Silakan coba lagi.',
+                );
             }
         }
 
-        // 4. Prevent authorization code replay attacks (defense-in-depth single-use verification)
-        $codeHash = hash('sha256', $code);
-        $consumedKey = 'sso_code_consumed:' . $codeHash;
-
+        $consumedKey = 'sso_code_consumed:'.hash('sha256', $code);
         if (Cache::has($consumedKey)) {
             Log::warning('SiPintu SSO authorization code replay detected (already consumed)');
 
-            $replayMsg = 'Kode otorisasi SSO sudah pernah digunakan.';
-
-            return redirect()->route('login')
-                ->with('error', $replayMsg)
-                ->withErrors(['login' => $replayMsg]);
+            return $this->rejectToLogin($request, 'Kode otorisasi SSO sudah pernah digunakan.');
         }
 
-        $gatewayUrl = rtrim((string) (config('services.sipintu.api_url') ?: config('services.sipintu.base_url', 'https://sipintu.smkn1bangsri.sch.id')), '/');
-        $clientId = (string) config('services.sipintu.client_id');
-        $clientSecret = (string) config('services.sipintu.client_secret');
-        $configuredCallback = config('services.sipintu.sso_callback_url') ?: config('services.sipintu.redirect_uri');
-        $callbackUrl = ! empty($configuredCallback) ? (string) $configuredCallback : route('oauth.callback');
-        $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
-        $timeout = (int) config('services.sipintu.timeout', 30);
+        $gatewayUrl = $this->gatewayUrl();
+        $clientId = trim((string) config('services.sipintu.client_id'));
+        $clientSecret = trim((string) config('services.sipintu.client_secret'));
+        $callbackUrl = $this->callbackUrl();
+
+        if ($gatewayUrl === '' || $clientId === '' || $clientSecret === '') {
+            Log::error('SiPintu SSO callback aborted: missing gateway or client configuration');
+
+            return $this->rejectToLogin(
+                $request,
+                'Konfigurasi SSO SiPintu belum lengkap. Silakan hubungi administrator.',
+            );
+        }
 
         try {
-            // 5. Exchange authorization code for access token
-            $tokenClient = Http::asForm()->timeout($timeout);
-            if (! $verifySsl) {
-                $tokenClient = $tokenClient->withoutVerifying();
+            $tokenResult = $this->exchangeAuthorizationCode(
+                gatewayUrl: $gatewayUrl,
+                clientId: $clientId,
+                clientSecret: $clientSecret,
+                code: $code,
+                callbackUrl: $callbackUrl,
+            );
+
+            if ($tokenResult['error'] !== null || $tokenResult['access_token'] === null) {
+                return $this->rejectToLogin(
+                    $request,
+                    $tokenResult['error'] ?? 'Access token SiPintu tidak valid.',
+                );
             }
 
-            $tokenResponse = $tokenClient->post($gatewayUrl . '/oauth/token', [
-                'grant_type' => 'authorization_code',
-                'client_id' => $clientId,
-                'client_secret' => $clientSecret,
-                'code' => $code,
-                'redirect_uri' => $callbackUrl,
-            ]);
-
-            if (! $tokenResponse->successful()) {
-                Log::error('SiPintu SSO token exchange failed', [
-                    'status' => $tokenResponse->status(),
-                    'error' => $tokenResponse->json('error'),
-                ]);
-
-                $tokenExchangeMsg = 'Gagal memverifikasi token SSO dengan server SiPintu (HTTP ' . $tokenResponse->status() . ').';
-
-                return redirect()->route('login')
-                    ->with('error', $tokenExchangeMsg)
-                    ->withErrors(['login' => $tokenExchangeMsg]);
+            $profileResult = $this->fetchRemoteUserProfile($gatewayUrl, $tokenResult['access_token']);
+            if ($profileResult['error'] !== null || $profileResult['payload'] === null) {
+                return $this->rejectToLogin(
+                    $request,
+                    $profileResult['error'] ?? 'Gagal mengambil data profil pengguna dari SiPintu.',
+                );
             }
 
-            $tokenData = $tokenResponse->json();
-            $accessToken = is_array($tokenData) ? ($tokenData['access_token'] ?? null) : null;
+            $userPayload = $profileResult['payload'];
+            $sipintuUserId = $this->extractString($userPayload['id'] ?? null);
 
-            if (empty($accessToken) || ! is_string($accessToken)) {
-                $invalidTokenMsg = 'Access token SiPintu tidak valid.';
-
-                return redirect()->route('login')
-                    ->with('error', $invalidTokenMsg)
-                    ->withErrors(['login' => $invalidTokenMsg]);
+            $resolution = $this->resolveLocalUser($userPayload, $sipintuUserId);
+            if ($resolution['rejection'] !== null) {
+                return $this->rejectToLogin($request, $resolution['rejection']);
             }
 
-            // 6. Fetch User Profile using access token
-            $userClient = Http::withToken($accessToken)->acceptJson()->timeout($timeout);
-            if (! $verifySsl) {
-                $userClient = $userClient->withoutVerifying();
-            }
-
-            $userResponse = $userClient->get($gatewayUrl . '/api/v1/user');
-            if (! $userResponse->successful()) {
-                Log::error('SiPintu SSO fetch user profile failed', [
-                    'status' => $userResponse->status(),
-                ]);
-
-                $fetchUserMsg = 'Gagal mengambil data profil pengguna dari SiPintu.';
-
-                return redirect()->route('login')
-                    ->with('error', $fetchUserMsg)
-                    ->withErrors(['login' => $fetchUserMsg]);
-            }
-
-            $userData = $userResponse->json();
-            $userPayload = is_array($userData) ? ($userData['data'] ?? $userData) : [];
-
-            $sipintuUserId = ! empty($userPayload['id']) ? (string) $userPayload['id'] : null;
-            $email = ! empty($userPayload['email']) ? trim((string) $userPayload['email']) : null;
-            $nis = ! empty($userPayload['nis']) ? trim((string) $userPayload['nis']) : null;
-            $nip = ! empty($userPayload['nip']) ? trim((string) $userPayload['nip']) : null;
-            $username = ! empty($userPayload['username']) ? trim((string) $userPayload['username']) : null;
-
-            // 7. Match local user strictly by available schema identifiers (sipintu_user_id for DUDI, nis, nip, email)
-            /** @var User|null $user */
-            $user = null;
-
-            // Priority 1: DUDI resolution strictly by mapped SIPINTU User ID
-            if ($sipintuUserId !== null) {
-                /** @var Dudi|null $mappedDudi */
-                $mappedDudi = Dudi::query()
-                    ->with('user.roles')
-                    ->where('sipintu_user_id', $sipintuUserId)
-                    ->first();
-
-                if ($mappedDudi !== null) {
-                    if (! $mappedDudi->user || ! $mappedDudi->user->hasRole('DUDI')) {
-                        Log::warning('SiPintu SSO rejected: mapped DUDI has invalid or missing local DUDI role', [
-                            'sipintu_user_id' => $sipintuUserId,
-                            'dudi_id' => $mappedDudi->id,
-                        ]);
-
-                        $invalidRoleMsg = 'Akun lokal yang terhubung tidak memiliki peran DUDI yang valid. Silakan hubungi Super Admin.';
-
-                        return redirect()->route('login')
-                            ->with('error', $invalidRoleMsg)
-                            ->withErrors(['login' => $invalidRoleMsg]);
-                    }
-
-                    if (! $mappedDudi->status_aktif) {
-                        Log::warning('SiPintu SSO rejected: mapped DUDI is inactive', [
-                            'sipintu_user_id' => $sipintuUserId,
-                            'dudi_id' => $mappedDudi->id,
-                        ]);
-
-                        $inactiveMsg = 'Akun DUDI Anda sedang dinonaktifkan. Silakan hubungi Super Admin.';
-
-                        return redirect()->route('login')
-                            ->with('error', $inactiveMsg)
-                            ->withErrors(['login' => $inactiveMsg]);
-                    }
-
-                    if (! $mappedDudi->sso_enabled) {
-                        Log::warning('SiPintu SSO rejected: mapped DUDI SSO is not enabled by Super Admin', [
-                            'sipintu_user_id' => $sipintuUserId,
-                            'dudi_id' => $mappedDudi->id,
-                        ]);
-
-                        $ssoNotEnabledMsg = 'Akses login SSO SiPintu untuk akun DUDI ini belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi dan aktivasi.';
-
-                        return redirect()->route('login')
-                            ->with('error', $ssoNotEnabledMsg)
-                            ->withErrors(['login' => $ssoNotEnabledMsg]);
-                    }
-
-                    $user = $mappedDudi->user;
-                }
-            }
-
-            // Priority 2: nis in siswa table (Siswa)
-            if (! $user && $nis !== null && $nis !== '') {
-                $user = User::query()
-                    ->whereHas('siswa', fn ($q) => $q->where('nis', $nis))
-                    ->first();
-            }
-
-            // Priority 3: nip in guru table (Guru)
-            if (! $user && $nip !== null && $nip !== '') {
-                $user = User::query()
-                    ->whereHas('guru', fn ($q) => $q->where('nip', $nip))
-                    ->first();
-            }
-
-            // Priority 4: email in users table (with role isolation)
-            if (! $user && $email !== null && $email !== '') {
-                $matchedEmailUser = User::query()->where('email', $email)->first();
-                if ($matchedEmailUser !== null) {
-                    // Isolation: DUDI accounts CANNOT login by email fallback alone without mapped sipintu_user_id & sso_enabled!
-                    if ($matchedEmailUser->hasRole('DUDI')) {
-                        Log::warning('SiPintu SSO rejected: DUDI email matched but sipintu_user_id is not mapped or verified', [
-                            'email' => $email,
-                            'sipintu_user_id' => $sipintuUserId,
-                        ]);
-
-                        $unmappedDudiMsg = 'Akun SIPINTU Anda belum terhubung dengan data DUDI SIMONGAN atau belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi akun.';
-
-                        return redirect()->route('login')
-                            ->with('error', $unmappedDudiMsg)
-                            ->withErrors(['login' => $unmappedDudiMsg]);
-                    }
-
-                    $user = $matchedEmailUser;
-                }
-            }
-
-            // Fallback for username attribute if sent as NIS, NIP, or email
-            if (! $user && $username !== null && $username !== '') {
-                $user = User::query()
-                    ->whereHas('siswa', fn ($q) => $q->where('nis', $username))
-                    ->first();
-
-                if (! $user) {
-                    $user = User::query()
-                        ->whereHas('guru', fn ($q) => $q->where('nip', $username))
-                        ->first();
-                }
-
-                if (! $user && filter_var($username, FILTER_VALIDATE_EMAIL)) {
-                    $matchedUsernameUser = User::query()->where('email', $username)->first();
-                    if ($matchedUsernameUser !== null && ! $matchedUsernameUser->hasRole('DUDI')) {
-                        $user = $matchedUsernameUser;
-                    }
-                }
-            }
-
-            // 8. If user is not found locally, reject login (DO NOT auto-create user or PKL placement)
-            if (! $user) {
+            $user = $resolution['user'];
+            if ($user === null) {
                 Log::warning('SiPintu SSO user authenticated at gateway but not found locally', [
-                    'has_email' => ! empty($email),
-                    'has_nis' => ! empty($nis),
-                    'has_nip' => ! empty($nip),
-                    'has_username' => ! empty($username),
-                    'has_sipintu_user_id' => ! empty($sipintuUserId),
+                    'has_email' => $this->extractString($userPayload['email'] ?? null) !== null,
+                    'has_nis' => $this->extractString($userPayload['nis'] ?? null) !== null,
+                    'has_nip' => $this->extractString($userPayload['nip'] ?? null) !== null,
+                    'has_username' => $this->extractString($userPayload['username'] ?? null) !== null,
+                    'has_sipintu_user_id' => $sipintuUserId !== null,
                 ]);
 
-                $userNotFoundMsg = 'Akun SiPintu belum terdaftar pada aplikasi.';
-
-                return redirect()->route('login')
-                    ->with('error', $userNotFoundMsg)
-                    ->withErrors(['login' => $userNotFoundMsg]);
+                return $this->rejectToLogin($request, 'Akun SiPintu belum terdaftar pada aplikasi.');
             }
 
-            // 9. Reject Super Admin accounts from logging in via SSO (must use local admin credentials)
-            if ($user->hasRole('Super Admin')) {
-                Log::warning('SiPintu SSO rejected for Super Admin account', [
-                    'user_id' => $user->id,
-                    'email' => $user->email,
-                ]);
+            $user->loadMissing(['roles', 'dudi', 'siswa', 'guru']);
 
-                $adminBlockedMsg = 'Akun Administrator tidak dapat masuk melalui SSO SiPintu. Silakan gunakan login admin SIMONGAN.';
-
-                return redirect()->route('login')
-                    ->with('error', $adminBlockedMsg)
-                    ->withErrors(['login' => $adminBlockedMsg]);
+            $postValidationError = $this->validateMatchedUser($user, $sipintuUserId);
+            if ($postValidationError !== null) {
+                return $this->rejectToLogin($request, $postValidationError);
             }
 
-            // 10. Log in the local user with remember me enabled
+            // Regenerate session to prevent session fixation and bypass local force-change-password for SSO
             Auth::login($user, true);
             $request->session()->regenerate();
-            // Flag session as SSO authenticated so ForceChangePassword does not intercept
             $request->session()->put('auth_via_sso', true);
 
             $this->authenticationService->recordLoginMetadata(
@@ -357,24 +190,487 @@ class SipintuSsoController extends Controller
                 ipAddress: $request->ip(),
             );
 
-            // 11. Mark authorization code as consumed (defense-in-depth replay prevention)
             Cache::put($consumedKey, true, 600);
 
             $dashboardUrl = RoleRedirectHelper::getDashboardUrl($user);
 
             return redirect()->intended($dashboardUrl);
+        } catch (ConnectionException $e) {
+            Log::warning('SiPintu SSO connection/timeout error in callback', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
 
+            return $this->rejectToLogin(
+                $request,
+                'Tidak dapat terhubung ke server SiPintu atau permintaan melebihi batas waktu. Silakan coba lagi.',
+            );
         } catch (Throwable $e) {
             Log::error('SiPintu SSO unexpected error in callback', [
                 'exception' => $e::class,
                 'message' => $e->getMessage(),
             ]);
 
-            $systemErrorMsg = 'Terjadi kesalahan sistem saat memproses login SSO.';
-
-            return redirect()->route('login')
-                ->with('error', $systemErrorMsg)
-                ->withErrors(['login' => $systemErrorMsg]);
+            return $this->rejectToLogin(
+                $request,
+                'Terjadi kesalahan sistem saat memproses login SSO.',
+            );
         }
+    }
+
+    /**
+     * Handle OAuth authorization errors returned from SiPintu.
+     */
+    private function handleOAuthError(Request $request, string $error, ?string $description): RedirectResponse
+    {
+        Log::warning('SiPintu SSO callback returned error', [
+            'error' => $error,
+        ]);
+
+        $errorMessage = match ($error) {
+            'access_denied' => 'Login SSO SiPintu dibatalkan atau ditolak oleh pengguna.',
+            'invalid_request' => 'Permintaan otorisasi SSO tidak valid.',
+            'invalid_grant' => 'Kode otorisasi SSO tidak valid atau sudah kedaluwarsa.',
+            default => 'Login SSO SiPintu gagal: '.($description !== null && $description !== '' ? $description : $error),
+        };
+
+        return $this->rejectToLogin($request, $errorMessage);
+    }
+
+    /**
+     * Exchange authorization code for OAuth access token.
+     *
+     * @return array{access_token: string|null, error: string|null}
+     */
+    private function exchangeAuthorizationCode(
+        string $gatewayUrl,
+        string $clientId,
+        string $clientSecret,
+        string $code,
+        string $callbackUrl,
+    ): array {
+        $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
+        $timeout = (int) config('services.sipintu.timeout', 30);
+
+        $tokenClient = Http::asForm()->timeout($timeout);
+        if (! $verifySsl) {
+            $tokenClient = $tokenClient->withoutVerifying();
+        }
+
+        $tokenResponse = $tokenClient->post($gatewayUrl.'/oauth/token', [
+            'grant_type' => 'authorization_code',
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'code' => $code,
+            'redirect_uri' => $callbackUrl,
+        ]);
+
+        if (! $tokenResponse->successful()) {
+            Log::error('SiPintu SSO token exchange failed', [
+                'status' => $tokenResponse->status(),
+                'error' => $tokenResponse->json('error'),
+            ]);
+
+            return [
+                'access_token' => null,
+                'error' => 'Gagal memverifikasi token SSO dengan server SiPintu (HTTP '.$tokenResponse->status().').',
+            ];
+        }
+
+        $tokenData = $tokenResponse->json();
+        $accessToken = is_array($tokenData) ? ($tokenData['access_token'] ?? null) : null;
+
+        if (! is_string($accessToken) || trim($accessToken) === '') {
+            return [
+                'access_token' => null,
+                'error' => 'Access token SiPintu tidak valid.',
+            ];
+        }
+
+        return [
+            'access_token' => $accessToken,
+            'error' => null,
+        ];
+    }
+
+    /**
+     * Fetch authenticated user profile from SiPintu API.
+     *
+     * @return array{payload: array<string, mixed>|null, error: string|null}
+     */
+    private function fetchRemoteUserProfile(string $gatewayUrl, string $accessToken): array
+    {
+        $verifySsl = (bool) config('services.sipintu.verify_ssl', true);
+        $timeout = (int) config('services.sipintu.timeout', 30);
+
+        $userClient = Http::withToken($accessToken)->acceptJson()->timeout($timeout);
+        if (! $verifySsl) {
+            $userClient = $userClient->withoutVerifying();
+        }
+
+        $userResponse = $userClient->get($gatewayUrl.'/api/v1/user');
+        if (! $userResponse->successful()) {
+            Log::error('SiPintu SSO fetch user profile failed', [
+                'status' => $userResponse->status(),
+            ]);
+
+            return [
+                'payload' => null,
+                'error' => 'Gagal mengambil data profil pengguna dari SiPintu.',
+            ];
+        }
+
+        $userData = $userResponse->json();
+        $rawPayload = is_array($userData) ? ($userData['data'] ?? $userData) : [];
+        if (! is_array($rawPayload)) {
+            return [
+                'payload' => null,
+                'error' => 'Format profil pengguna SiPintu tidak valid.',
+            ];
+        }
+
+        /** @var array<string, mixed> $payload */
+        $payload = $rawPayload;
+
+        return [
+            'payload' => $payload,
+            'error' => null,
+        ];
+    }
+
+    /**
+     * Resolve local user strictly by verified SiPintu DUDI mapping, NIS, NIP, or isolated email/username.
+     *
+     * @param  array<string, mixed>  $userPayload
+     * @return array{user: User|null, rejection: string|null}
+     */
+    private function resolveLocalUser(array $userPayload, ?string $sipintuUserId): array
+    {
+        $email = $this->extractString($userPayload['email'] ?? null);
+        $nis = $this->extractString($userPayload['nis'] ?? null);
+        $nip = $this->extractString($userPayload['nip'] ?? null);
+        $username = $this->extractString($userPayload['username'] ?? null);
+
+        // Priority 1: DUDI resolution strictly via mapped sipintu_user_id (Tahap A)
+        if ($sipintuUserId !== null) {
+            /** @var Dudi|null $mappedDudi */
+            $mappedDudi = Dudi::query()
+                ->with('user.roles')
+                ->where('sipintu_user_id', $sipintuUserId)
+                ->first();
+
+            if ($mappedDudi !== null) {
+                $dudiUser = $mappedDudi->user;
+                if ($dudiUser === null || ! $dudiUser->hasRole(UserRole::DUDI->value)) {
+                    Log::warning('SiPintu SSO rejected: mapped DUDI has invalid or missing local DUDI role', [
+                        'sipintu_user_id' => $sipintuUserId,
+                        'dudi_id' => $mappedDudi->id,
+                    ]);
+
+                    return [
+                        'user' => null,
+                        'rejection' => 'Akun lokal yang terhubung tidak memiliki peran DUDI yang valid. Silakan hubungi Super Admin.',
+                    ];
+                }
+
+                $dudiError = $this->validateDudiProfileAndActivation($mappedDudi, $sipintuUserId);
+                if ($dudiError !== null) {
+                    return [
+                        'user' => null,
+                        'rejection' => $dudiError,
+                    ];
+                }
+
+                return [
+                    'user' => $dudiUser,
+                    'rejection' => null,
+                ];
+            }
+        }
+
+        // Prevent a remote SiPintu DUDI user from falling back to Siswa/Guru/Admin accounts
+        if ($this->isRemoteDudiPayload($userPayload)) {
+            if ($email !== null) {
+                /** @var User|null $localDudiUser */
+                $localDudiUser = User::query()
+                    ->with(['roles', 'dudi'])
+                    ->where('email', $email)
+                    ->whereHas('roles', fn ($q) => $q->where('name', UserRole::DUDI->value))
+                    ->first();
+
+                if ($localDudiUser !== null) {
+                    return [
+                        'user' => null,
+                        'rejection' => $this->unmappedDudiMessage($localDudiUser, $email, $sipintuUserId),
+                    ];
+                }
+
+                /** @var Dudi|null $localDudiRecord */
+                $localDudiRecord = Dudi::query()
+                    ->where('email_perusahaan', $email)
+                    ->orWhere('sipintu_email', $email)
+                    ->first();
+
+                if ($localDudiRecord !== null) {
+                    return [
+                        'user' => null,
+                        'rejection' => ! $localDudiRecord->status_aktif
+                            ? 'Akun DUDI Anda sedang dinonaktifkan. Silakan hubungi pihak sekolah.'
+                            : 'Akun SIPINTU Anda belum terhubung dengan data DUDI SIMONGAN atau belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi akun.',
+                    ];
+                }
+            }
+
+            Log::warning('SiPintu SSO rejected: unregistered DUDI account', [
+                'has_sipintu_user_id' => $sipintuUserId !== null,
+            ]);
+
+            return [
+                'user' => null,
+                'rejection' => 'Akun DUDI belum didaftarkan oleh pihak sekolah atau belum dihubungkan untuk SSO SiPintu.',
+            ];
+        }
+
+        // Priority 2: nis in siswa table
+        if ($nis !== null) {
+            /** @var User|null $siswaUser */
+            $siswaUser = User::query()
+                ->with(['roles', 'dudi', 'siswa'])
+                ->whereHas('siswa', fn ($q) => $q->where('nis', $nis))
+                ->first();
+
+            if ($siswaUser !== null) {
+                return ['user' => $siswaUser, 'rejection' => null];
+            }
+        }
+
+        // Priority 3: nip in guru table
+        if ($nip !== null) {
+            /** @var User|null $guruUser */
+            $guruUser = User::query()
+                ->with(['roles', 'dudi', 'guru'])
+                ->whereHas('guru', fn ($q) => $q->where('nip', $nip))
+                ->first();
+
+            if ($guruUser !== null) {
+                return ['user' => $guruUser, 'rejection' => null];
+            }
+        }
+
+        // Priority 4: email in users table (with strict DUDI isolation)
+        if ($email !== null) {
+            /** @var User|null $matchedEmailUser */
+            $matchedEmailUser = User::query()
+                ->with(['roles', 'dudi'])
+                ->where('email', $email)
+                ->first();
+
+            if ($matchedEmailUser !== null) {
+                if ($matchedEmailUser->hasRole(UserRole::DUDI->value)) {
+                    return [
+                        'user' => null,
+                        'rejection' => $this->unmappedDudiMessage($matchedEmailUser, $email, $sipintuUserId),
+                    ];
+                }
+
+                return ['user' => $matchedEmailUser, 'rejection' => null];
+            }
+        }
+
+        // Priority 5: fallback username attribute (NIS, NIP, or non-DUDI email)
+        if ($username !== null) {
+            /** @var User|null $byNis */
+            $byNis = User::query()
+                ->with(['roles', 'dudi', 'siswa'])
+                ->whereHas('siswa', fn ($q) => $q->where('nis', $username))
+                ->first();
+            if ($byNis !== null) {
+                return ['user' => $byNis, 'rejection' => null];
+            }
+
+            /** @var User|null $byNip */
+            $byNip = User::query()
+                ->with(['roles', 'dudi', 'guru'])
+                ->whereHas('guru', fn ($q) => $q->where('nip', $username))
+                ->first();
+            if ($byNip !== null) {
+                return ['user' => $byNip, 'rejection' => null];
+            }
+
+            if (filter_var($username, FILTER_VALIDATE_EMAIL)) {
+                /** @var User|null $matchedUsernameUser */
+                $matchedUsernameUser = User::query()
+                    ->with(['roles', 'dudi'])
+                    ->where('email', $username)
+                    ->first();
+
+                if ($matchedUsernameUser !== null) {
+                    if ($matchedUsernameUser->hasRole(UserRole::DUDI->value)) {
+                        return [
+                            'user' => null,
+                            'rejection' => $this->unmappedDudiMessage($matchedUsernameUser, $username, $sipintuUserId),
+                        ];
+                    }
+
+                    return ['user' => $matchedUsernameUser, 'rejection' => null];
+                }
+            }
+        }
+
+        return ['user' => null, 'rejection' => null];
+    }
+
+    /**
+     * Validate post-match invariants across Super Admin protection and DUDI profile consistency.
+     */
+    private function validateMatchedUser(User $user, ?string $sipintuUserId): ?string
+    {
+        if ($user->hasRole(UserRole::SUPER_ADMIN->value)) {
+            Log::warning('SiPintu SSO rejected for Super Admin account', [
+                'user_id' => $user->id,
+            ]);
+
+            return 'Akun Administrator tidak dapat masuk melalui SSO SiPintu. Silakan gunakan login admin SIMONGAN.';
+        }
+
+        if ($user->hasRole(UserRole::DUDI->value)) {
+            $dudi = $user->dudi;
+            if ($dudi === null) {
+                Log::warning('SiPintu SSO rejected: DUDI user lacks local dudi profile', [
+                    'user_id' => $user->id,
+                ]);
+
+                return 'Data profil DUDI tidak ditemukan untuk akun ini.';
+            }
+
+            return $this->validateDudiProfileAndActivation($dudi, $sipintuUserId);
+        }
+
+        return null;
+    }
+
+    /**
+     * Enforce DUDI profile status_aktif (parity with PklLoginRequest) and verified SSO activation.
+     */
+    private function validateDudiProfileAndActivation(Dudi $dudi, ?string $sipintuUserId): ?string
+    {
+        if (! $dudi->status_aktif) {
+            Log::warning('SiPintu SSO rejected: mapped DUDI is inactive', [
+                'dudi_id' => $dudi->id,
+            ]);
+
+            return 'Akun DUDI Anda sedang dinonaktifkan. Silakan hubungi pihak sekolah.';
+        }
+
+        $mappedId = trim((string) ($dudi->sipintu_user_id ?? ''));
+        if ($mappedId === '' || $sipintuUserId === null || ! hash_equals($mappedId, $sipintuUserId)) {
+            Log::warning('SiPintu SSO rejected: DUDI sipintu_user_id verification failed', [
+                'dudi_id' => $dudi->id,
+            ]);
+
+            return 'Akun SIPINTU Anda belum terhubung dengan data DUDI SIMONGAN atau belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi akun.';
+        }
+
+        if (! $dudi->sso_enabled) {
+            Log::warning('SiPintu SSO rejected: mapped DUDI SSO is not enabled by Super Admin', [
+                'dudi_id' => $dudi->id,
+            ]);
+
+            return 'Akses login SSO SiPintu untuk akun DUDI ini belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi dan aktivasi.';
+        }
+
+        return null;
+    }
+
+    private function unmappedDudiMessage(User $user, string $email, ?string $sipintuUserId): string
+    {
+        Log::warning('SiPintu SSO rejected: DUDI email matched without verified sipintu_user_id mapping', [
+            'user_id' => $user->id,
+            'has_sipintu_user_id' => $sipintuUserId !== null,
+            'email_domain' => str_contains($email, '@') ? substr($email, (int) strpos($email, '@') + 1) : null,
+        ]);
+
+        if ($user->dudi === null) {
+            return 'Data profil DUDI tidak ditemukan untuk akun ini.';
+        }
+
+        if (! $user->dudi->status_aktif) {
+            return 'Akun DUDI Anda sedang dinonaktifkan. Silakan hubungi pihak sekolah.';
+        }
+
+        return 'Akun SIPINTU Anda belum terhubung dengan data DUDI SIMONGAN atau belum diaktifkan oleh Super Admin. Silakan hubungi Super Admin untuk verifikasi akun.';
+    }
+
+    /**
+     * Detect if remote SiPintu profile carries a DUDI role hint (case-insensitive).
+     *
+     * @param  array<string, mixed>  $userPayload
+     */
+    private function isRemoteDudiPayload(array $userPayload): bool
+    {
+        $role = $userPayload['role'] ?? null;
+        if (is_string($role) && strtolower(trim($role)) === 'dudi') {
+            return true;
+        }
+
+        $roles = $userPayload['roles'] ?? null;
+        if (is_array($roles)) {
+            foreach ($roles as $entry) {
+                if (is_string($entry) && strtolower(trim($entry)) === 'dudi') {
+                    return true;
+                }
+                if (is_array($entry)) {
+                    $name = $entry['name'] ?? $entry['slug'] ?? null;
+                    if (is_string($name) && strtolower(trim($name)) === 'dudi') {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Safely reject authentication back to /login with clean session state.
+     */
+    private function rejectToLogin(Request $request, string $message): RedirectResponse
+    {
+        if (Auth::check()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return redirect()->route('login')
+            ->with('error', $message)
+            ->withErrors(['login' => $message]);
+    }
+
+    private function gatewayUrl(): string
+    {
+        $configured = config('services.sipintu.api_url') ?: config('services.sipintu.base_url', 'https://sipintu.smkn1bangsri.sch.id');
+
+        return rtrim(is_string($configured) ? $configured : '', '/');
+    }
+
+    private function callbackUrl(): string
+    {
+        $configured = config('services.sipintu.sso_callback_url') ?: config('services.sipintu.redirect_uri');
+
+        return is_string($configured) && trim($configured) !== ''
+            ? trim($configured)
+            : route('oauth.callback');
+    }
+
+    private function extractString(mixed $value): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

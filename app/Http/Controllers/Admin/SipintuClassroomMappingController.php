@@ -30,12 +30,14 @@ class SipintuClassroomMappingController extends Controller
     {
         $data = $this->mappingService->getDashboardData();
 
-        return view('admin.sipintu-classroom-mapping.index', array_merge([
+        return view('admin.sipintu-classroom-mapping.index', [
             'classrooms' => $data['classrooms'],
             'mappings' => $data['mappings'],
+            'mappingHealth' => $data['mappingHealth'],
             'kelasOptions' => $data['kelasOptions'],
+            'summary' => $data['summary'],
             'connected' => $data['connected'],
-        ]));
+        ]);
     }
 
     /**
@@ -60,7 +62,7 @@ class SipintuClassroomMappingController extends Controller
 
             return redirect()
                 ->route('admin.sipintu-classroom-mapping.index')
-                ->with('success', "Mapping classroom_id {$validated['classroom_id']} berhasil disimpan.");
+                ->with('success', "Mapping classroom_id {$validated['classroom_id']} berhasil disimpan. Jalankan preview/sinkronisasi di menu Sinkronisasi SiPintu untuk memproses data siswa.");
         } catch (\InvalidArgumentException $e) {
             return redirect()
                 ->route('admin.sipintu-classroom-mapping.index')
@@ -69,7 +71,42 @@ class SipintuClassroomMappingController extends Controller
     }
 
     /**
-     * Apply all saved mappings to local students.
+     * Remove a saved classroom mapping (e.g. invalid/obsolete mapping).
+     */
+    public function destroy(int $mapping): RedirectResponse
+    {
+        $deleted = $this->mappingService->deleteMapping($mapping);
+
+        return redirect()
+            ->route('admin.sipintu-classroom-mapping.index')
+            ->with($deleted ? 'success' : 'error', $deleted
+                ? 'Pemetaan kelas berhasil dihapus.'
+                : 'Pemetaan kelas tidak ditemukan.');
+    }
+
+    /**
+     * Auto-map unmapped SiPintu classrooms that strictly match local Kelas (nama, tingkat, jurusan).
+     */
+    public function autoMap(Request $request): RedirectResponse
+    {
+        try {
+            /** @var User $user */
+            $user = $request->user();
+
+            $stats = $this->mappingService->autoMapExactMatches($user->id);
+
+            return redirect()
+                ->route('admin.sipintu-classroom-mapping.index')
+                ->with('success', "Auto-map selesai: {$stats['mapped']} dipetakan otomatis, {$stats['already_mapped']} sudah terpetakan, {$stats['skipped_unmatched']} tidak cocok eksak (perlu mapping manual), {$stats['skipped_conflict']} konflik/ambigu dilewati.");
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('admin.sipintu-classroom-mapping.index')
+                ->with('error', 'Auto-map gagal mengambil data dari SiPintu: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Apply all saved mappings to existing local students.
      */
     public function apply(): RedirectResponse
     {

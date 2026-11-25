@@ -22,6 +22,9 @@
                 <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Absensi Siswa Bimbingan</h1>
                 <p class="mt-2 text-sm text-slate-500">Monitoring absensi siswa bimbingan PKL</p>
             </div>
+            <a href="{{ route('guru.penempatan-pkl.index') }}" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700">
+                Pengaturan Lokasi WFO/WFH
+            </a>
         </div>
 
         {{-- Search & Filter --}}

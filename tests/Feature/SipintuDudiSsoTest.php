@@ -385,4 +385,156 @@ describe('SiPintu DUDI SSO & Mapping Feature Test Suite', function () {
         $this->assertAuthenticatedAs($guruUser);
         $resGuru->assertRedirect('/guru/dashboard');
     });
+
+    it('13. Rejects unregistered DUDI remote role cleanly without auto-creating account or falling back', function () {
+        $otherUser = User::factory()->create(['email' => 'siswa_collision@smkn1bangsri.sch.id']);
+        $otherUser->assignRole(UserRole::SISWA->value);
+
+        $userCountBefore = User::query()->count();
+        $dudiCountBefore = Dudi::query()->count();
+
+        Http::fake([
+            '*/oauth/token' => Http::response(['access_token' => 'token_unregistered_dudi'], 200),
+            '*/api/v1/user' => Http::response([
+                'data' => [
+                    'id' => 'sipintu_unknown_dudi_999',
+                    'role' => 'DUDI',
+                    'email' => 'siswa_collision@smkn1bangsri.sch.id',
+                    'name' => 'PT Belum Terdaftar',
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->get('/oauth/callback?code=code_unregistered_dudi');
+
+        $this->assertGuest();
+        $response->assertRedirect('/login')
+            ->assertSessionHas('error')
+            ->assertSessionHasErrors(['login']);
+        expect(session('error'))->toContain('belum didaftarkan oleh pihak sekolah')
+            ->and(User::query()->count())->toBe($userCountBefore)
+            ->and(Dudi::query()->count())->toBe($dudiCountBefore);
+    });
+
+    it('14. Rejects DUDI user without local dudi profile consistent with manual PKL login', function () {
+        $dudiUserNoProfile = User::factory()->create(['email' => 'noprofile@dudi.test']);
+        $dudiUserNoProfile->assignRole(UserRole::DUDI->value);
+
+        Http::fake([
+            '*/oauth/token' => Http::response(['access_token' => 'token_no_profile'], 200),
+            '*/api/v1/user' => Http::response([
+                'data' => [
+                    'id' => 'sipintu_no_profile_500',
+                    'role' => 'dudi',
+                    'email' => 'noprofile@dudi.test',
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->get('/oauth/callback?code=code_no_dudi_profile');
+
+        $this->assertGuest();
+        $response->assertRedirect('/login')
+            ->assertSessionHas('error', 'Data profil DUDI tidak ditemukan untuk akun ini.')
+            ->assertSessionHasErrors(['login']);
+    });
+
+    it('14b. Rejects Super Admin even if linked to DUDI profile and never logs client secrets', function () {
+        $adminWithDudi = User::factory()->create([
+            'email' => 'admin.dudi@smkn1bangsri.sch.id',
+        ]);
+        $adminWithDudi->assignRole([UserRole::SUPER_ADMIN->value, UserRole::DUDI->value]);
+
+        Dudi::factory()->create([
+            'user_id' => $adminWithDudi->id,
+            'sipintu_user_id' => 'sipintu_admin_dudi_clash',
+            'status_aktif' => true,
+            'sso_enabled' => true,
+        ]);
+
+        Http::fake([
+            '*/oauth/token' => Http::response(['access_token' => 'token_admin_clash'], 200),
+            '*/api/v1/user' => Http::response([
+                'data' => [
+                    'id' => 'sipintu_admin_dudi_clash',
+                    'role' => 'dudi',
+                    'email' => 'admin.dudi@smkn1bangsri.sch.id',
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->get('/oauth/callback?code=code_admin_dudi_clash');
+
+        $this->assertGuest();
+        $response->assertRedirect('/login')
+            ->assertSessionHas('error', 'Akun Administrator tidak dapat masuk melalui SSO SiPintu. Silakan gunakan login admin SIMONGAN.')
+            ->assertSessionHasErrors(['login'])
+            ->assertDontSee((string) config('services.sipintu.client_secret'));
+    });
+
+    it('15. Protects local password, regenerates session ID, blocks Super Admin with DUDI role, and handles ConnectionException timeout safely', function () {
+        // Login page shows Login via SiPintu CTA
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Login via SiPintu')
+            ->assertSee(route('auth.sipintu.redirect', [], false));
+
+        // Password preservation & session regeneration for DUDI SSO
+        $originalPassword = \Illuminate\Support\Facades\Hash::make('SecretLocalDudiPass!99');
+        $dudiUser = User::factory()->create([
+            'email' => 'secure.dudi@company.test',
+            'password' => $originalPassword,
+        ]);
+        $dudiUser->assignRole(UserRole::DUDI->value);
+
+        Dudi::factory()->create([
+            'user_id' => $dudiUser->id,
+            'sipintu_user_id' => 'sso_dudi_secure_77',
+            'status_aktif' => true,
+            'sso_enabled' => true,
+        ]);
+
+        Http::fake([
+            '*/oauth/token' => Http::response(['access_token' => 'mock_token_secure'], 200),
+            '*/api/v1/user' => Http::response([
+                'data' => [
+                    'id' => 'sso_dudi_secure_77',
+                    'role' => 'dudi',
+                    'email' => 'secure.dudi@company.test',
+                ],
+            ], 200),
+        ]);
+
+        // SP-initiated redirect sets sso_state
+        $redirectResponse = $this->get(route('auth.sipintu.redirect'));
+        $redirectResponse->assertRedirect();
+        $state = session('sso_state');
+        expect($state)->toBeString()->not->toBeEmpty();
+
+        $oldSessionId = session()->getId();
+
+        $callbackResponse = $this->get('/oauth/callback?code=code_secure_sso&state='.$state);
+        $callbackResponse->assertRedirect('/dudi/dashboard');
+        $this->assertAuthenticatedAs($dudiUser);
+
+        expect(session()->getId())->not->toBe($oldSessionId)
+            ->and(\Illuminate\Support\Facades\Hash::check('SecretLocalDudiPass!99', $dudiUser->fresh()->password))->toBeTrue()
+            ->and($dudiUser->fresh()->getRoleNames()->toArray())->toBe([UserRole::DUDI->value]);
+
+        // Clean logout invalidates session
+        $this->post(route('logout'))->assertRedirect('/');
+        $this->assertGuest();
+
+        // Connection timeout handling during token exchange
+        Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('cURL error 28: Operation timed out');
+        });
+
+        $timeoutResponse = $this->get('/oauth/callback?code=code_timeout_test');
+        $this->assertGuest();
+        $timeoutResponse->assertRedirect('/login')
+            ->assertSessionHas('error')
+            ->assertSessionHasErrors(['login']);
+        expect(session('error'))->toContain('batas waktu');
+    });
 });

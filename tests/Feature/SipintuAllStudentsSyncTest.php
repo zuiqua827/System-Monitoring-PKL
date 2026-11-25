@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Exceptions\SiPintuApiException;
 use App\Models\Guru;
+use App\Models\Jurusan;
 use App\Models\Kelas;
 use App\Models\SipintuClassroomMapping;
 use App\Models\SiPintuSyncLog;
@@ -33,6 +34,18 @@ function allStudentsServiceWithRepository(object $repository): SiPintuService
     );
 }
 
+function createConsistentKelas(string $nama, int $tingkat, string $kodeJurusan): Kelas
+{
+    $jurusan = Jurusan::query()->where('kode', $kodeJurusan)->first()
+        ?? Jurusan::create(['kode' => $kodeJurusan, 'nama' => "Jurusan {$kodeJurusan}"]);
+
+    return Kelas::factory()->create([
+        'nama' => $nama,
+        'tingkat' => $tingkat,
+        'jurusan_id' => $jurusan->id,
+    ]);
+}
+
 function syncAdminUser(): User
 {
     return User::factory()->create(['name' => 'Admin SiPintu']);
@@ -45,7 +58,7 @@ beforeEach(function (): void {
 
 // 1. Siswa aktif dari SiPintu ikut tersinkron (dengan kelas yang sesuai)
 it('syncs active students from SiPintu and maps to local kelas by classroom name', function (): void {
-    $kelas = Kelas::factory()->create(['nama' => 'XII PPLG 1']);
+    $kelas = createConsistentKelas('XII PPLG 1', 12, 'PPLG');
 
     $repository = Mockery::mock(SiPintuRepositoryInterface::class);
     $repository->shouldReceive('fetchStudents')->andReturn([[
@@ -140,7 +153,7 @@ it('syncs nonactive students from SiPintu and keeps them safely soft-deleted', f
 
 // 4. Sinkronisasi kedua tidak membuat duplicate siswa (idempotensi)
 it('does not duplicate students on repeated synchronizations', function (): void {
-    $kelas = Kelas::factory()->create(['nama' => 'X PM 1']);
+    $kelas = createConsistentKelas('X PM 1', 10, 'PM');
 
     $students = [
         [
@@ -341,8 +354,8 @@ it('does not wipe local students when API returns an empty dataset', function ()
 
 // 10. Jumlah data hasil sinkronisasi dapat diverifikasi secara akurat
 it('verifies exact counts and classifications for active, alumni, and nonactive students', function (): void {
-    $kelasX = Kelas::factory()->create(['nama' => 'X MPLB 1']);
-    $kelasXI = Kelas::factory()->create(['nama' => 'XI AKL 1']);
+    $kelasX = createConsistentKelas('X MPLB 1', 10, 'MPLB');
+    $kelasXI = createConsistentKelas('XI AKL 1', 11, 'AKL');
 
     $mockData = [
         // 2 Siswa Aktif

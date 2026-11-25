@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePenempatanPKLRequest;
+use App\Http\Requests\UpdatePenempatanLocationRequest;
 use App\Http\Requests\UpdatePenempatanPKLRequest;
 use App\Enums\UserRole;
 use App\Models\Dudi;
@@ -114,10 +115,38 @@ public function index(Request $request): View
     {
         $this->authorize('view', $penempatanPkl);
 
-        $penempatanPkl->load(['siswa', 'guru', 'dudi', 'periodePKL', 'dibuatOleh', 'approvedBy']);
+        $penempatanPkl->load(['siswa', 'guru', 'dudi', 'periodePKL', 'dibuatOleh', 'approvedBy', 'locationLogs']);
         $penempatanPkl->loadCount(['absensi', 'aktivitas']);
 
         return view('admin.penempatan-pkl.show', compact('penempatanPkl'));
+    }
+
+    public function editLocation(PenempatanPKL $penempatanPkl): View
+    {
+        $this->authorize('manageLocation', $penempatanPkl);
+
+        $penempatanPkl->load(['siswa.kelas', 'guru', 'dudi', 'periodePKL', 'locationLogs']);
+
+        return view('admin.penempatan-pkl.location', compact('penempatanPkl'));
+    }
+
+    public function updateLocation(UpdatePenempatanLocationRequest $request, PenempatanPKL $penempatanPkl): RedirectResponse
+    {
+        $this->authorize('manageLocation', $penempatanPkl);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $this->penempatanPklService->updateLocationSettings(
+            penempatanPkl: $penempatanPkl,
+            actor: $actor,
+            data: $request->validated(),
+            ipAddress: $request->ip(),
+        );
+
+        return redirect()
+            ->route('admin.penempatan-pkl.location.edit', $penempatanPkl)
+            ->with('success', 'Pengaturan lokasi absensi (WFO/WFH) berhasil disimpan.');
     }
 
     public function edit(PenempatanPKL $penempatanPkl): View

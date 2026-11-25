@@ -46,8 +46,8 @@ interface SiPintuServiceInterface
      * Read-only preview of a student sync. Classifies remote students into
      * categories WITHOUT writing/inserting/updating/deleting anything.
      *
-     * Categories: baru, diperbarui, tidak_berubah, konflik, perlu_pemetaan,
-     * tidak_ditemukan, error, total_remote.
+     * Categories: baru, diperbarui, tidak_berubah, perlu_pemetaan, duplikat,
+     * konflik, tidak_valid, gagal, tidak_ditemukan, error, total_remote.
      *
      * @return array<string, int|string>
      */
@@ -129,7 +129,14 @@ interface SiPintuServiceInterface
     /**
      * Check status of a specific endpoint on the SiPintu Gateway.
      *
-     * @return array{status: int|null, success: bool, message: string}
+     * @return array{status: int|null, success: bool, message: string, count: int|null}
      */
     public function checkEndpointStatus(string $endpoint): array;
+
+    /**
+     * Direct credential verification against SiPintu Gateway.
+     *
+     * @return array{success: bool, status: int|null, data?: mixed, message?: string}
+     */
+    public function verifyCredentials(string $identity, string $password): array;
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Interfaces;
 
 use App\Models\PenempatanPKL;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -61,6 +62,18 @@ public function getPaginated(
      * @param array<string, mixed> $data
      */
     public function update(PenempatanPKL $penempatanPkl, array $data): PenempatanPKL;
+
+    /**
+     * Update work mode (WFO/WFH) and geofence location settings with audit logging.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function updateLocationSettings(
+        PenempatanPKL $penempatanPkl,
+        User $actor,
+        array $data,
+        ?string $ipAddress = null,
+    ): PenempatanPKL;
 
     /**
      * Soft delete a penempatan PKL.

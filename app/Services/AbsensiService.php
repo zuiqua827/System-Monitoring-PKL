@@ -217,18 +217,17 @@ class AbsensiService extends Service implements AbsensiServiceInterface
             throw new \RuntimeException('Anda sudah melakukan Check In hari ini.');
         }
 
-        // Validate GPS radius against DUDI location
-        $this->validateGpsRadius($penempatanPklId, $data);
-
-        // Get penempatan and DUDI's configured schedule.
-        /** @var PenempatanPKL $penempatan */
+        /** @var PenempatanPKL|null $penempatan */
         $penempatan = PenempatanPKL::with('dudi')->find($penempatanPklId);
-        if ($penempatan === null || $penempatan->dudi === null) {
-            throw new \RuntimeException('Jadwal masuk DUDI tidak ditemukan.');
+        if ($penempatan === null) {
+            throw new \RuntimeException('Penempatan PKL tidak ditemukan.');
         }
 
+        $this->validateActivePlacementForAttendance($penempatan, $waktuPresensi);
+        $locationResult = $this->evaluateLocationPolicy($penempatan, $data);
+
         $dudi = $penempatan->dudi;
-        
+
         [$status, $keterangan] = $this->determineCheckInStatus(
             $waktuPresensi,
             $dudi->jam_masuk,
@@ -237,6 +236,8 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         );
 
         $fotoPath = null;
+        $userAgent = request()->userAgent();
+        $browser = $data['browser'] ?? ($userAgent !== null ? substr($userAgent, 0, 255) : null);
 
         try {
             /** @var Absensi $absensi */
@@ -246,6 +247,9 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                 $waktuPresensi,
                 $status,
                 $keterangan,
+                $locationResult,
+                $browser,
+                $userAgent,
                 &$fotoPath,
             ): Model {
                 // Recheck immediately before saving to give a clear response
@@ -266,13 +270,20 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                     'tanggal' => $waktuPresensi->toDateString(),
                     'jam_masuk' => $waktuPresensi->format('H:i:s'),
                     'status' => $status,
+                    'mode_kerja' => $locationResult['mode_kerja'],
                     'keterangan' => $keterangan,
                     'lokasi_masuk' => $data['lokasi_masuk'] ?? null,
                     'foto_masuk' => $fotoPath,
                     'latitude_masuk' => $data['latitude'] ?? null,
                     'longitude_masuk' => $data['longitude'] ?? null,
+                    'radius' => $locationResult['radius'],
+                    'jarak' => $locationResult['jarak'],
+                    'lokasi_valid' => $locationResult['lokasi_valid'],
+                    'validasi_lokasi_aktif' => $locationResult['validasi_lokasi_aktif'],
                     'accuracy' => $data['accuracy'] ?? null,
-                    'device' => $data['device'] ?? request()->userAgent(),
+                    'ip_address' => $data['ip_address'] ?? request()->ip(),
+                    'browser' => $browser,
+                    'device' => $data['device'] ?? $userAgent,
                 ]);
             });
         } catch (QueryException $e) {
@@ -294,17 +305,29 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      * {@inheritDoc}
      *
      * Business logic:
-     * - Can only check out if already checked in
+     * - Can only check out if already checked in and placement is active
      * - Cannot check out twice
+     * - Applies active WFO/WFH geofence policy consistently with Check In
      * - Handle base64 camera photo
      */
     public function checkOut(int $penempatanPklId, array $data): Absensi
     {
+        $waktuPresensi = Carbon::now(config('app.timezone'));
+
+        /** @var PenempatanPKL|null $penempatan */
+        $penempatan = PenempatanPKL::with('dudi')->find($penempatanPklId);
+        if ($penempatan === null) {
+            throw new \RuntimeException('Penempatan PKL tidak ditemukan.');
+        }
+
+        $this->validateActivePlacementForAttendance($penempatan, $waktuPresensi);
+        $locationResult = $this->evaluateLocationPolicy($penempatan, $data);
+
         $fotoPath = null;
 
         try {
             /** @var Absensi $updated */
-            $updated = $this->transaction(function () use ($penempatanPklId, $data, &$fotoPath): Model {
+            $updated = $this->transaction(function () use ($penempatanPklId, $data, $waktuPresensi, $locationResult, &$fotoPath): Model {
                 // Locking makes two concurrent Check Out attempts run one at a
                 // time, so the second attempt receives the correct message.
                 $todayAbsensi = $this->absensiRepository->lockTodayByPenempatan($penempatanPklId);
@@ -320,12 +343,14 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                 $fotoPath = $this->storePresensiPhoto($data, 'foto_pulang', 'absensi/foto_pulang');
 
                 return $this->absensiRepository->update($todayAbsensi, [
-                    'jam_keluar' => Carbon::now(config('app.timezone'))->format('H:i:s'),
+                    'jam_keluar' => $waktuPresensi->format('H:i:s'),
                     'lokasi_pulang' => $data['lokasi_pulang'] ?? null,
                     'foto_pulang' => $fotoPath,
                     'latitude_keluar' => $data['latitude'] ?? null,
                     'longitude_keluar' => $data['longitude'] ?? null,
                     'accuracy' => $data['accuracy'] ?? $todayAbsensi->accuracy,
+                    'mode_kerja' => $todayAbsensi->mode_kerja ?? $locationResult['mode_kerja'],
+                    'lokasi_valid' => $todayAbsensi->lokasi_valid && $locationResult['lokasi_valid'],
                 ]);
             });
         } catch (\Throwable $e) {
@@ -411,57 +436,135 @@ class AbsensiService extends Service implements AbsensiServiceInterface
     }
 
     /**
-     * Validate GPS radius using Haversine formula.
+     * Validate placement active status, active period window, and DUDI relationship.
      *
-     * @param int $penempatanPklId The penempatan PKL ID
-     * @param array<string, mixed> $data The request data containing latitude/longitude
-     * @throws \RuntimeException If outside radius or GPS not available
+     * @throws \RuntimeException If placement is inactive, outside period dates, or missing DUDI
      */
-    private function validateGpsRadius(int $penempatanPklId, array $data): void
+    private function validateActivePlacementForAttendance(PenempatanPKL $penempatan, CarbonInterface $waktuPresensi): void
     {
-        // If no GPS data provided, skip validation (allow Check In)
-        if (
-            !array_key_exists('latitude', $data) ||
-            !array_key_exists('longitude', $data) ||
-            $data['latitude'] === null ||
-            $data['longitude'] === null ||
-            $data['latitude'] === '' ||
-            $data['longitude'] === ''
-        ) {
-            return;
+        if ($penempatan->status !== 'aktif') {
+            throw new \RuntimeException('Penempatan PKL Anda tidak berstatus aktif.');
         }
 
-        // Get DUDI location from the penempatan
-        /** @var PenempatanPKL|null $penempatan */
-        $penempatan = PenempatanPKL::with('dudi')->find($penempatanPklId);
-
-        if ($penempatan === null || $penempatan->dudi === null) {
-            return; // Cannot validate if DUDI not found
+        if ($penempatan->tanggal_mulai !== null && $waktuPresensi->lt($penempatan->tanggal_mulai->copy()->startOfDay())) {
+            throw new \RuntimeException('Periode penempatan PKL Anda belum dimulai.');
         }
 
-        $dudiLat = (float) $penempatan->dudi->latitude;
-        $dudiLng = (float) $penempatan->dudi->longitude;
-
-        // If DUDI has no coordinates, skip validation
-        if ($dudiLat === 0.0 && $dudiLng === 0.0) {
-            return;
+        if ($penempatan->tanggal_selesai !== null && $waktuPresensi->gt($penempatan->tanggal_selesai->copy()->endOfDay())) {
+            throw new \RuntimeException('Periode penempatan PKL Anda telah berakhir.');
         }
 
-        $userLat = (float) $data['latitude'];
-        $userLng = (float) $data['longitude'];
-
-        // Calculate distance using Haversine formula
-        $distance = $this->haversineDistance($userLat, $userLng, $dudiLat, $dudiLng);
-
-        // Check if within radius
-        if ($distance > self::MAX_RADIUS_METERS) {
-            throw new \RuntimeException(
-                'Anda berada di luar area PKL. Jarak Anda: ' . 
-                number_format($distance, 0, ',', '.') . 
-                ' meter dari lokasi DUDI (maksimal ' . 
-                self::MAX_RADIUS_METERS . ' meter).'
-            );
+        if (! $penempatan->dudi()->exists()) {
+            throw new \RuntimeException('Jadwal masuk DUDI tidak ditemukan.');
         }
+    }
+
+    /**
+     * Evaluate WFO / WFH mode and geofence distance against approved coordinates.
+     *
+     * Matrix:
+     * - WFO + validasi_lokasi=true  : requires GPS within 100m of DUDI coordinates (when DUDI coords configured)
+     * - WFO + validasi_lokasi=false : allows check-in/out without geofence block; logs mode & coords
+     * - WFH + validasi_lokasi=true  : requires GPS within approved wfh_radius of wfh_latitude/longitude
+     * - WFH + validasi_lokasi=false : allows check-in/out without geofence block; logs mode & coords
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{mode_kerja: string, validasi_lokasi_aktif: bool, radius: int|null, jarak: float|null, lokasi_valid: bool}
+     *
+     * @throws \RuntimeException If required coordinates are missing or distance exceeds radius
+     */
+    private function evaluateLocationPolicy(PenempatanPKL $penempatan, array $data): array
+    {
+        $modeKerja = $penempatan->getEffectiveModeKerja();
+        $validasiAktif = (bool) ($penempatan->validasi_lokasi ?? true);
+
+        $hasUserCoords = $this->hasCoordinateInputs($data);
+        $userLat = $hasUserCoords ? (float) $data['latitude'] : null;
+        $userLng = $hasUserCoords ? (float) $data['longitude'] : null;
+
+        if ($modeKerja === 'WFH') {
+            $allowedRadius = $penempatan->getEffectiveWfhRadius();
+            $wfhLat = $penempatan->wfh_latitude !== null ? (float) $penempatan->wfh_latitude : null;
+            $wfhLng = $penempatan->wfh_longitude !== null ? (float) $penempatan->wfh_longitude : null;
+            $hasTargetCoords = $wfhLat !== null && $wfhLng !== null && ($wfhLat !== 0.0 || $wfhLng !== 0.0);
+
+            $distance = ($hasUserCoords && $hasTargetCoords && $userLat !== null && $userLng !== null)
+                ? $this->haversineDistance($userLat, $userLng, $wfhLat, $wfhLng)
+                : null;
+
+            if ($validasiAktif) {
+                if (! $hasTargetCoords) {
+                    throw new \RuntimeException('Koordinat lokasi WFH yang disetujui belum dikonfigurasi. Silakan hubungi Guru Pembimbing atau Admin.');
+                }
+
+                if (! $hasUserCoords) {
+                    throw new \RuntimeException('Koordinat GPS wajib dikirim saat validasi lokasi WFH aktif.');
+                }
+
+                if ($distance !== null && $distance > $allowedRadius) {
+                    throw new \RuntimeException(
+                        'Anda berada di luar radius lokasi WFH yang disetujui. Jarak Anda: '
+                        .number_format($distance, 0, ',', '.')
+                        .' meter dari titik WFH (maksimal '.$allowedRadius.' meter).'
+                    );
+                }
+            }
+
+            return [
+                'mode_kerja' => 'WFH',
+                'validasi_lokasi_aktif' => $validasiAktif,
+                'radius' => $allowedRadius,
+                'jarak' => $distance !== null ? round($distance, 2) : null,
+                'lokasi_valid' => true,
+            ];
+        }
+
+        $dudi = $penempatan->dudi;
+        $dudiLat = $dudi->latitude !== null ? (float) $dudi->latitude : 0.0;
+        $dudiLng = $dudi->longitude !== null ? (float) $dudi->longitude : 0.0;
+        $hasTargetCoords = ($dudiLat !== 0.0 || $dudiLng !== 0.0);
+        $allowedRadius = self::MAX_RADIUS_METERS;
+
+        $distance = ($hasUserCoords && $hasTargetCoords && $userLat !== null && $userLng !== null)
+            ? $this->haversineDistance($userLat, $userLng, $dudiLat, $dudiLng)
+            : null;
+
+        if ($validasiAktif && $hasTargetCoords) {
+            if (! $hasUserCoords) {
+                throw new \RuntimeException('Koordinat GPS wajib dikirim saat validasi lokasi WFO aktif.');
+            }
+
+            if ($distance !== null && $distance > $allowedRadius) {
+                throw new \RuntimeException(
+                    'Anda berada di luar area PKL. Jarak Anda: '
+                    .number_format($distance, 0, ',', '.')
+                    .' meter dari lokasi DUDI (maksimal '.$allowedRadius.' meter).'
+                );
+            }
+        }
+
+        return [
+            'mode_kerja' => 'WFO',
+            'validasi_lokasi_aktif' => $validasiAktif,
+            'radius' => $allowedRadius,
+            'jarak' => $distance !== null ? round($distance, 2) : null,
+            'lokasi_valid' => $validasiAktif ? $hasTargetCoords : true,
+        ];
+    }
+
+    /**
+     * Check whether latitude & longitude inputs are both populated.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function hasCoordinateInputs(array $data): bool
+    {
+        return array_key_exists('latitude', $data)
+            && array_key_exists('longitude', $data)
+            && $data['latitude'] !== null
+            && $data['longitude'] !== null
+            && $data['latitude'] !== ''
+            && $data['longitude'] !== '';
     }
 
     /**

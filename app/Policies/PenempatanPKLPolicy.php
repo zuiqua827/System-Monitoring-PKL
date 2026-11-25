@@ -112,6 +112,32 @@ class PenempatanPKLPolicy
     }
 
     /**
+     * Determine whether the user can manage work mode (WFO/WFH) and geofence location settings.
+     *
+     * Allowed:
+     * - Super Admin (also via before())
+     * - Guru Pembimbing assigned directly to the placement
+     *
+     * Forbidden:
+     * - Siswa, DUDI, and unrelated Guru accounts
+     */
+    public function manageLocation(User $user, PenempatanPKL $penempatanPkl): bool
+    {
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('Guru')) {
+            $guru = $user->guru;
+            if ($guru !== null) {
+                return $penempatanPkl->guru_id === $guru->id;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Check Out ability for Siswa on their active PenempatanPKL.
      *
      * Delegates to checkIn since ownership check is identical.

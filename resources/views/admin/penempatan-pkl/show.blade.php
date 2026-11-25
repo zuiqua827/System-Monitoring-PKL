@@ -96,6 +96,30 @@
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ $penempatanPkl->approved_at ? $penempatanPkl->approved_at->format('d/m/Y H:i') : '-' }}</p>
                     </div>
                     @endif
+                    <div class="bg-white p-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Mode Kerja & Validasi Lokasi</p>
+                        <div class="mt-1 flex flex-wrap items-center gap-2">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold {{ $penempatanPkl->getEffectiveModeKerja() === 'WFH' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800' }}">
+                                {{ $penempatanPkl->getEffectiveModeKerja() }}
+                            </span>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold {{ ($penempatanPkl->validasi_lokasi ?? true) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                Geofence: {{ ($penempatanPkl->validasi_lokasi ?? true) ? 'Aktif' : 'Nonaktif' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Koordinat Lokasi WFH</p>
+                        <p class="mt-1 text-sm font-mono text-slate-900">
+                            @if ($penempatanPkl->wfh_latitude && $penempatanPkl->wfh_longitude)
+                                {{ $penempatanPkl->wfh_latitude }}, {{ $penempatanPkl->wfh_longitude }} ({{ $penempatanPkl->getEffectiveWfhRadius() }}m)
+                            @else
+                                -
+                            @endif
+                        </p>
+                        @if ($penempatanPkl->wfh_alamat)
+                            <p class="mt-0.5 text-xs text-slate-500">{{ $penempatanPkl->wfh_alamat }}</p>
+                        @endif
+                    </div>
                     <div class="bg-white p-5 sm:col-span-2">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Catatan</p>
                         <p class="mt-1 text-sm text-slate-700">{{ $penempatanPkl->catatan ?: '-' }}</p>
@@ -111,12 +135,44 @@
                 </div>
             </div>
 
+            {{-- Riwayat Singkat Perubahan Lokasi WFO/WFH --}}
+            @if ($penempatanPkl->locationLogs->isNotEmpty())
+                <div class="rounded-2xl border border-slate-200 bg-white shadow-card-sm">
+                    <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">Riwayat Perubahan Lokasi WFO / WFH</h3>
+                            <p class="text-xs text-slate-500">Perubahan kebijakan lokasi oleh Admin / Guru Pembimbing</p>
+                        </div>
+                        @can('manageLocation', $penempatanPkl)
+                            <a href="{{ route('admin.penempatan-pkl.location.edit', $penempatanPkl->id) }}" class="text-xs font-semibold text-blue-600 hover:underline">Kelola Lokasi</a>
+                        @endcan
+                    </div>
+                    <div class="divide-y divide-slate-100 px-6">
+                        @foreach ($penempatanPkl->locationLogs->take(5) as $log)
+                            <div class="py-3 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                                <div>
+                                    <span class="font-semibold text-slate-800">{{ $log->changed_by_name }}</span>
+                                    <span class="text-slate-500">({{ $log->created_at?->format('d M Y H:i') }})</span>:
+                                    <span>{{ $log->old_values['mode_kerja'] ?? 'WFO' }} ({{ !empty($log->old_values['validasi_lokasi']) ? 'Aktif' : 'Nonaktif' }}) → <strong>{{ $log->new_values['mode_kerja'] ?? 'WFO' }} ({{ !empty($log->new_values['validasi_lokasi']) ? 'Aktif' : 'Nonaktif' }})</strong></span>
+                                </div>
+                                <span class="text-slate-500">{{ $log->reason ?: '-' }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             {{-- Tombol Aksi --}}
             <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <a href="{{ route('admin.penempatan-pkl.index') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-card-sm transition hover:bg-slate-50">
                     Kembali
                 </a>
                 @unless($penempatanPkl->trashed())
+                    @can('manageLocation', $penempatanPkl)
+                        <a href="{{ route('admin.penempatan-pkl.location.edit', $penempatanPkl->id) }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-indigo-700">
+                            Atur Lokasi WFO/WFH
+                        </a>
+                    @endcan
                     @can('update', $penempatanPkl)
                         <a href="{{ route('admin.penempatan-pkl.edit', $penempatanPkl->id) }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-amber-600">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

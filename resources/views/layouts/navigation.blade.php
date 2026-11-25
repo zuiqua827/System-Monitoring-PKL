@@ -50,6 +50,7 @@
                 'items' => [
                     ['label' => 'Dashboard', 'route' => 'guru.dashboard', 'active' => ['guru.dashboard'], 'icon' => 'dashboard'],
                     ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Lokasi WFO/WFH', 'route' => 'guru.penempatan-pkl.index', 'active' => ['guru.penempatan-pkl.*'], 'icon' => 'placement'],
                     ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
                     ['label' => 'Rekap Bulanan', 'route' => 'guru.rekap-bulanan.index', 'active' => ['guru.rekap-bulanan.*', 'guru.siswa.rekap-bulanan'], 'icon' => 'calendar'],
                     ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],

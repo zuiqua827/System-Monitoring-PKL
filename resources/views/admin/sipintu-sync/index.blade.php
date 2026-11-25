@@ -249,7 +249,7 @@
                         <span class="font-bold text-slate-700">6. Status Sinkronisasi Terakhir:</span>
                         <span class="text-slate-600">
                             @if ($lastSync)
-                                Terakhir dijalankan {{ \Carbon\Carbon::parse($lastSync['ran_at'])->format('d M Y H:i') }} (Status: <strong class="{{ $lastSync['status'] === 'success' ? 'text-emerald-700' : 'text-rose-700' }}">{{ $lastSync['status'] === 'success' ? 'Berhasil' : 'Gagal' }}</strong> · {{ $lastSync['message'] }})
+                                Terakhir dijalankan {{ \Carbon\Carbon::parse($lastSync['ran_at'])->format('d M Y H:i') }} (Status: <strong class="{{ $lastSync['status'] === 'success' ? 'text-emerald-700' : ($lastSync['status'] === 'partial' ? 'text-amber-700' : 'text-rose-700') }}">{{ $lastSync['status'] === 'success' ? 'Berhasil' : ($lastSync['status'] === 'partial' ? 'Sebagian' : 'Gagal') }}</strong> · {{ $lastSync['message'] }})
                             @else
                                 Belum pernah disinkronkan.
                             @endif
@@ -336,12 +336,27 @@
 
             {{-- Last Sync --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
-                <p class="text-xs font-semibold text-slate-500">Sinkronisasi Terakhir</p>
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs font-semibold text-slate-500">Sinkronisasi Terakhir</p>
+                    @if ($lastSync && !empty($lastSync['entity_scope']))
+                        <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                            {{ $lastSync['entity_scope'] }}
+                        </span>
+                    @endif
+                </div>
                 @if ($lastSync)
-                    <p class="mt-2 text-base font-bold text-slate-900">{{ \Carbon\Carbon::parse($lastSync['ran_at'])->format('d M Y H:i') }}</p>
+                    @php
+                        $lastSyncTime = $lastSync['finished_at'] ?? $lastSync['ran_at'] ?? null;
+                    @endphp
+                    <p class="mt-2 text-base font-bold text-slate-900">
+                        {{ $lastSyncTime ? \Carbon\Carbon::parse($lastSyncTime)->format('d M Y H:i') : '-' }}
+                    </p>
                     <p class="mt-0.5 text-[11px] text-slate-500">
-                        {{ $lastSync['status'] === 'success' ? 'Berhasil' : 'Gagal' }}
-                        · {{ number_format($lastSync['duration_ms'] / 1000, 1) }} detik
+                        {{ $lastSync['status'] === 'success' ? 'Berhasil' : ($lastSync['status'] === 'partial' ? 'Sebagian' : 'Gagal') }}
+                        · {{ number_format(($lastSync['duration_ms'] ?? 0) / 1000, 1) }} detik
+                    </p>
+                    <p class="mt-1 text-[11px] text-slate-500 truncate" title="{{ $lastSync['message'] ?? '' }}">
+                        Remote {{ number_format((int) ($lastSync['remote_total'] ?? 0)) }} · +{{ number_format((int) ($lastSync['added'] ?? 0)) }} / ~{{ number_format((int) ($lastSync['updated'] ?? 0)) }} · Skip {{ number_format((int) ($lastSync['skipped'] ?? 0)) }}
                     </p>
                 @else
                     <p class="mt-2 text-xs text-slate-500">Belum ada sinkronisasi.</p>
@@ -352,25 +367,59 @@
             <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
                 <p class="text-xs font-semibold text-slate-500">Total Siswa SIPKL</p>
                 <p class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ number_format($localStudentCount) }}</p>
-                <p class="mt-0.5 text-[11px] text-slate-500">Data siswa lokal tersimpan</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">
+                    @if ($sipintuStudentCount !== null)
+                        SiPintu: {{ number_format($sipintuStudentCount, 0, ',', '.') }}
+                    @else
+                        Data siswa lokal tersimpan
+                    @endif
+                    @if (($needsMappingCount ?? 0) > 0)
+                        · <span class="font-semibold text-amber-700">{{ number_format($needsMappingCount) }} perlu pemetaan</span>
+                    @endif
+                </p>
             </article>
 
             {{-- SIPKL Teachers --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
                 <p class="text-xs font-semibold text-slate-500">Total Guru SIPKL</p>
                 <p class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ number_format($localTeacherCount) }}</p>
-                <p class="mt-0.5 text-[11px] text-slate-500">Data guru lokal tersimpan</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">
+                    @if ($sipintuTeacherCount !== null)
+                        SiPintu: {{ number_format($sipintuTeacherCount, 0, ',', '.') }} Guru
+                    @else
+                        Data guru lokal tersimpan
+                    @endif
+                </p>
             </article>
 
             {{-- SIPKL DUDI --}}
             <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-card-sm">
                 <p class="text-xs font-semibold text-slate-500">Total DUDI SIPKL</p>
                 <p class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{{ number_format($localDudiCount ?? 0) }}</p>
-                <p class="mt-0.5 text-[11px] text-slate-500">Data DUDI lokal tersimpan</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">
+                    @if ($sipintuDudiCount !== null)
+                        SiPintu: {{ number_format($sipintuDudiCount, 0, ',', '.') }} DUDI
+                    @else
+                        Data DUDI lokal tersimpan
+                    @endif
+                </p>
             </article>
         </div>
 
         {{-- Status Integrasi Entitas Terpisah (Siswa, Guru, DUDI) --}}
+        @php
+            $studentEndpoint = is_array($endpointsDiagnosis['students'] ?? null) ? $endpointsDiagnosis['students'] : null;
+            $teacherEndpoint = is_array($endpointsDiagnosis['teachers'] ?? null) ? $endpointsDiagnosis['teachers'] : null;
+            $dudiEndpoint = is_array($endpointsDiagnosis['dudi'] ?? null) ? $endpointsDiagnosis['dudi'] : null;
+
+            $studentEndpointAvailable = $studentEndpoint === null ? true : (bool) ($studentEndpoint['status'] ?? false);
+            $teacherEndpointAvailable = $teacherEndpoint !== null ? (bool) ($teacherEndpoint['status'] ?? false) : ($sipintuTeacherCount !== null);
+            $dudiEndpointAvailable = $dudiEndpoint !== null ? (bool) ($dudiEndpoint['status'] ?? false) : ($sipintuDudiCount !== null);
+
+            $effectiveSipintuStudents = $sipintuStudentCount ?? (isset($studentEndpoint['count']) && is_numeric($studentEndpoint['count']) ? (int) $studentEndpoint['count'] : null);
+            $effectiveSipintuTeachers = $sipintuTeacherCount ?? (isset($teacherEndpoint['count']) && is_numeric($teacherEndpoint['count']) ? (int) $teacherEndpoint['count'] : null);
+            $effectiveSipintuDudis = $sipintuDudiCount ?? (isset($dudiEndpoint['count']) && is_numeric($dudiEndpoint['count']) ? (int) $dudiEndpoint['count'] : null);
+        @endphp
         <div class="space-y-3">
             <div class="flex items-center justify-between">
                 <div>
@@ -381,11 +430,11 @@
 
             <div class="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
                 {{-- Card A: SISWA --}}
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-5 shadow-card-sm flex flex-col justify-between space-y-4">
+                <div class="rounded-2xl border {{ $studentEndpointAvailable ? 'border-emerald-200 bg-emerald-50/30' : 'border-rose-200 bg-rose-50/30' }} p-5 shadow-card-sm flex flex-col justify-between space-y-4">
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl {{ $studentEndpointAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
                                     </svg>
@@ -395,19 +444,31 @@
                                     <p class="text-[11px] font-mono text-emerald-800">/api/v1/sijuna/students</p>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-300">
-                                Tersedia (HTTP 200)
-                            </span>
+                            @if ($studentEndpointAvailable)
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                    Tersedia (HTTP {{ $studentEndpoint['http_status'] ?? 200 }})
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800 ring-1 ring-rose-300">
+                                    Gagal (HTTP {{ $studentEndpoint['http_status'] ?? 'Err' }})
+                                </span>
+                            @endif
                         </div>
 
                         <p class="text-xs text-slate-600">
-                            Endpoint data siswa SiPintu aktif dan dapat diakses dengan respons data lengkap (NIS, User, & Kelas).
+                            {{ $studentEndpoint['message'] ?? 'Endpoint data siswa SiPintu aktif dan dapat diakses dengan respons data lengkap (NIS, User, & Kelas).' }}
                         </p>
 
                         <div class="grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 border border-emerald-100 text-xs">
                             <div>
                                 <span class="text-slate-400 block text-[11px]">Data dari SiPintu:</span>
-                                <strong class="text-emerald-700 text-sm font-extrabold">1.153 Siswa</strong>
+                                <strong class="text-emerald-700 text-sm font-extrabold">
+                                    @if ($effectiveSipintuStudents !== null)
+                                        {{ number_format($effectiveSipintuStudents, 0, ',', '.') }} Siswa
+                                    @else
+                                        Belum dipindai
+                                    @endif
+                                </strong>
                             </div>
                             <div>
                                 <span class="text-slate-400 block text-[11px]">Data Lokal SIMONGAN:</span>
@@ -420,9 +481,13 @@
                         <div class="flex items-center justify-between text-xs">
                             <span class="text-emerald-700 font-semibold flex items-center gap-1.5">
                                 <svg class="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                Siap Disinkronkan
+                                @if (($needsMappingCount ?? 0) > 0)
+                                    {{ number_format($needsMappingCount) }} Perlu Pemetaan Kelas
+                                @else
+                                    Siap Disinkronkan
+                                @endif
                             </span>
-                            <span class="text-[11px] text-slate-400">Sinkronisasi Siswa Aktif</span>
+                            <span class="text-[11px] text-slate-400">{{ number_format($classroomMappingCount) }} Kelas Terpetakan</span>
                         </div>
                         <div class="flex items-center gap-2 pt-1">
                             <a href="{{ route('admin.sipintu-sync.preview') }}" class="flex-1 text-center py-2 px-3 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition shadow-xs">
@@ -436,33 +501,45 @@
                 </div>
 
                 {{-- Card B: GURU --}}
-                <div class="rounded-2xl border border-amber-200 bg-amber-50/30 p-5 shadow-card-sm flex flex-col justify-between space-y-4">
+                <div class="rounded-2xl border {{ $teacherEndpointAvailable ? 'border-emerald-200 bg-emerald-50/30' : 'border-amber-200 bg-amber-50/30' }} p-5 shadow-card-sm flex flex-col justify-between space-y-4">
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl {{ $teacherEndpointAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800' }}">
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                                     </svg>
                                 </div>
                                 <div>
                                     <h3 class="text-sm font-bold text-slate-900">2. Data Guru</h3>
-                                    <p class="text-[11px] font-mono text-amber-900">/api/v1/sijuna/teachers</p>
+                                    <p class="text-[11px] font-mono {{ $teacherEndpointAvailable ? 'text-emerald-800' : 'text-amber-900' }}">/api/v1/sijuna/teachers</p>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-300">
-                                Belum Tersedia (HTTP 404)
-                            </span>
+                            @if ($teacherEndpointAvailable)
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                    Tersedia (HTTP {{ $teacherEndpoint['http_status'] ?? 200 }})
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-300">
+                                    Belum Tersedia (HTTP {{ $teacherEndpoint['http_status'] ?? 404 }})
+                                </span>
+                            @endif
                         </div>
 
                         <p class="text-xs text-slate-600">
-                            Rute belum didaftarkan di router gateway SiPintu. Pengelola SiPintu perlu menyiapkan endpoint ini sebelum data guru dapat disinkronkan.
+                            {{ $teacherEndpoint['message'] ?? 'Rute belum didaftarkan di router gateway SiPintu. Pengelola SiPintu perlu menyiapkan endpoint ini sebelum data guru dapat disinkronkan.' }}
                         </p>
 
                         <div class="grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 border border-amber-100 text-xs">
                             <div>
                                 <span class="text-slate-400 block text-[11px]">Data dari SiPintu:</span>
-                                <strong class="text-amber-800 text-sm font-extrabold">0 (Endpoint Belum Ada)</strong>
+                                <strong class="{{ $teacherEndpointAvailable ? 'text-emerald-700' : 'text-amber-800' }} text-sm font-extrabold">
+                                    @if ($effectiveSipintuTeachers !== null)
+                                        {{ number_format($effectiveSipintuTeachers, 0, ',', '.') }} Guru
+                                    @else
+                                        0 (Endpoint Belum Ada)
+                                    @endif
+                                </strong>
                             </div>
                             <div>
                                 <span class="text-slate-400 block text-[11px]">Data Lokal SIMONGAN:</span>
@@ -473,14 +550,14 @@
 
                     <div class="pt-3 border-t border-amber-100/80 flex flex-col gap-2">
                         <div class="flex items-center justify-between text-xs">
-                            <span class="text-amber-800 font-semibold flex items-center gap-1.5">
-                                <svg class="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-                                Menunggu Endpoint Resmi
+                            <span class="{{ $teacherEndpointAvailable ? 'text-emerald-700' : 'text-amber-800' }} font-semibold flex items-center gap-1.5">
+                                <svg class="h-4 w-4 {{ $teacherEndpointAvailable ? 'text-emerald-600' : 'text-amber-600' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                {{ $teacherEndpointAvailable ? 'Endpoint Aktif' : 'Menunggu Endpoint Resmi' }}
                             </span>
                             <span class="text-[11px] text-emerald-700 font-medium">✓ Data Lokal Aman</span>
                         </div>
                         <div class="flex items-center gap-2 pt-1">
-                            <button type="button" disabled title="Endpoint /api/v1/sijuna/teachers belum tersedia di SiPintu (HTTP 404)" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
+                            <button type="button" disabled title="Endpoint /api/v1/sijuna/teachers belum tersedia di SiPintu (HTTP {{ $teacherEndpoint['http_status'] ?? 404 }})" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
                                 Preview Guru
                             </button>
                             <button type="button" disabled title="Menunggu pembukaan route guru resmi dari pengelola SiPintu" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
@@ -491,11 +568,11 @@
                 </div>
 
                 {{-- Card C: DUDI --}}
-                <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-card-sm flex flex-col justify-between space-y-4">
+                <div class="rounded-2xl border {{ $dudiEndpointAvailable ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/50' }} p-5 shadow-card-sm flex flex-col justify-between space-y-4">
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl {{ $dudiEndpointAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700' }}">
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                                     </svg>
@@ -505,19 +582,31 @@
                                     <p class="text-[11px] font-mono text-slate-600">/api/v1/sijuna/dudi</p>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-300">
-                                Belum Tersedia (HTTP 404)
-                            </span>
+                            @if ($dudiEndpointAvailable)
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-300">
+                                    Tersedia (HTTP {{ $dudiEndpoint['http_status'] ?? 200 }})
+                                </span>
+                            @else
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-300">
+                                    Belum Tersedia (HTTP {{ $dudiEndpoint['http_status'] ?? 404 }})
+                                </span>
+                            @endif
                         </div>
 
                         <p class="text-xs text-slate-600">
-                            Gateway SiPintu belum membuka endpoint master DUDI. Integrasi data master menunggu API resmi. Autentikasi login DUDI menggunakan pemetaan manual.
+                            {{ $dudiEndpoint['message'] ?? 'Gateway SiPintu belum membuka endpoint master DUDI. Integrasi data master menunggu API resmi. Autentikasi login DUDI menggunakan pemetaan manual.' }}
                         </p>
 
                         <div class="grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 border border-slate-200 text-xs">
                             <div>
                                 <span class="text-slate-400 block text-[11px]">Data dari SiPintu:</span>
-                                <strong class="text-slate-600 text-sm font-extrabold">0 (Menunggu API)</strong>
+                                <strong class="{{ $dudiEndpointAvailable ? 'text-emerald-700' : 'text-slate-600' }} text-sm font-extrabold">
+                                    @if ($effectiveSipintuDudis !== null)
+                                        {{ number_format($effectiveSipintuDudis, 0, ',', '.') }} DUDI
+                                    @else
+                                        0 (Menunggu API)
+                                    @endif
+                                </strong>
                             </div>
                             <div>
                                 <span class="text-slate-400 block text-[11px]">Data Lokal SIMONGAN:</span>
@@ -535,7 +624,7 @@
                             <span class="text-[11px] text-emerald-700 font-medium">✓ Data PKL Aman</span>
                         </div>
                         <div class="flex items-center gap-2 pt-1">
-                            <button type="button" disabled title="Endpoint /api/v1/sijuna/dudi belum tersedia di SiPintu (HTTP 404)" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
+                            <button type="button" disabled title="Endpoint /api/v1/sijuna/dudi belum tersedia di SiPintu (HTTP {{ $dudiEndpoint['http_status'] ?? 404 }})" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
                                 Preview DUDI
                             </button>
                             <button type="button" disabled title="Menunggu penyediaan API master data DUDI dari pengelola SiPintu" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-400 cursor-not-allowed">
@@ -557,6 +646,20 @@
             <div class="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
                 Belum ada classroom mapping SiPintu. Data siswa yang memerlukan kelas akan dilewati dengan aman sampai pemetaan dibuat di
                 <a href="{{ route('admin.sipintu-classroom-mapping.index') }}" class="font-semibold underline">Pemetaan Kelas SiPintu</a>.
+            </div>
+        @elseif (($needsMappingCount ?? 0) > 0)
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span>
+                    <strong>{{ number_format($needsMappingCount) }} siswa SiPintu</strong> masih memerlukan pemetaan kelas ({{ number_format($classroomMappingCount) }} kelas sudah terpetakan). Siswa yang melewati tahap pemetaan akan diproses pada sinkronisasi berikutnya.
+                </span>
+                <a href="{{ route('admin.sipintu-classroom-mapping.index') }}" class="shrink-0 font-semibold underline text-amber-900">Kelola Pemetaan Kelas</a>
+            </div>
+        @else
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-5 py-3.5 text-sm text-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span>
+                    Pemetaan Kelas SiPintu aktif: <strong>{{ number_format($classroomMappingCount) }} kelas</strong> terpetakan · <strong>0 siswa</strong> perlu pemetaan kelas.
+                </span>
+                <a href="{{ route('admin.sipintu-classroom-mapping.index') }}" class="shrink-0 font-semibold underline text-emerald-900">Kelola Pemetaan Kelas</a>
             </div>
         @endif
 
@@ -613,14 +716,16 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 @php
                                     $studentItems = [
+                                        'Total Remote' => $preview['students']['total_remote'] ?? 0,
                                         'Baru (Akan Ditambah)' => $preview['students']['baru'] ?? 0,
                                         'Akan Diperbarui' => $preview['students']['diperbarui'] ?? 0,
                                         'Tidak Berubah' => $preview['students']['tidak_berubah'] ?? 0,
-                                        'Konflik' => $preview['students']['konflik'] ?? 0,
                                         'Perlu Pemetaan Kelas' => $preview['students']['perlu_pemetaan'] ?? 0,
+                                        'Duplikat' => $preview['students']['duplikat'] ?? 0,
+                                        'Konflik' => $preview['students']['konflik'] ?? 0,
+                                        'Tidak Valid' => $preview['students']['tidak_valid'] ?? 0,
+                                        'Gagal' => $preview['students']['gagal'] ?? ($preview['students']['error'] ?? 0),
                                         'Tidak Ditemukan' => $preview['students']['tidak_ditemukan'] ?? 0,
-                                        'Error' => $preview['students']['error'] ?? 0,
-                                        'Total Remote' => $preview['students']['total_remote'] ?? 0,
                                     ];
                                 @endphp
                                 @foreach ($studentItems as $label => $value)
@@ -660,14 +765,16 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     @php
                                         $teacherItems = [
+                                            'Total Remote' => $preview['teachers']['total_remote'] ?? 0,
                                             'Baru (Akan Ditambah)' => $preview['teachers']['baru'] ?? 0,
                                             'Akan Diperbarui' => $preview['teachers']['diperbarui'] ?? 0,
                                             'Tidak Berubah' => $preview['teachers']['tidak_berubah'] ?? 0,
-                                            'Konflik' => $preview['teachers']['konflik'] ?? 0,
                                             'Perlu Pemetaan Kelas' => $preview['teachers']['perlu_pemetaan'] ?? 0,
+                                            'Duplikat' => $preview['teachers']['duplikat'] ?? 0,
+                                            'Konflik' => $preview['teachers']['konflik'] ?? 0,
+                                            'Tidak Valid' => $preview['teachers']['tidak_valid'] ?? 0,
+                                            'Gagal' => $preview['teachers']['gagal'] ?? ($preview['teachers']['error'] ?? 0),
                                             'Tidak Ditemukan' => $preview['teachers']['tidak_ditemukan'] ?? 0,
-                                            'Error' => $preview['teachers']['error'] ?? 0,
-                                            'Total Remote' => $preview['teachers']['total_remote'] ?? 0,
                                         ];
                                     @endphp
                                     @foreach ($teacherItems as $label => $value)
@@ -720,45 +827,109 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[800px] divide-y divide-slate-200">
+                <table class="w-full min-w-[960px] divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Waktu</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Admin</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Status</th>
-<th class="px-6 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Siswa Ditambah</th>
-                            <th class="px-6 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Siswa Diperbarui</th>
-                            <th class="px-6 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Guru Ditambah</th>
-                            <th class="px-6 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Guru Diperbarui</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-bold uppercase tracking-wide text-slate-500">Durasi</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Waktu</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Admin &amp; Cakupan</th>
+                            <th class="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Status</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Remote</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Siswa Ditambah</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Siswa Diperbarui</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Tidak Berubah</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Dilewati / Bermasalah</th>
+                            <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Guru (+ / ~)</th>
+                            <th class="px-5 py-3.5 text-right text-xs font-bold uppercase tracking-wide text-slate-500">Durasi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white">
                         @forelse ($history as $log)
                             <tr class="transition hover:bg-slate-50">
-                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $log->created_at?->format('d M Y H:i:s') }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-800">{{ $log->admin_name ?? 'Sistem (terjadwal)' }}</td>
-                                <td class="whitespace-nowrap px-6 py-4">
+                                <td class="whitespace-nowrap px-5 py-4 text-sm text-slate-600">
+                                    <div>{{ ($log->started_at ?? $log->created_at)?->format('d M Y H:i:s') }}</div>
+                                    @if ($log->finished_at)
+                                        <div class="text-[11px] text-slate-400">s/d {{ $log->finished_at->format('H:i:s') }}</div>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-800">
+                                    <div>{{ $log->admin_name ?? 'Sistem (terjadwal)' }}</div>
+                                    <span class="mt-0.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                                        {{ $log->entity_scope ?? 'all' }}
+                                    </span>
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-4">
                                     @if ($log->status === 'success')
                                         <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Berhasil</span>
+                                    @elseif ($log->status === 'partial')
+                                        <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800" title="{{ $log->message }}">Sebagian</span>
                                     @else
                                         <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800" title="{{ $log->message }}">Gagal</span>
                                     @endif
                                 </td>
-                                <td class="whitespace-nowrap px-6 py-4 text-center text-sm text-slate-600">{{ number_format($log->added) }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-center text-sm text-slate-600">{{ number_format($log->updated) }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-center text-sm text-slate-600">{{ number_format($log->teacher_added) }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-center text-sm text-slate-600">{{ number_format($log->teacher_updated) }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-slate-600">{{ number_format($log->duration_ms / 1000, 1) }} s</td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center text-sm font-semibold text-slate-700">{{ number_format((int) ($log->remote_total ?? 0)) }}</td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center text-sm text-emerald-700 font-semibold">{{ number_format($log->added) }}</td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center text-sm text-blue-700 font-semibold">{{ number_format($log->updated) }}</td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center text-sm text-slate-600">{{ number_format((int) ($log->unchanged ?? 0)) }}</td>
+                                <td class="px-4 py-4 text-center text-xs text-slate-600">
+                                    <div class="font-semibold text-slate-800">{{ number_format((int) $log->skipped) }}</div>
+                                    @if ($log->needs_mapping > 0 || $log->conflicts > 0 || $log->duplicates > 0 || $log->invalid > 0 || $log->failed > 0)
+                                        <div class="mt-1 flex flex-wrap justify-center gap-1 text-[10px]">
+                                            @if ($log->needs_mapping > 0)
+                                                <span class="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">{{ $log->needs_mapping }} mapping</span>
+                                            @endif
+                                            @if ($log->conflicts > 0)
+                                                <span class="rounded bg-orange-100 px-1.5 py-0.5 text-orange-800">{{ $log->conflicts }} konflik</span>
+                                            @endif
+                                            @if ($log->duplicates > 0)
+                                                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{{ $log->duplicates }} duplikat</span>
+                                            @endif
+                                            @if ($log->invalid > 0)
+                                                <span class="rounded bg-rose-100 px-1.5 py-0.5 text-rose-800">{{ $log->invalid }} tidak valid</span>
+                                            @endif
+                                            @if ($log->failed > 0)
+                                                <span class="rounded bg-red-100 px-1.5 py-0.5 text-red-800">{{ $log->failed }} gagal</span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-4 text-center text-sm text-slate-600">
+                                    +{{ number_format($log->teacher_added) }} / ~{{ number_format($log->teacher_updated) }}
+                                </td>
+                                <td class="whitespace-nowrap px-5 py-4 text-right text-sm text-slate-600">{{ number_format($log->duration_ms / 1000, 1) }} s</td>
                             </tr>
-@if ($log->status !== 'success' && $log->message)
-                                <tr class="bg-red-50/40">
-                                    <td colspan="8" class="px-6 py-3 text-sm text-red-700">{{ $log->message }}</td>
+                            @if (($log->status !== 'success' && $log->message) || (!empty($log->error_details) && is_array($log->error_details)))
+                                <tr class="{{ $log->status === 'partial' ? 'bg-amber-50/50' : 'bg-red-50/40' }}">
+                                    <td colspan="10" class="px-5 py-3 text-xs {{ $log->status === 'partial' ? 'text-amber-800' : 'text-red-700' }} space-y-1.5">
+                                        @if ($log->message)
+                                            <div class="font-medium">{{ $log->message }}</div>
+                                        @endif
+                                        @if (!empty($log->error_details) && is_array($log->error_details))
+                                            <ul class="list-disc pl-4 space-y-0.5 text-[11px] font-mono">
+                                                @foreach ($log->error_details as $issue)
+                                                    @if (is_array($issue))
+                                                        @php
+                                                            $issueType = (string) ($issue['type'] ?? $issue['code'] ?? 'issue');
+                                                            $issueDetail = (string) ($issue['detail'] ?? $issue['message'] ?? '');
+                                                        @endphp
+                                                        <li>
+                                                            [{{ strtoupper((string) ($issue['entity'] ?? 'sync')) }}: {{ $issueType }}]
+                                                            @if (!empty($issue['reference']))
+                                                                ({{ $issue['reference'] }})
+                                                            @elseif (!empty($issue['count']))
+                                                                ({{ $issue['count'] }} data)
+                                                            @endif
+                                                            {{ $issueDetail }}
+                                                        </li>
+                                                    @endif
+                                                @endforeach
+                                            </ul>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endif
                         @empty
                             <tr>
-                                <td colspan="8">
+                                <td colspan="10">
                                     <div class="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
                                         <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                             <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">

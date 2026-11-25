@@ -55,7 +55,14 @@ interface SiPintuRepositoryInterface
     /**
      * Check HTTP status of an endpoint on SiPintu Gateway (lightweight probe).
      *
-     * @return array{status: int|null, success: bool, message: string}
+     * @return array{status: int|null, success: bool, message: string, count: int|null}
      */
     public function checkEndpointStatus(string $endpoint): array;
+
+    /**
+     * Direct credential verification against SiPintu Gateway.
+     *
+     * @return array{success: bool, status: int|null, data?: mixed, message?: string}
+     */
+    public function verifyCredentials(string $identity, string $password): array;
 }

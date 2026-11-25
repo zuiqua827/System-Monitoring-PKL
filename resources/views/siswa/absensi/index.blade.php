@@ -53,6 +53,17 @@
                             <p class="mt-1 text-sm text-slate-500">
                                 Penempatan: <span class="font-semibold text-slate-700">{{ $penempatanAktif->dudi?->nama_perusahaan ?? '-' }}</span>
                             </p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 font-bold {{ $penempatanAktif->getEffectiveModeKerja() === 'WFH' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800' }}">
+                                    Mode: {{ $penempatanAktif->getEffectiveModeKerja() }}
+                                </span>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 font-semibold {{ ($penempatanAktif->validasi_lokasi ?? true) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                    Geofence: {{ ($penempatanAktif->validasi_lokasi ?? true) ? 'Aktif' : 'Nonaktif' }}
+                                </span>
+                                @if ($penempatanAktif->getEffectiveModeKerja() === 'WFH' && $penempatanAktif->wfh_alamat)
+                                    <span class="text-slate-500">Titik WFH: {{ $penempatanAktif->wfh_alamat }}</span>
+                                @endif
+                            </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-3 sm:gap-4">
                             @if($todayAbsensi === null)

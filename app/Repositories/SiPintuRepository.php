@@ -134,7 +134,17 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        return $this->fetchFromEndpoint('/api/v1/sijuna/dudi', $query, 'dudi');
+        try {
+            // Priority 1: Official canonical endpoint /api/v1/dudi
+            return $this->fetchFromEndpoint('/api/v1/dudi', $query, 'dudi');
+        } catch (SiPintuApiException $e) {
+            // Priority 2: Fallback to alias /api/v1/sijuna/dudi if 404
+            if (str_contains($e->getMessage(), '404')) {
+                return $this->fetchFromEndpoint('/api/v1/sijuna/dudi', $query, 'dudi');
+            }
+
+            throw $e;
+        }
     }
 
     /**
@@ -148,31 +158,112 @@ class SiPintuRepository implements SiPintuRepositoryInterface
         $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
         $url = $baseUrl.$endpoint;
 
+        $configuredPerPage = config('services.sipintu.per_page');
+        if ($configuredPerPage !== null && ! isset($query['per_page'])) {
+            $query['per_page'] = (int) $configuredPerPage;
+        }
+
         $response = $this->executeGetRequest($url, $query, $logLabel);
         $firstPageData = $this->parseResponse($response, $logLabel);
 
-        // Check if the response indicates pagination (e.g. last_page > 1 or links.next)
+        // Inspect pagination metadata (length-aware last_page OR cursor/simplePaginate next link).
         $body = $response->json();
         $lastPage = 1;
+        $currentPage = 1;
+        $hasNextLink = false;
         if (is_array($body)) {
-            $lastPage = (int) ($body['meta']['last_page'] ?? $body['last_page'] ?? 1);
+            $meta = is_array($body['meta'] ?? null) ? $body['meta'] : null;
+            $rawLastPage = $meta['last_page'] ?? $meta['pagination']['total_pages'] ?? $body['last_page'] ?? null;
+            if (is_numeric($rawLastPage)) {
+                $lastPage = (int) $rawLastPage;
+            }
+            $rawCurrentPage = $meta['current_page'] ?? $body['current_page'] ?? null;
+            if (is_numeric($rawCurrentPage)) {
+                $currentPage = (int) $rawCurrentPage;
+            }
+            $hasNextLink = $this->extractNextPageNumber($body) !== null;
         }
 
-        if ($lastPage <= 1) {
+        // Defensive infinite loop guard: max 500 pages, must be >= 1.
+        $maxPages = 500;
+        $lastPage = min($maxPages, max(1, $lastPage));
+
+        if (! $hasNextLink && ($lastPage <= 1 || $lastPage < $currentPage)) {
             return $firstPageData;
         }
 
         $allData = $firstPageData;
-        for ($page = 2; $page <= $lastPage; $page++) {
+        $visitedPages = [max(1, $currentPage) => true];
+        $page = max(1, $currentPage) + 1;
+
+        while ($page <= $maxPages && ($hasNextLink || $page <= $lastPage)) {
+            if (isset($visitedPages[$page])) {
+                break;
+            }
+            $visitedPages[$page] = true;
+
+            $pageLabel = $hasNextLink && $lastPage <= 1
+                ? "{$logLabel} (halaman {$page})"
+                : "{$logLabel} (halaman {$page} dari {$lastPage})";
+
             $pageQuery = array_merge($query, ['page' => $page]);
-            $pageResponse = $this->executeGetRequest($url, $pageQuery, "{$logLabel} (halaman {$page})");
-            $pageData = $this->parseResponse($pageResponse, $logLabel);
+            $pageResponse = $this->executeGetRequest($url, $pageQuery, $pageLabel);
+            $pageData = $this->parseResponse($pageResponse, "{$logLabel} (halaman {$page})");
+
+            if ($pageData === []) {
+                break;
+            }
+
             foreach ($pageData as $record) {
                 $allData[] = $record;
+            }
+
+            $pageBody = $pageResponse->json();
+            if (is_array($pageBody) && $hasNextLink) {
+                $nextPageFromLink = $this->extractNextPageNumber($pageBody);
+                if ($nextPageFromLink === null) {
+                    break;
+                }
+                $page = $nextPageFromLink;
+            } else {
+                $page++;
             }
         }
 
         return $allData;
+    }
+
+    /**
+     * Extract next page number when API uses Laravel simplePaginate / links.next without last_page.
+     *
+     * @param  array<string, mixed>  $body
+     */
+    private function extractNextPageNumber(array $body): ?int
+    {
+        $nextUrl = $body['next_page_url'] ?? null;
+        if (! is_string($nextUrl) && is_array($body['links'] ?? null)) {
+            $nextUrl = $body['links']['next'] ?? null;
+        }
+
+        if (! is_string($nextUrl) || trim($nextUrl) === '') {
+            return null;
+        }
+
+        $queryStr = parse_url($nextUrl, PHP_URL_QUERY);
+        if (! is_string($queryStr)) {
+            return null;
+        }
+
+        parse_str($queryStr, $params);
+        $rawPage = $params['page'] ?? null;
+
+        if (is_string($rawPage) && ctype_digit($rawPage)) {
+            $next = (int) $rawPage;
+
+            return $next > 1 ? $next : null;
+        }
+
+        return null;
     }
 
     /**
@@ -336,11 +427,10 @@ class SiPintuRepository implements SiPintuRepositoryInterface
     public function testConnection(): array
     {
         $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
-        // Priority 1: Use official lightweight health check endpoint /api/v1/health
+        // Lightweight health check endpoint /api/v1/health (X-Client-ID & X-Client-Secret sent in headers)
         $healthEndpoint = $baseUrl.'/api/v1/health';
 
         try {
-            // Lightweight test: enforce max 5 seconds timeout so Test Connection is responsive and never hangs
             $client = $this->httpClient()->timeout(max(15, (int) config('services.sipintu.timeout', 60)));
             $response = $client->get($healthEndpoint);
 
@@ -552,6 +642,19 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $response = $client->get($url, ['page' => 1, 'limit' => 1, 'per_page' => 1]);
 
             $isAvailable = $response->status() >= 200 && $response->status() < 300;
+            $remoteCount = null;
+            if ($isAvailable) {
+                $body = $response->json();
+                if (is_array($body)) {
+                    $meta = is_array($body['meta'] ?? null) ? $body['meta'] : [];
+                    $rawCount = $meta['total'] ?? $body['total'] ?? $body['count'] ?? null;
+                    if (is_numeric($rawCount)) {
+                        $remoteCount = (int) $rawCount;
+                    } elseif (isset($body['data']) && is_array($body['data'])) {
+                        $remoteCount = count($body['data']);
+                    }
+                }
+            }
 
             return [
                 'status' => $response->status(),
@@ -561,11 +664,44 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                     : ($response->status() === 404
                         ? "Endpoint {$endpoint} belum tersedia di server SiPintu (HTTP 404)."
                         : 'Respons gagal (HTTP ' . $response->status() . ').'),
+                'count' => $remoteCount,
             ];
         } catch (\Throwable $e) {
             return [
                 'status' => null,
                 'success' => false,
+                'message' => (string) $this->sanitizeMessage($e->getMessage()),
+                'count' => null,
+            ];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function verifyCredentials(string $identity, string $password): array
+    {
+        $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
+        $url = $baseUrl . '/api/v1/auth/verify-credentials';
+
+        try {
+            $client = $this->httpClient()->timeout(15);
+            $response = $client->post($url, [
+                'identity' => $identity,
+                'password' => $password,
+            ]);
+
+            $jsonData = $response->json();
+
+            return [
+                'success' => $response->successful(),
+                'status' => $response->status(),
+                'data' => is_array($jsonData) ? $jsonData : null,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'status' => null,
                 'message' => (string) $this->sanitizeMessage($e->getMessage()),
             ];
         }

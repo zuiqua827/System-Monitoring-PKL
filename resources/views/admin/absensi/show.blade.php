@@ -92,6 +92,25 @@
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Lokasi Pulang</p>
                         <p class="mt-1 text-sm font-mono text-slate-900">{{ $absensi->lokasi_pulang ?? '-' }}</p>
                     </div>
+                    <div class="bg-white p-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Mode Kerja & Geofence</p>
+                        <p class="mt-1 text-sm text-slate-900">
+                            <strong>{{ $absensi->mode_kerja ?? 'WFO' }}</strong>
+                            · Validasi: {{ ($absensi->validasi_lokasi_aktif ?? true) ? 'Aktif' : 'Nonaktif' }}
+                            @if ($absensi->jarak !== null)
+                                · Jarak: {{ number_format((float) $absensi->jarak, 1) }} m
+                            @endif
+                            @if ($absensi->radius !== null)
+                                (Batas {{ $absensi->radius }} m)
+                            @endif
+                        </p>
+                    </div>
+                    <div class="bg-white p-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Status Validasi Lokasi</p>
+                        <p class="mt-1 text-sm font-semibold {{ $absensi->lokasi_valid ? 'text-emerald-700' : 'text-amber-700' }}">
+                            {{ $absensi->lokasi_valid ? 'Valid / Diizinkan' : 'Belum Tervalidasi' }}
+                        </p>
+                    </div>
                     @if($absensi->foto_masuk)
                     <div class="bg-white p-5">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Foto Masuk</p>

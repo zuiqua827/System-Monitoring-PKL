@@ -458,8 +458,6 @@ class AbsensiService extends Service implements AbsensiServiceInterface
     }
 
     /**
-     * Validate active placement window.
-     */
      * Determine check-in status (hadir/terlambat) and keterangan ('Sangat Terlambat' or null).
      *
      * Rules:

@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Hash;
  * Service layer for Siswa business logic.
  *
  * Handles all business operations for Siswa module.
- * Controller should NOT contain business logic — it delegates to this service.
+ * Controller should NOT contain business logic â€” it delegates to this service.
  *
  * Key difference from simple modules (Jurusan, Kelas, PeriodePKL):
  * Siswa has a belongsTo relationship with User.
@@ -127,7 +127,7 @@ class SiswaService extends Service implements SiswaServiceInterface
             // 1. Create User account
             // Initial password = tanggal_lahir (hashed). Student is forced
             // to change it on first login (must_change_password = true).
-            // Email is auto-generated from NIS — the admin never inputs it.
+            // Email is auto-generated from NIS â€” the admin never inputs it.
             $email = Siswa::generateEmail((string) $data['nis']);
 
             /** @var User $user */
@@ -250,7 +250,7 @@ class SiswaService extends Service implements SiswaServiceInterface
      *
      * @return array{total: int, updated: int, skipped: int, failed: int}
      */
-    public function migrateStudentPasswords(): array
+    public function migrateStudentPasswords(bool $isDryRun = false): array
     {
         $total = 0;
         $updated = 0;
@@ -283,6 +283,12 @@ class SiswaService extends Service implements SiswaServiceInterface
                 continue;
             }
 
+            // In dry-run mode, only count — never write to the database.
+            if ($isDryRun) {
+                $updated++;
+                continue;
+            }
+
             try {
                 $this->userRepository->update($user, [
                     'password' => Hash::make('password'),
@@ -305,3 +311,4 @@ class SiswaService extends Service implements SiswaServiceInterface
         ];
     }
 }
+

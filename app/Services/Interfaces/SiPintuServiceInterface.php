@@ -35,12 +35,21 @@ interface SiPintuServiceInterface
     public function fetchDudi(?string $search = null): array;
 
     /**
-     * Fetch and validate the complete remote dataset before a live database
-     * transaction is opened.
+     * Fetch and validate the remote dataset for the given entity scope
+     * (`all`, `siswa`, `guru`, `dudi`) before a live database transaction opens.
      *
-     * @return array{students: array<int, array<string, mixed>>, teachers: array<int, array<string, mixed>>, dudis?: array<int, array<string, mixed>>}
+     * Never silently turns HTTP 404 into an empty list; unavailable endpoints are
+     * flagged explicitly via `endpoint_unavailable`.
+     *
+     * @return array{
+     *     students: array<int, array<string, mixed>>|null,
+     *     teachers: array<int, array<string, mixed>>|null,
+     *     dudis: array<int, array<string, mixed>>|null,
+     *     endpoint_unavailable: array{students: bool, teachers: bool, dudis: bool},
+     *     endpoint_errors: array<string, array{http_status: int|null, message: string}>
+     * }
      */
-    public function fetchSyncPayload(): array;
+    public function fetchSyncPayload(string $entityScope = 'all'): array;
 
     /**
      * Read-only preview of a student sync. Classifies remote students into
@@ -67,7 +76,7 @@ interface SiPintuServiceInterface
      *
      * @return array<string, int|string>
      */
-    public function previewDudi(): array;
+    public function previewDudi(bool $allowCreate = false): array;
 
     /**
      * Synchronize real students from SiPintu into the local database.
@@ -82,7 +91,7 @@ interface SiPintuServiceInterface
      * @param  array<int, array<string, mixed>>|null  $students
      * @return array<string, int>
      */
-    public function syncStudents(?array $students = null): array;
+    public function syncStudents(?array $students = null, bool $endpointUnavailable = false): array;
 
     /**
      * Synchronize real teachers from SiPintu into the local Guru module.
@@ -96,21 +105,22 @@ interface SiPintuServiceInterface
      * @param  array<int, array<string, mixed>>|null  $teachers
      * @return array<string, int>
      */
-    public function syncTeachers(?array $teachers = null): array;
+    public function syncTeachers(?array $teachers = null, bool $endpointUnavailable = false): array;
 
     /**
      * Synchronize master DUDI companies from SiPintu into the local DUDI module.
      *
-     * - Upserts by sipintu_id (unique stable company ID).
-     * - Inserts new DUDI companies safely without automatically creating User accounts.
-     * - Updates existing DUDI companies when sipintu_id or company identity matches.
-     * - Never deletes local DUDI records absent from SiPintu.
-     * - Never alters existing PKL placements or monitoring relations.
+     * - Default policy is link-only/safe (`$allowCreate = false`): only links
+     *   (`sipintu_id`/`sipintu_user_id`/`email_perusahaan`) and updates identity
+     *   fields for DUDI companies already created locally by Admin.
+     * - New DUDI creation occurs ONLY when `$allowCreate = true` is explicitly confirmed.
+     * - Never overwrites local passwords, Super Admin roles, geofence coordinates,
+     *   working hours, or existing PKL placements.
      *
      * @param  array<int, array<string, mixed>>|null  $dudis
      * @return array<string, int>
      */
-    public function syncDudi(?array $dudis = null): array;
+    public function syncDudi(?array $dudis = null, bool $allowCreate = false, bool $endpointUnavailable = false): array;
 
     /**
      * Get aggregate live endpoint diagnostics for SiPintu.
@@ -129,9 +139,17 @@ interface SiPintuServiceInterface
     /**
      * Check status of a specific endpoint on the SiPintu Gateway.
      *
-     * @return array{status: int|null, success: bool, message: string, count: int|null}
+     * @return array{status: int|null, http_status: int|null, success: bool, error_type: string|null, message: string, count: int|null}
      */
     public function checkEndpointStatus(string $endpoint): array;
+
+    /**
+     * Check status of multiple SiPintu endpoints concurrently via HTTP pool.
+     *
+     * @param  list<string>  $endpoints
+     * @return array<string, array{status: int|null, http_status: int|null, success: bool, error_type: string|null, message: string, count: int|null}>
+     */
+    public function checkEndpointsStatus(array $endpoints): array;
 
     /**
      * Direct credential verification against SiPintu Gateway.

@@ -43,9 +43,16 @@ interface SipintuSyncServiceInterface
     /**
      * Test the live SiPintu connection without reading cached dashboard data.
      *
-     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null, detail: string|null, troubleshooting: string|null}
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null, detail: string|null, troubleshooting: string|null, endpoint_warning?: bool, endpoints?: array<string, mixed>}
      */
     public function testConnection(): array;
+
+    /**
+     * Return cached live diagnostics (short TTL ~5 minutes) or run a fresh check when missing/forced.
+     *
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null, detail: string|null, troubleshooting: string|null, endpoint_warning?: bool, endpoints?: array<string, mixed>}|null
+     */
+    public function getLiveDiagnostics(bool $forceRefresh = false): ?array;
 
     /**
      * Run a READ-ONLY preview / dry-run of the sync.
@@ -53,8 +60,11 @@ interface SipintuSyncServiceInterface
      * Classifies remote students, teachers, and dudis into categories WITHOUT any
      * INSERT/UPDATE/DELETE. Safe to call any time.
      *
+     * @param  array<string, mixed>  $options
      * @return array{
      *     success: bool,
+     *     scope?: string,
+     *     included?: array{students: bool, teachers: bool, dudis: bool},
      *     message: string,
      *     duration_ms: int,
      *     students: array<string, int|string>,
@@ -62,11 +72,12 @@ interface SipintuSyncServiceInterface
      *     dudis?: array<string, int|string>
      * }
      */
-    public function preview(): array;
+    public function preview(string $entityScope = 'all', array $options = []): array;
 
     /**
      * Run a manual synchronization triggered by an admin.
      *
+     * @param  array<string, mixed>  $options
      * @return array{
      *     success: bool,
      *     status?: string,
@@ -79,5 +90,5 @@ interface SipintuSyncServiceInterface
      *     }
      * }
      */
-    public function runSync(User $admin, string $entityScope = 'all'): array;
+    public function runSync(User $admin, string $entityScope = 'all', array $options = []): array;
 }

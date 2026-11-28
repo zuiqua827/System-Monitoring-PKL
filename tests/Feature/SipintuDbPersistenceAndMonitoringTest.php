@@ -127,7 +127,7 @@ it('creates User, profile, and Spatie role atomically and leaves zero orphan Use
 
     $studentStats = $happyService->syncStudents();
     $teacherStats = $happyService->syncTeachers();
-    $dudiStats = $happyService->syncDudi();
+    $dudiStats = $happyService->syncDudi(allowCreate: true);
 
     $siswa = Siswa::query()->where('nis', 'ATOMIC-S-01')->first();
     $guru = Guru::query()->where('nip', 'ATOMIC-G-01')->first();
@@ -417,12 +417,8 @@ it('records structured audit trail logs and renders live remote counts instead o
             'classroom_id' => 888, // unmapped -> skipped + issue logged
         ],
     ]);
-    $repo->shouldReceive('fetchTeachers')->once()->andThrow(
-        SiPintuApiException::apiError('Endpoint API SiPintu (teachers) tidak ditemukan (HTTP 404).')
-    );
-    $repo->shouldReceive('fetchDudi')->once()->andThrow(
-        SiPintuApiException::apiError('Endpoint API SiPintu (dudi) tidak ditemukan (HTTP 404).')
-    );
+    $repo->shouldReceive('fetchTeachers')->never();
+    $repo->shouldReceive('fetchDudi')->never();
 
     $this->app->instance(SiPintuRepositoryInterface::class, $repo);
 
@@ -449,9 +445,28 @@ it('records structured audit trail logs and renders live remote counts instead o
         ->and(count($log->error_details))->toBeGreaterThanOrEqual(1)
         ->and($log->error_details[0]['type'])->toBe('needs_mapping');
 
-    // GET dashboard MUST perform zero outbound HTTP calls and display real cached remote counts (NOT 1.153 Siswa!)
+    // Warm 5-minute diagnostics cache so GET dashboard performs zero outbound HTTP calls
+    // and displays real cached remote counts (NOT 1.153 Siswa!)
+    Cache::put('sipintu_live_diagnostics', [
+        'success' => true,
+        'status' => true,
+        'connection' => true,
+        'http_status' => 200,
+        'message' => 'Koneksi ke Gateway SiPintu berhasil.',
+        'error_type' => null,
+        'detail' => null,
+        'troubleshooting' => null,
+        'endpoint_warning' => true,
+        'endpoints' => [
+            'gateway' => ['name' => 'Gateway', 'status' => true, 'http_status' => 200, 'message' => 'Online'],
+            'students' => ['name' => 'Siswa', 'status' => true, 'http_status' => 200, 'message' => 'Endpoint aktif', 'count' => 2],
+            'teachers' => ['name' => 'Guru', 'status' => false, 'http_status' => 404, 'message' => 'Belum tersedia (HTTP 404)', 'count' => null],
+            'dudi' => ['name' => 'DUDI', 'status' => false, 'http_status' => 404, 'message' => 'Belum tersedia (HTTP 404)', 'count' => null],
+        ],
+    ], now()->addMinutes(5));
+
     Http::fake(function () {
-        throw new \RuntimeException('GET index must never issue outbound HTTP calls');
+        throw new \RuntimeException('Warm-cache GET index must never issue outbound HTTP calls');
     });
 
     $dashboardResponse = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));

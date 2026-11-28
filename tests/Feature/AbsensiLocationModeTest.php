@@ -109,70 +109,44 @@ function createLocationTestContext(): array
     );
 }
 
-it('enforces WFO geofence within DUDI radius when validasi_lokasi is active and rejects outside or missing GPS', function (): void {
+it('allows WFO check-in and check-out without GPS coordinates even when DUDI coordinates exist and stores null location fields', function (): void {
     $ctx = createLocationTestContext();
 
-    // Missing GPS rejected cleanly
-    $missingGps = $this->actingAs($ctx['siswaUserA'])
+    // Check-in without GPS coordinates succeeds cleanly
+    $checkIn = $this->actingAs($ctx['siswaUserA'])
         ->post(route('siswa.absensi.check-in'), []);
 
-    $missingGps->assertRedirect();
-    expect(session('error'))->toContain('Koordinat GPS wajib dikirim')
-        ->and(Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->count())->toBe(0);
-
-    // Outside 100m DUDI radius (~1.1 km away) rejected cleanly
-    $outside = $this->actingAs($ctx['siswaUserA'])
-        ->post(route('siswa.absensi.check-in'), [
-            'latitude' => -6.5990000,
-            'longitude' => 110.6684000,
-        ]);
-
-    $outside->assertRedirect();
-    expect(session('error'))->toContain('di luar area PKL')
-        ->and(Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->count())->toBe(0);
-
-    // Inside DUDI radius (~22m away) succeeds for check-in & check-out
-    $inside = $this->actingAs($ctx['siswaUserA'])
-        ->post(route('siswa.absensi.check-in'), [
-            'latitude' => -6.5890000,
-            'longitude' => 110.6684500,
-            'accuracy' => 12,
-        ]);
-
-    $inside->assertRedirect(route('siswa.absensi.index'))
+    $checkIn->assertRedirect(route('siswa.absensi.index'))
         ->assertSessionHas('success');
 
     $absensi = Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->first();
     expect($absensi)->not->toBeNull()
-        ->and($absensi->mode_kerja)->toBe('WFO')
-        ->and($absensi->validasi_lokasi_aktif)->toBeTrue()
-        ->and($absensi->lokasi_valid)->toBeTrue()
-        ->and($absensi->radius)->toBe(100)
-        ->and((float) $absensi->jarak)->toBeLessThanOrEqual(100.0);
+        ->and($absensi->status)->toBe('hadir')
+        ->and($absensi->latitude_masuk)->toBeNull()
+        ->and($absensi->longitude_masuk)->toBeNull()
+        ->and($absensi->lokasi_masuk)->toBeNull()
+        ->and($absensi->radius)->toBeNull()
+        ->and($absensi->jarak)->toBeNull()
+        ->and($absensi->accuracy)->toBeNull()
+        ->and($absensi->validasi_lokasi_aktif)->toBeFalse()
+        ->and($absensi->lokasi_valid)->toBeTrue();
 
-    // Check-out outside radius must also be rejected when validasi_lokasi is active
+    // Check-out without GPS coordinates also succeeds cleanly
     Carbon::setTestNow('2026-11-25 16:05:00');
-    $checkOutOutside = $this->actingAs($ctx['siswaUserA'])
-        ->post(route('siswa.absensi.check-out'), [
-            'latitude' => -6.6200000,
-            'longitude' => 110.6684000,
-        ]);
-    $checkOutOutside->assertRedirect();
-    expect(session('error'))->toContain('di luar area PKL')
-        ->and($absensi->fresh()->jam_keluar)->toBeNull();
+    $checkOut = $this->actingAs($ctx['siswaUserA'])
+        ->post(route('siswa.absensi.check-out'), []);
 
-    // Check-out inside radius succeeds
-    $checkOutInside = $this->actingAs($ctx['siswaUserA'])
-        ->post(route('siswa.absensi.check-out'), [
-            'latitude' => -6.5889500,
-            'longitude' => 110.6684100,
-        ]);
-    $checkOutInside->assertRedirect(route('siswa.absensi.index'))
+    $checkOut->assertRedirect(route('siswa.absensi.index'))
         ->assertSessionHas('success');
-    expect($absensi->fresh()->jam_keluar)->not->toBeNull();
+
+    $fresh = $absensi->fresh();
+    expect($fresh->jam_keluar)->not->toBeNull()
+        ->and($fresh->latitude_keluar)->toBeNull()
+        ->and($fresh->longitude_keluar)->toBeNull()
+        ->and($fresh->lokasi_pulang)->toBeNull();
 });
 
-it('allows WFO check-in without geofence rejection when validasi_lokasi is disabled while recording mode and metadata', function (): void {
+it('ignores submitted coordinates and stores null location fields when validasi_lokasi is disabled', function (): void {
     $ctx = createLocationTestContext();
 
     $this->actingAs($ctx['admin'])
@@ -183,10 +157,9 @@ it('allows WFO check-in without geofence rejection when validasi_lokasi is disab
         ])
         ->assertRedirect(route('admin.penempatan-pkl.location.edit', $ctx['penempatanA']));
 
-    // Placement B stays independent (still WFO + validasi_lokasi = true)
+    // Placement B stays independent
     expect($ctx['penempatanB']->fresh()->validasi_lokasi)->toBeTrue();
 
-    // Check-in far away succeeds on Placement A because geofence is disabled
     $response = $this->actingAs($ctx['siswaUserA'])
         ->post(route('siswa.absensi.check-in'), [
             'latitude' => -6.7000000,
@@ -199,17 +172,19 @@ it('allows WFO check-in without geofence rejection when validasi_lokasi is disab
 
     $absensi = Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->first();
     expect($absensi)->not->toBeNull()
-        ->and($absensi->mode_kerja)->toBe('WFO')
+        ->and($absensi->latitude_masuk)->toBeNull()
+        ->and($absensi->longitude_masuk)->toBeNull()
+        ->and($absensi->lokasi_masuk)->toBeNull()
         ->and($absensi->validasi_lokasi_aktif)->toBeFalse()
         ->and($absensi->lokasi_valid)->toBeTrue()
         ->and($absensi->status)->toBe('hadir')
         ->and($absensi->ip_address)->not->toBeNull();
 });
 
-it('validates WFH attendance strictly against approved WFH coordinates (not DUDI) when geofence is active', function (): void {
+it('allows WFH attendance without GPS coordinates while still validating location update form for guru', function (): void {
     $ctx = createLocationTestContext();
 
-    // Validation rejects enabling WFH + geofence without WFH coordinates
+    // Validation still rejects enabling WFH + geofence without WFH coordinates on admin/guru form
     $invalidReq = $this->actingAs($ctx['guruUserA'])
         ->put(route('guru.penempatan-pkl.location.update', $ctx['penempatanA']), [
             'mode_kerja' => 'WFH',
@@ -218,7 +193,7 @@ it('validates WFH attendance strictly against approved WFH coordinates (not DUDI
         ]);
     $invalidReq->assertSessionHasErrors(['wfh_latitude', 'wfh_longitude']);
 
-    // Guru Pembimbing sets approved WFH spot in Semarang (~55 km from DUDI Jepara)
+    // Guru Pembimbing sets WFH mode
     $this->actingAs($ctx['guruUserA'])
         ->put(route('guru.penempatan-pkl.location.update', $ctx['penempatanA']), [
             'mode_kerja' => 'WFH',
@@ -232,47 +207,23 @@ it('validates WFH attendance strictly against approved WFH coordinates (not DUDI
         ->assertRedirect(route('guru.penempatan-pkl.location.edit', $ctx['penempatanA']))
         ->assertSessionHas('success');
 
-    // Submitting at DUDI coordinates (far from WFH coordinates) MUST be rejected!
-    $atDudiCoords = $this->actingAs($ctx['siswaUserA'])
-        ->post(route('siswa.absensi.check-in'), [
-            'latitude' => -6.5888900,
-            'longitude' => 110.6684000,
-        ]);
-    $atDudiCoords->assertRedirect();
-    expect(session('error'))->toContain('luar radius lokasi WFH')
-        ->and(Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->count())->toBe(0);
-
-    // Submitting within approved WFH radius succeeds and stores WFH mode + radius
-    $atWfhCoords = $this->actingAs($ctx['siswaUserA'])
-        ->post(route('siswa.absensi.check-in'), [
-            'latitude' => -6.9667000,
-            'longitude' => 110.4167000,
-        ]);
-    $atWfhCoords->assertRedirect(route('siswa.absensi.index'))
+    // Siswa check-in without GPS coordinates succeeds
+    $atWfh = $this->actingAs($ctx['siswaUserA'])
+        ->post(route('siswa.absensi.check-in'), []);
+    $atWfh->assertRedirect(route('siswa.absensi.index'))
         ->assertSessionHas('success');
 
     $absensi = Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->first();
     expect($absensi)->not->toBeNull()
         ->and($absensi->mode_kerja)->toBe('WFH')
-        ->and($absensi->validasi_lokasi_aktif)->toBeTrue()
-        ->and($absensi->lokasi_valid)->toBeTrue()
-        ->and($absensi->radius)->toBe(150)
-        ->and((float) $absensi->jarak)->toBeLessThanOrEqual(150.0);
+        ->and($absensi->latitude_masuk)->toBeNull()
+        ->and($absensi->longitude_masuk)->toBeNull();
 });
 
-it('allows WFH check-in without geofence when validasi_lokasi is disabled while still enforcing core placement, schedule, and duplicate protections', function (): void {
+it('enforces core placement, schedule lateness, and duplicate protections without location UI', function (): void {
     $ctx = createLocationTestContext();
 
-    // Admin enables WFH with validasi_lokasi = false (geofence disabled)
-    $this->actingAs($ctx['admin'])
-        ->put(route('admin.penempatan-pkl.location.update', $ctx['penempatanA']), [
-            'mode_kerja' => 'WFH',
-            'validasi_lokasi' => '0',
-            'reason' => 'WFA/WFH darurat tanpa batasan koordinat',
-        ])
-        ->assertRedirect(route('admin.penempatan-pkl.location.edit', $ctx['penempatanA']));
-
-    // Late check-in (08:30 vs jam_masuk 08:00) STILL enforces schedule lateness even with geofence off!
+    // Late check-in (08:30 vs jam_masuk 08:00) STILL enforces schedule lateness
     Carbon::setTestNow('2026-11-25 08:30:00');
     $firstCheckIn = $this->actingAs($ctx['siswaUserA'])
         ->post(route('siswa.absensi.check-in'), []);
@@ -282,21 +233,16 @@ it('allows WFH check-in without geofence when validasi_lokasi is disabled while 
 
     $absensi = Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanA']->id)->first();
     expect($absensi)->not->toBeNull()
-        ->and($absensi->mode_kerja)->toBe('WFH')
-        ->and($absensi->validasi_lokasi_aktif)->toBeFalse()
-        ->and($absensi->lokasi_valid)->toBeTrue()
         ->and($absensi->status)->toBe('terlambat');
 
-    // Duplicate Check-In on same day is still blocked even when geofence is disabled
+    // Duplicate Check-In on same day is still blocked
     $duplicate = $this->actingAs($ctx['siswaUserA'])
         ->post(route('siswa.absensi.check-in'), []);
     $duplicate->assertRedirect();
     expect(session('error'))->toContain('sudah melakukan Check In hari ini');
 
-    // Core check: inactive or future placement cannot check in even on WFH + geofence disabled
+    // Core check: inactive or future placement cannot check in
     $ctx['penempatanB']->update([
-        'mode_kerja' => 'WFH',
-        'validasi_lokasi' => false,
         'tanggal_mulai' => '2026-12-01',
         'tanggal_selesai' => '2026-12-31',
     ]);
@@ -306,12 +252,13 @@ it('allows WFH check-in without geofence when validasi_lokasi is disabled while 
     expect(session('error'))->toContain('belum dimulai')
         ->and(Absensi::query()->where('penempatan_pkl_id', $ctx['penempatanB']->id)->count())->toBe(0);
 
-    // Siswa page displays WFH & Geofence Nonaktif read-only badges
+    // Siswa page does not render GPS or Geofence elements
     $this->actingAs($ctx['siswaUserA'])
         ->get(route('siswa.absensi.index'))
         ->assertOk()
-        ->assertSee('Mode: WFH')
-        ->assertSee('Geofence: Nonaktif');
+        ->assertDontSee('Geofence:')
+        ->assertDontSee('gps-status')
+        ->assertDontSee('gps-lat');
 });
 
 it('forbids Siswa, DUDI, and unrelated Guru from modifying location mode and logs full location audit history', function (): void {

@@ -88,5 +88,6 @@ interface SiswaServiceInterface
      *
      * @return array{total: int, updated: int, skipped: int, failed: int}
      */
-    public function migrateStudentPasswords(): array;
+    public function migrateStudentPasswords(bool $isDryRun = false): array;
 }
+

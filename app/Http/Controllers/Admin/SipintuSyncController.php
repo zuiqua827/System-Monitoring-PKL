@@ -26,12 +26,14 @@ class SipintuSyncController extends Controller
 
     /**
      * Display the SiPintu synchronization dashboard.
-     * Uses ONLY local DB counts and logs to render instantly.
+     * Uses cached live endpoint diagnostics (short 5-minute TTL) so real endpoint
+     * availability is detected automatically without blocking every page reload.
      */
     public function index(): View
     {
+        $liveDiagnostics = $this->syncService->getLiveDiagnostics(false);
         $data = $this->syncService->getDashboardData();
-        $conn = $this->resolveConnectionState($data, session('connectionTestResult'));
+        $conn = $this->resolveConnectionState($data, session('connectionTestResult'), $liveDiagnostics);
 
         return view('admin.sipintu-sync.index', [
             'connectionStatus' => $conn['status'],
@@ -58,12 +60,12 @@ class SipintuSyncController extends Controller
      *
      * @param  array<string, mixed>  $dashboardData
      * @param  array<string, mixed>|null  $sessionResult
+     * @param  array<string, mixed>|null  $liveDiagnostics
      * @return array<string, mixed>
      */
-    private function resolveConnectionState(array $dashboardData, ?array $sessionResult): array
+    private function resolveConnectionState(array $dashboardData, ?array $sessionResult, ?array $liveDiagnostics = null): array
     {
-        $cachedResult = \Illuminate\Support\Facades\Cache::get('sipintu_live_diagnostics');
-        $effective = $sessionResult ?? $cachedResult;
+        $effective = $sessionResult ?? $liveDiagnostics ?? \Illuminate\Support\Facades\Cache::get('sipintu_live_diagnostics');
 
         if (is_array($effective) && isset($effective['success'])) {
             $isSuccess = (bool) $effective['success'];
@@ -104,18 +106,25 @@ class SipintuSyncController extends Controller
     /**
      * Run a READ-ONLY preview / dry-run of the sync when requested by user.
      *
-     * Does NOT modify any data. Only classifies the upcoming sync into the
-     * 7 categories. Returns the same dashboard view with the preview.
+     * Supports ?entity=siswa|guru|dudi|all.
+     * Does NOT modify any data. Returns the same dashboard view with the preview.
      */
-    public function preview(): View
+    public function preview(Request $request): View
     {
         @set_time_limit(0);
         @ini_set('max_execution_time', '0');
         @ini_set('memory_limit', '512M');
 
-        $preview = $this->syncService->preview();
+        $rawEntity = strtolower(trim((string) $request->query('entity', 'all')));
+        $entityScope = in_array($rawEntity, ['all', 'siswa', 'guru', 'dudi'], true) ? $rawEntity : 'all';
+        $allowCreateDudi = $request->boolean('create_missing_dudi');
+
+        $preview = $this->syncService->preview($entityScope, [
+            'create_missing_dudi' => $allowCreateDudi,
+        ]);
+        $liveDiagnostics = $this->syncService->getLiveDiagnostics(false);
         $data = $this->syncService->getDashboardData();
-        $conn = $this->resolveConnectionState($data, session('connectionTestResult'));
+        $conn = $this->resolveConnectionState($data, session('connectionTestResult'), $liveDiagnostics);
 
         return view('admin.sipintu-sync.index', [
             'connectionStatus' => $conn['status'],
@@ -135,6 +144,8 @@ class SipintuSyncController extends Controller
             'history' => $data['history'],
             'preview' => [
                 'success' => $preview['success'],
+                'scope' => $preview['scope'] ?? $entityScope,
+                'included' => $preview['included'] ?? ['students' => true, 'teachers' => true, 'dudis' => true],
                 'message' => $preview['message'],
                 'students' => $preview['students'],
                 'teachers' => $preview['teachers'],
@@ -145,11 +156,11 @@ class SipintuSyncController extends Controller
     }
 
     /**
-     * Run a live connection test without starting a synchronization.
+     * Run a live connection test (force-refreshing cached diagnostics) without starting synchronization.
      */
     public function testConnection(): RedirectResponse
     {
-        $result = $this->syncService->testConnection();
+        $result = $this->syncService->getLiveDiagnostics(true) ?? $this->syncService->testConnection();
         $message = $result['message'];
 
         if (! empty($result['detail'])) {
@@ -169,7 +180,7 @@ class SipintuSyncController extends Controller
     }
 
     /**
-     * Trigger a manual synchronization.
+     * Trigger a manual scope-aware synchronization (`siswa`, `guru`, `dudi`, or `all`).
      */
     public function sync(Request $request): RedirectResponse
     {
@@ -177,25 +188,22 @@ class SipintuSyncController extends Controller
         @ini_set('max_execution_time', '0');
         @ini_set('memory_limit', '512M');
 
-        $entity = strtolower((string) $request->input('entity', 'all'));
-
-        if ($entity === 'guru') {
+        $rawEntity = strtolower(trim((string) $request->input('entity', 'all')));
+        if ($rawEntity !== '' && ! in_array($rawEntity, ['all', 'siswa', 'guru', 'dudi'], true)) {
             return redirect()
                 ->route('admin.sipintu-sync.index')
-                ->with('error', 'Endpoint API Guru SiPintu (/api/v1/sijuna/teachers) belum tersedia (HTTP 404). Data guru lokal tidak diubah.');
+                ->with('error', 'Cakupan entitas sinkronisasi tidak dikenali.');
         }
 
-        if ($entity === 'dudi') {
-            return redirect()
-                ->route('admin.sipintu-sync.index')
-                ->with('error', 'Endpoint API Master DUDI SiPintu (/api/v1/sijuna/dudi) belum tersedia (HTTP 404). Data DUDI lokal tidak diubah.');
-        }
+        $entityScope = $rawEntity !== '' ? $rawEntity : 'all';
+        $allowCreateDudi = $request->boolean('create_missing_dudi');
 
         /** @var User $admin */
         $admin = $request->user();
 
-        $entityScope = $entity !== '' ? $entity : 'all';
-        $result = $this->syncService->runSync($admin, $entityScope);
+        $result = $this->syncService->runSync($admin, $entityScope, [
+            'create_missing_dudi' => $allowCreateDudi,
+        ]);
 
         if (($result['status'] ?? '') === 'partial' || ! empty($result['warning'])) {
             return redirect()

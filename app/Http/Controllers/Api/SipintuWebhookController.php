@@ -11,7 +11,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -20,8 +19,11 @@ class SipintuWebhookController extends Controller
 {
     /**
      * Handle incoming user synchronization webhook from SiPintu Gateway.
-     * POST /api/v1/sipintu/sync-user
-     * POST /api/webhook/sipintu/user-sync
+     *
+     * Kedua endpoint berikut adalah alias yang menggunakan satu handler terpadu
+     * dan sama-sama dikecualikan dari CSRF verification di bootstrap/app.php:
+     *   - POST /api/v1/sipintu/sync-user (utama)
+     *   - POST /api/webhook/sipintu/user-sync (alias kompatibilitas)
      */
     public function handleUserSync(Request $request): JsonResponse
     {
@@ -37,7 +39,7 @@ class SipintuWebhookController extends Controller
             ], 401);
         }
 
-        // 2. Validate Payload
+        // 2. Validate Payload (passwords are never accepted, processed, stored, or logged via webhook)
         $validator = Validator::make($request->all(), [
             'event' => 'nullable|string',
             'type' => 'nullable|string|in:siswa,guru,student,teacher,user',
@@ -47,7 +49,6 @@ class SipintuWebhookController extends Controller
             'data.nama' => 'nullable|string',
             'data.nis' => 'nullable|string',
             'data.nip' => 'nullable|string',
-            'data.password' => 'nullable|string',
             'data.phone' => 'nullable|string',
             'data.no_hp' => 'nullable|string',
             'data.address' => 'nullable|string',
@@ -64,16 +65,15 @@ class SipintuWebhookController extends Controller
             ], 422);
         }
 
-        $payload = $request->input('data');
-        $type = strtolower((string) ($request->input('type') ?? 'user'));
-        $event = strtolower((string) ($request->input('event') ?? 'sync'));
+        $validated = $validator->validated();
+        /** @var array<string, mixed> $payload */
+        $payload = is_array($validated['data'] ?? null) ? $validated['data'] : [];
 
-        // Resolve attributes safely
+        // Resolve safe identity/profile attributes only (password sync is explicitly disabled)
         $email = isset($payload['email']) ? trim((string) $payload['email']) : null;
         $name = $payload['name'] ?? $payload['nama'] ?? null;
         $nis = isset($payload['nis']) ? trim((string) $payload['nis']) : null;
         $nip = isset($payload['nip']) ? trim((string) $payload['nip']) : null;
-        $rawPassword = isset($payload['password']) ? (string) $payload['password'] : null;
         $phone = $payload['phone'] ?? $payload['no_hp'] ?? null;
         $address = $payload['address'] ?? $payload['alamat'] ?? null;
         $gender = $payload['gender'] ?? $payload['jenis_kelamin'] ?? null;
@@ -120,7 +120,7 @@ class SipintuWebhookController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($user, $name, $phone, $address, $gender, $rawPassword): void {
+            DB::transaction(function () use ($user, $name, $phone, $address, $gender): void {
                 $updateData = [];
 
                 if ($name !== null && trim($name) !== '') {
@@ -137,11 +137,6 @@ class SipintuWebhookController extends Controller
 
                 if ($gender !== null) {
                     $updateData['gender'] = trim((string) $gender);
-                }
-
-                // Password sync if provided by SiPintu contract
-                if ($rawPassword !== null && $rawPassword !== '') {
-                    $updateData['password'] = Hash::make($rawPassword);
                 }
 
                 if (! empty($updateData)) {
@@ -222,6 +217,10 @@ class SipintuWebhookController extends Controller
         $configuredSecret = (string) config('services.sipintu.webhook_secret');
         $configuredClientId = (string) config('services.sipintu.client_id');
         $configuredClientSecret = (string) config('services.sipintu.client_secret');
+
+        if ($configuredSecret !== '' && $configuredClientSecret !== '' && hash_equals($configuredClientSecret, $configuredSecret)) {
+            Log::warning('SiPintu security warning: SIPINTU_WEBHOOK_SECRET identik dengan SIPINTU_CLIENT_SECRET. Segera bedakan keduanya.');
+        }
 
         // Check 1: X-Webhook-Secret header
         $headerSecret = (string) $request->header('X-Webhook-Secret');

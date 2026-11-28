@@ -251,25 +251,43 @@ it('sanitizes client_id and client_secret from test connection results', functio
         ->not->toContain('SECRET_CLIENT_PASS_999');
 });
 
-it('renders GET /admin/sipintu-sync instantly without calling remote API', function (): void {
-    Illuminate\Support\Facades\Http::fake(function () {
-        throw new \Exception('Remote HTTP call should NEVER be executed on GET index page');
-    });
+it('caches live diagnostics for 5 minutes on GET /admin/sipintu-sync so warm loads issue zero remote HTTP calls', function (): void {
+    config([
+        'services.sipintu.api_url' => 'https://sipintu.test',
+        'services.sipintu.client_id' => 'client_123',
+        'services.sipintu.client_secret' => 'secret_123',
+    ]);
 
     Role::findOrCreate(UserRole::SUPER_ADMIN->value);
     $admin = sipintuAdmin();
     $admin->assignRole(UserRole::SUPER_ADMIN->value);
 
-    $response = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+    Illuminate\Support\Facades\Http::fake([
+        'https://sipintu.test/api/v1/health' => Illuminate\Support\Facades\Http::response(['status' => 'ok'], 200),
+        'https://sipintu.test/api/v1/sijuna/students*' => Illuminate\Support\Facades\Http::response(['data' => []], 200),
+        'https://sipintu.test/api/v1/sijuna/teachers*' => Illuminate\Support\Facades\Http::response(['message' => 'Not Found'], 404),
+        'https://sipintu.test/api/v1/sijuna/dudi*' => Illuminate\Support\Facades\Http::response(['message' => 'Not Found'], 404),
+    ]);
 
-    $response->assertStatus(200)
+    // 1st GET populates the 5-minute diagnostic cache
+    $first = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+    $first->assertStatus(200)
         ->assertViewIs('admin.sipintu-sync.index')
         ->assertSee('Sinkronisasi SiPintu');
+
+    // 2nd GET must NOT make outbound HTTP requests while cache is warm
+    Illuminate\Support\Facades\Http::fake(function () {
+        throw new \Exception('Warm-cache GET index should NEVER execute outbound HTTP requests');
+    });
+
+    $second = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+    $second->assertStatus(200)
+        ->assertViewIs('admin.sipintu-sync.index');
 });
 
 it('runs test connection via POST route safely without fatal errors', function (): void {
     Illuminate\Support\Facades\Http::fake([
-        'https://sipintu.smkn1bangsri.sch.id/*' => Illuminate\Support\Facades\Http::response(['status' => true], 200),
+        'https://sipintu.smkn1bangsri.sch.id/*' => Illuminate\Support\Facades\Http::response(['status' => true, 'data' => []], 200),
     ]);
 
     Role::findOrCreate(UserRole::SUPER_ADMIN->value);
@@ -400,6 +418,17 @@ it('renders sipintu sync index page with custom dialogs and toast container', fu
     Role::findOrCreate(UserRole::SUPER_ADMIN->value);
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::SUPER_ADMIN->value);
+
+    Illuminate\Support\Facades\Cache::put('sipintu_live_diagnostics', [
+        'success' => true,
+        'status' => true,
+        'connection' => true,
+        'http_status' => 200,
+        'message' => 'Koneksi ke SiPintu berhasil.',
+        'error_type' => null,
+        'detail' => null,
+        'troubleshooting' => null,
+    ], now()->addMinutes(5));
 
     $response = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
 

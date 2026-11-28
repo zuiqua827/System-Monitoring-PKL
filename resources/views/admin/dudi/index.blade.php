@@ -78,7 +78,16 @@
                                 <td class="px-4 py-3.5 text-sm font-medium text-slate-800">
                                     <div class="flex items-center gap-3">
                                         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-700">{{ strtoupper(substr($dudi->nama_perusahaan, 0, 1)) }}</span>
-                                        <span class="font-medium text-slate-900">{{ $dudi->nama_perusahaan }}</span>
+                                        <div>
+                                            <span class="font-medium text-slate-900">{{ $dudi->nama_perusahaan }}</span>
+                                            @if($dudi->user_id === null)
+                                                <div class="mt-0.5">
+                                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">
+                                                        DUDI tanpa akun lokal
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3.5 text-sm text-slate-600">{{ $dudi->penanggung_jawab ?? '-' }}</td>

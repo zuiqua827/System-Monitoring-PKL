@@ -39,10 +39,11 @@ use Spatie\Permission\PermissionRegistrar;
  *  - Students: NIS is the primary unique identifier; a NISN collision is
  *    reported as a conflict and never rewrites the local NIS.
  *  - Teachers: NIP is the unique identifier.
- *  - Student email is always auto-generated: {NIS}@smk1bangsri.sch.id.
+ *  - Student email is always auto-generated: {NIS}@<app.student_email_domain> (smkn1bangsri.sch.id).
  *  - Teacher email uses the API email if available, otherwise
- *    {NIP}@smk1bangsri.sch.id.
- *  - Default password for newly created accounts is "password" (hashed).
+ *    {NIP}@<app.student_email_domain> (smkn1bangsri.sch.id).
+ *  - Default password hash is only used for newly created synchronized Siswa/Guru accounts;
+ *    existing user passwords and Super Admin roles are never overwritten.
  *  - Never overwrites an existing user's password.
  *  - NO automatic deletion: local records that are absent from SiPintu are
  *    NEVER deleted/soft-deleted. They are only reported as "Tidak Ditemukan".
@@ -211,46 +212,99 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     /**
      * {@inheritDoc}
      */
-    public function fetchSyncPayload(): array
+    public function fetchSyncPayload(string $entityScope = 'all'): array
     {
-        $students = $this->fetchStudents();
-        Log::info('SiPintu students fetched', ['count' => count($students)]);
+        $scope = in_array($entityScope, ['all', 'siswa', 'guru', 'dudi'], true) ? $entityScope : 'all';
 
-        $teachers = [];
-        try {
-            $teachers = $this->fetchTeachers();
-            Log::info('SiPintu teachers fetched', ['count' => count($teachers)]);
-        } catch (SiPintuApiException $e) {
-            if (str_contains($e->getMessage(), '404')) {
-                Log::warning('SiPintu teachers endpoint returned HTTP 404 (route not found on gateway). Continuing student sync.', [
-                    'message' => $e->getMessage(),
-                ]);
-                $teachers = [];
-            } else {
-                throw $e;
+        $fetchStudents = in_array($scope, ['all', 'siswa'], true);
+        $fetchTeachers = in_array($scope, ['all', 'guru'], true);
+        $fetchDudis = in_array($scope, ['all', 'dudi'], true);
+
+        $students = null;
+        $teachers = null;
+        $dudis = null;
+
+        $unavailable = [
+            'students' => false,
+            'teachers' => false,
+            'dudis' => false,
+        ];
+        $endpointErrors = [];
+
+        if ($fetchStudents) {
+            try {
+                $students = $this->fetchStudents();
+                Log::info('SiPintu students fetched', ['count' => count($students)]);
+            } catch (SiPintuApiException $e) {
+                if (str_contains($e->getMessage(), '404') && $scope === 'siswa') {
+                    Log::warning('SiPintu students endpoint returned HTTP 404.', [
+                        'message' => $e->getMessage(),
+                    ]);
+                    $unavailable['students'] = true;
+                    $endpointErrors['students'] = [
+                        'http_status' => 404,
+                        'message' => $e->getMessage(),
+                    ];
+                } else {
+                    throw $e;
+                }
             }
-        } catch (\BadMethodCallException) {
-            $teachers = [];
         }
 
-        $dudis = [];
-        try {
-            $dudis = $this->fetchDudi();
-            Log::info('SiPintu DUDI fetched', ['count' => count($dudis)]);
-        } catch (SiPintuApiException $e) {
-            if (str_contains($e->getMessage(), '404')) {
-                $dudis = [];
-            } else {
-                throw $e;
+        if ($fetchTeachers) {
+            try {
+                $teachers = $this->fetchTeachers();
+                Log::info('SiPintu teachers fetched', ['count' => count($teachers)]);
+            } catch (SiPintuApiException $e) {
+                if (str_contains($e->getMessage(), '404')) {
+                    Log::warning('SiPintu teachers endpoint returned HTTP 404 (route not found on gateway).', [
+                        'message' => $e->getMessage(),
+                        'scope' => $scope,
+                    ]);
+                    $teachers = null;
+                    $unavailable['teachers'] = true;
+                    $endpointErrors['teachers'] = [
+                        'http_status' => 404,
+                        'message' => $e->getMessage(),
+                    ];
+                } else {
+                    throw $e;
+                }
+            } catch (\BadMethodCallException) {
+                $teachers = null;
             }
-        } catch (\BadMethodCallException) {
-            $dudis = [];
+        }
+
+        if ($fetchDudis) {
+            try {
+                $dudis = $this->fetchDudi();
+                Log::info('SiPintu DUDI fetched', ['count' => count($dudis)]);
+            } catch (SiPintuApiException $e) {
+                if (str_contains($e->getMessage(), '404')) {
+                    Log::warning('SiPintu DUDI endpoint returned HTTP 404 (route not found on gateway).', [
+                        'message' => $e->getMessage(),
+                        'scope' => $scope,
+                    ]);
+                    $dudis = null;
+                    $unavailable['dudis'] = true;
+                    $endpointErrors['dudis'] = [
+                        'http_status' => 404,
+                        'message' => $e->getMessage(),
+                    ];
+                } else {
+                    throw $e;
+                }
+            } catch (\BadMethodCallException) {
+                $dudis = null;
+            }
         }
 
         return [
             'students' => $students,
             'teachers' => $teachers,
             'dudis' => $dudis,
+            'endpoint_unavailable' => $unavailable,
+            'endpoint_errors' => $endpointErrors,
         ];
     }
 
@@ -264,7 +318,26 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $this->preloadCaches(true);
 
-        return $this->processStudentRecords($this->fetchStudents(), [
+        try {
+            $students = $this->fetchStudents();
+        } catch (SiPintuApiException $e) {
+            if (str_contains($e->getMessage(), '404')) {
+                Log::warning('SiPintu students endpoint returned 404 during preview.', [
+                    'message' => $e->getMessage(),
+                ]);
+
+                $empty = $this->emptyPreview();
+                $empty['endpoint_unavailable'] = 1;
+                $empty['http_status'] = 404;
+                $empty['endpoint_message'] = 'Endpoint data Siswa ('.SiPintuRepositoryInterface::ENDPOINT_STUDENTS.') belum tersedia di server SiPintu (HTTP 404).';
+
+                return $empty;
+            }
+
+            throw $e;
+        }
+
+        return $this->processStudentRecords($students, [
             'dry_run' => true,
             'stats' => $this->emptyPreview(),
         ]);
@@ -290,7 +363,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
                 $empty = $this->emptyPreview();
                 $empty['endpoint_unavailable'] = 1;
-                $empty['endpoint_message'] = 'Endpoint data Guru (/api/v1/sijuna/teachers) belum tersedia di server SiPintu (HTTP 404).';
+                $empty['http_status'] = 404;
+                $empty['endpoint_message'] = 'Endpoint data Guru ('.SiPintuRepositoryInterface::ENDPOINT_TEACHERS.') belum tersedia di server SiPintu (HTTP 404).';
 
                 return $empty;
             }
@@ -309,12 +383,35 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @return array<string, int>
      */
-    public function syncStudents(?array $students = null): array
+    public function syncStudents(?array $students = null, bool $endpointUnavailable = false): array
     {
+        if ($endpointUnavailable) {
+            $stats = $this->emptySyncStats();
+            $stats['endpoint_unavailable'] = 1;
+
+            return $stats;
+        }
+
         $this->preloadCaches(true);
         $this->ensureRoleExists(UserRole::SISWA->value);
 
-        return $this->processStudentRecords($students ?? $this->fetchStudents(), [
+        $resolvedStudents = $students;
+        if ($resolvedStudents === null) {
+            try {
+                $resolvedStudents = $this->fetchStudents();
+            } catch (SiPintuApiException $e) {
+                if (str_contains($e->getMessage(), '404')) {
+                    $stats = $this->emptySyncStats();
+                    $stats['endpoint_unavailable'] = 1;
+
+                    return $stats;
+                }
+
+                throw $e;
+            }
+        }
+
+        return $this->processStudentRecords($resolvedStudents, [
             'dry_run' => false,
             'stats' => $this->emptySyncStats(),
         ]);
@@ -325,8 +422,15 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @return array<string, int>
      */
-    public function syncTeachers(?array $teachers = null): array
+    public function syncTeachers(?array $teachers = null, bool $endpointUnavailable = false): array
     {
+        if ($endpointUnavailable) {
+            $stats = $this->emptySyncStats();
+            $stats['endpoint_unavailable'] = 1;
+
+            return $stats;
+        }
+
         $this->preloadCaches(true);
         $this->ensureRoleExists(UserRole::GURU->value);
 
@@ -372,7 +476,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @return array<string, int|string>
      */
-    public function previewDudi(): array
+    public function previewDudi(bool $allowCreate = false): array
     {
         $this->preloadCaches(true);
 
@@ -386,7 +490,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
                 $empty = $this->emptyPreview();
                 $empty['endpoint_unavailable'] = 1;
-                $empty['endpoint_message'] = 'Endpoint Master Data DUDI (/api/v1/sijuna/dudi) belum tersedia di server SiPintu (HTTP 404). Data master DUDI lokal dan penempatan PKL tetap aman.';
+                $empty['http_status'] = 404;
+                $empty['endpoint_message'] = 'Endpoint Master Data DUDI ('.SiPintuRepositoryInterface::ENDPOINT_DUDI.') belum tersedia di server SiPintu (HTTP 404). Data master DUDI lokal dan penempatan PKL tetap aman.';
 
                 return $empty;
             }
@@ -395,13 +500,15 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         } catch (\BadMethodCallException) {
             $empty = $this->emptyPreview();
             $empty['endpoint_unavailable'] = 1;
-            $empty['endpoint_message'] = 'Endpoint Master Data DUDI (/api/v1/sijuna/dudi) belum tersedia di server SiPintu (HTTP 404). Data master DUDI lokal dan penempatan PKL tetap aman.';
+            $empty['http_status'] = 404;
+            $empty['endpoint_message'] = 'Endpoint Master Data DUDI ('.SiPintuRepositoryInterface::ENDPOINT_DUDI.') belum tersedia di server SiPintu (HTTP 404). Data master DUDI lokal dan penempatan PKL tetap aman.';
 
             return $empty;
         }
 
         return $this->processDudiRecords($dudis, [
             'dry_run' => true,
+            'allow_create' => $allowCreate,
             'stats' => $this->emptyPreview(),
         ]);
     }
@@ -411,8 +518,15 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      *
      * @return array<string, int>
      */
-    public function syncDudi(?array $dudis = null): array
+    public function syncDudi(?array $dudis = null, bool $allowCreate = false, bool $endpointUnavailable = false): array
     {
+        if ($endpointUnavailable) {
+            $stats = $this->emptySyncStats();
+            $stats['endpoint_unavailable'] = 1;
+
+            return $stats;
+        }
+
         $this->preloadCaches(true);
         $this->ensureRoleExists(UserRole::DUDI->value);
 
@@ -437,6 +551,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
         $stats = $this->processDudiRecords($resolvedDudis, [
             'dry_run' => false,
+            'allow_create' => $allowCreate,
             'stats' => $this->emptySyncStats(),
         ]);
 
@@ -482,7 +597,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      * Find existing Dudi by prioritised schema identifiers:
      * 1. sipintu_id
      * 2. sipintu_user_id
-     * 3. email_perusahaan (safe fallback)
+     * 3. email_perusahaan, sipintu_email, or linked DUDI user email (case-insensitive)
      */
     private function findExistingDudi(string $sipintuId, ?string $sipintuUserId, ?string $email): ?Dudi
     {
@@ -500,9 +615,31 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         }
 
         if ($email !== null && $email !== '') {
-            $existing = Dudi::query()->withTrashed()->where('email_perusahaan', $email)->first();
+            $normalizedEmail = strtolower(trim($email));
+            $existing = Dudi::query()->withTrashed()
+                ->whereRaw('LOWER(email_perusahaan) = ?', [$normalizedEmail])
+                ->first();
             if ($existing !== null) {
                 return $existing;
+            }
+
+            $existing = Dudi::query()->withTrashed()
+                ->whereRaw('LOWER(sipintu_email) = ?', [$normalizedEmail])
+                ->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            $linkedDudiUser = User::query()
+                ->withTrashed()
+                ->with('roles')
+                ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                ->first();
+            if ($linkedDudiUser !== null && $linkedDudiUser->hasRole(UserRole::DUDI->value)) {
+                $existing = Dudi::query()->withTrashed()->where('user_id', $linkedDudiUser->id)->first();
+                if ($existing !== null) {
+                    return $existing;
+                }
             }
         }
 
@@ -513,14 +650,16 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      * Process DUDI records for both preview and live synchronization.
      *
      * @param  array<int, mixed>  $dudis
-     * @param  array{dry_run: bool, stats: array<string, int>}  $context
+     * @param  array{dry_run: bool, allow_create?: bool, stats: array<string, int>}  $context
      * @return array<string, int>
      */
     private function processDudiRecords(array $dudis, array $context): array
     {
         $dryRun = $context['dry_run'];
+        $allowCreate = (bool) ($context['allow_create'] ?? false);
         $stats = $context['stats'];
         $seenId = [];
+        $seenSipintuUserIdToDudiId = [];
         $remoteIdSet = [];
 
         foreach ($dudis as $index => $remote) {
@@ -533,9 +672,10 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             $sipintuId = $this->resolveDudiIdentifier($remote);
             $namaPerusahaan = trim((string) ($remote['nama_perusahaan'] ?? $remote['nama'] ?? $remote['name'] ?? ''));
             $sipintuUserId = $this->identifier($remote['sipintu_user_id'] ?? $remote['user_id'] ?? $remote['account_id'] ?? null);
-            $email = ! empty($remote['email_perusahaan'])
+            $emailRaw = ! empty($remote['email_perusahaan'])
                 ? trim((string) $remote['email_perusahaan'])
                 : (! empty($remote['email']) ? trim((string) $remote['email']) : null);
+            $email = $emailRaw !== null && $emailRaw !== '' ? strtolower($emailRaw) : null;
 
             if ($sipintuId === null) {
                 $this->recordInvalidRemote($stats, $dryRun, 'dudi', $index, null, 'DUDI ID is missing');
@@ -567,8 +707,22 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             $remote['email_perusahaan'] = $email;
             $remoteIdSet[$sipintuId] = true;
 
+            if ($sipintuUserId !== null && isset($seenSipintuUserIdToDudiId[$sipintuUserId]) && $seenSipintuUserIdToDudiId[$sipintuUserId] !== $sipintuId) {
+                Log::warning('DUDI skipped during SiPintu sync: duplicate sipintu_user_id across different remote DUDIs', [
+                    'sipintu_id' => $sipintuId,
+                    'sipintu_user_id' => $sipintuUserId,
+                    'record_index' => $index,
+                    'dry_run' => $dryRun,
+                ]);
+                $this->applyRecordOutcome($stats, $dryRun, 'conflict');
+
+                continue;
+            }
+
             try {
-                $outcome = $dryRun ? $this->classifyDudi($remote) : $this->syncOneDudi($remote);
+                $outcome = $dryRun
+                    ? $this->classifyDudi($remote, $allowCreate)
+                    : $this->syncOneDudi($remote, $allowCreate);
             } catch (\Throwable $e) {
                 Log::error('DUDI record failed during SiPintu sync', [
                     'sipintu_id' => $sipintuId,
@@ -577,6 +731,10 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                     'dry_run' => $dryRun,
                 ]);
                 $outcome = 'error';
+            }
+
+            if ($sipintuUserId !== null && in_array($outcome, ['created', 'updated', 'unchanged'], true)) {
+                $seenSipintuUserIdToDudiId[$sipintuUserId] = $sipintuId;
             }
 
             $this->applyRecordOutcome($stats, $dryRun, $outcome);
@@ -593,33 +751,68 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     }
 
     /**
-     * Classify a remote DUDI for preview mode.
+     * Classify a remote DUDI for preview mode according to the active policy
+     * (default link-only skips unregistered DUDI unless explicit create is confirmed).
      *
      * @param  array<string, mixed>  $remote
      */
-    private function classifyDudi(array $remote): string
+    private function classifyDudi(array $remote, bool $allowCreate = false): string
     {
         $sipintuId = (string) $remote['sipintu_id'];
         $sipintuUserId = ! empty($remote['sipintu_user_id']) ? (string) $remote['sipintu_user_id'] : null;
-        $email = ! empty($remote['email_perusahaan']) ? trim((string) $remote['email_perusahaan']) : null;
+        $email = ! empty($remote['email_perusahaan']) ? strtolower(trim((string) $remote['email_perusahaan'])) : null;
 
         $existing = $this->findExistingDudi($sipintuId, $sipintuUserId, $email);
 
         if ($existing === null) {
+            if (! $allowCreate) {
+                return 'skipped';
+            }
+
             if ($email !== null && $email !== '') {
-                // Check if email collides with a non-DUDI user or another DUDI
-                $userCollision = User::query()->withTrashed()->where('email', $email)->first();
+                $userCollision = User::query()->withTrashed()->with('roles')->whereRaw('LOWER(email) = ?', [$email])->first();
                 if ($userCollision !== null) {
-                    if (! $userCollision->hasRole(UserRole::DUDI->value)) {
+                    if ($userCollision->hasRole(UserRole::SUPER_ADMIN->value) || ! $userCollision->hasRole(UserRole::DUDI->value)) {
                         return 'conflict';
                     }
                     if (Dudi::query()->withTrashed()->where('user_id', $userCollision->id)->exists()) {
                         return 'conflict';
                     }
+                    if ($userCollision->trashed()) {
+                        return 'skipped';
+                    }
                 }
             }
 
             return 'created';
+        }
+
+        $existingUser = $existing->user_id !== null
+            ? ($this->usersById[$existing->user_id] ?? User::query()->withTrashed()->with('roles')->find($existing->user_id))
+            : null;
+
+        // Preserve soft-deleted DUDI/User records without duplicating or auto-restoring
+        if ($existing->trashed() || ($existingUser !== null && $existingUser->trashed())) {
+            return 'skipped';
+        }
+
+        if ($existing->sipintu_id !== null && $existing->sipintu_id !== $sipintuId) {
+            return 'conflict';
+        }
+
+        if ($sipintuUserId !== null && $existing->sipintu_user_id === null) {
+            $userIdTaken = Dudi::query()
+                ->withTrashed()
+                ->where('sipintu_user_id', $sipintuUserId)
+                ->where('id', '!=', $existing->id)
+                ->exists();
+            if ($userIdTaken) {
+                return 'conflict';
+            }
+        }
+
+        if ($existingUser !== null && ($existingUser->hasRole(UserRole::SUPER_ADMIN->value) || ! $existingUser->hasRole(UserRole::DUDI->value))) {
+            return 'conflict';
         }
 
         if ($this->dudiUnchanged($existing, $remote)) {
@@ -631,58 +824,71 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
     /**
      * Synchronize a single remote DUDI record inside its own transaction.
-     * Implements CREATE policy: creates new User + DUDI record if absent,
-     * updates identity without modifying existing passwords or operational data.
+     *
+     * Default policy (`$allowCreate = false`, link-only / safe):
+     *  - Only links (`sipintu_id`/`sipintu_user_id`) and updates safe identity fields
+     *    for DUDI records already registered locally by Admin; skips new remote DUDIs.
+     *  - Explicit creation occurs ONLY when `$allowCreate = true`.
+     *  - Soft-deleted DUDI/User records are NEVER duplicated or auto-restored.
+     *  - Never overwrites passwords, Super Admin roles, geofence coordinates,
+     *    working hours, sso_enabled, or active PKL placements.
      *
      * @param  array<string, mixed>  $remote
      */
-    private function syncOneDudi(array $remote): string
+    private function syncOneDudi(array $remote, bool $allowCreate = false): string
     {
         $sipintuId = (string) $remote['sipintu_id'];
         $sipintuUserId = ! empty($remote['sipintu_user_id']) ? (string) $remote['sipintu_user_id'] : null;
-        $email = ! empty($remote['email_perusahaan']) ? trim((string) $remote['email_perusahaan']) : null;
+        $email = ! empty($remote['email_perusahaan']) ? strtolower(trim((string) $remote['email_perusahaan'])) : null;
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($remote, $sipintuId, $sipintuUserId, $email): string {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($remote, $sipintuId, $sipintuUserId, $email, $allowCreate): string {
             /** @var Dudi|null $existing */
             $existing = $this->findExistingDudi($sipintuId, $sipintuUserId, $email);
 
             if ($existing === null) {
-                $statusAktif = isset($remote['status_aktif'])
-                    ? (bool) $remote['status_aktif']
-                    : (isset($remote['status']) ? ((string) $remote['status'] === 'active' || (bool) $remote['status']) : true);
+                if (! $allowCreate) {
+                    Log::info('DUDI skipped during SiPintu sync (link-only policy: not yet created locally by Admin)', [
+                        'sipintu_id' => $sipintuId,
+                        'nama_perusahaan' => $remote['nama_perusahaan'],
+                    ]);
 
+                    return 'skipped';
+                }
+
+                $statusAktif = $this->resolveRemoteDudiStatus($remote, true) ?? true;
                 $userId = null;
 
                 if ($email !== null && $email !== '') {
                     /** @var User|null $existingUser */
-                    $existingUser = User::query()->withTrashed()->where('email', $email)->first();
+                    $existingUser = User::query()->withTrashed()->with('roles')->whereRaw('LOWER(email) = ?', [$email])->first();
 
                     if ($existingUser !== null) {
-                        if ($existingUser->hasRole(UserRole::DUDI->value)) {
-                            // Check if this user is already tied to an existing Dudi
-                            $dudiWithThisUser = Dudi::query()->where('user_id', $existingUser->id)->first();
-                            if ($dudiWithThisUser !== null) {
-                                Log::warning('DUDI sync conflict: user with this email already attached to another DUDI', [
-                                    'sipintu_id' => $sipintuId,
-                                    'email' => $email,
-                                    'existing_dudi_id' => $dudiWithThisUser->id,
-                                ]);
-
-                                return 'conflict';
-                            }
-                            $userId = $existingUser->id;
-                        } else {
-                            // Email is taken by non-DUDI (Admin/Guru/Siswa)
-                            Log::warning('DUDI sync conflict: email already used by a non-DUDI account', [
+                        if ($existingUser->hasRole(UserRole::SUPER_ADMIN->value) || ! $existingUser->hasRole(UserRole::DUDI->value)) {
+                            Log::warning('DUDI sync conflict: email already used by a protected or non-DUDI account', [
                                 'sipintu_id' => $sipintuId,
                                 'email' => $email,
                             ]);
 
                             return 'conflict';
                         }
+
+                        $dudiWithThisUser = Dudi::query()->withTrashed()->where('user_id', $existingUser->id)->first();
+                        if ($dudiWithThisUser !== null) {
+                            Log::warning('DUDI sync conflict: user with this email already attached to another DUDI', [
+                                'sipintu_id' => $sipintuId,
+                                'email' => $email,
+                                'existing_dudi_id' => $dudiWithThisUser->id,
+                            ]);
+
+                            return 'conflict';
+                        }
+
+                        if ($existingUser->trashed()) {
+                            return 'skipped';
+                        }
+
+                        $userId = $existingUser->id;
                     } else {
-                        // Create User account with role DUDI, random secure password, and must_change_password=true
-                        // Note: email_verified_at is set to null because no verification email flow was performed.
                         $randomPassword = Str::password(16);
                         /** @var User $newUser */
                         $newUser = $this->userRepository->create([
@@ -716,33 +922,85 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 return 'created';
             }
 
-            if ($existing->trashed()) {
-                $existing->restore();
+            // Never modify or attach a Super Admin / non-DUDI user account
+            $linkedUser = $existing->user_id !== null
+                ? User::query()->withTrashed()->with('roles')->find($existing->user_id)
+                : null;
+
+            // Preserve soft-deleted DUDI/User records without auto-restoring or duplicating
+            if ($existing->trashed() || ($linkedUser !== null && $linkedUser->trashed())) {
+                Log::info('DUDI skipped during SiPintu sync: local DUDI/user record is soft-deleted', [
+                    'local_dudi_id' => $existing->id,
+                    'sipintu_id' => $sipintuId,
+                ]);
+
+                return 'skipped';
             }
 
-            // If existing Dudi doesn't have a user account, but a valid email is now available, link/create user
-            if ($existing->user_id === null && $email !== null && $email !== '') {
-                $existingUser = User::query()->withTrashed()->where('email', $email)->first();
-                if ($existingUser === null) {
-                    $randomPassword = Str::password(16);
-                    /** @var User $newUser */
-                    $newUser = $this->userRepository->create([
-                        'name' => $remote['nama_perusahaan'],
-                        'email' => $email,
-                        'password' => Hash::make($randomPassword),
-                        'must_change_password' => true,
-                        'email_verified_at' => null,
+            if ($existing->sipintu_id !== null && $existing->sipintu_id !== $sipintuId) {
+                Log::warning('DUDI sync conflict: matched local DUDI is already linked to a different sipintu_id', [
+                    'local_dudi_id' => $existing->id,
+                    'existing_sipintu_id' => $existing->sipintu_id,
+                    'remote_sipintu_id' => $sipintuId,
+                ]);
+
+                return 'conflict';
+            }
+
+            if ($sipintuUserId !== null && $existing->sipintu_user_id === null) {
+                $userIdTaken = Dudi::query()
+                    ->withTrashed()
+                    ->where('sipintu_user_id', $sipintuUserId)
+                    ->where('id', '!=', $existing->id)
+                    ->exists();
+
+                if ($userIdTaken) {
+                    Log::warning('DUDI sync conflict: sipintu_user_id already linked to another DUDI', [
+                        'local_dudi_id' => $existing->id,
+                        'sipintu_user_id' => $sipintuUserId,
                     ]);
-                    $newUser->assignRole(UserRole::DUDI->value);
-                    $existing->user_id = $newUser->id;
-                } elseif ($existingUser->hasRole(UserRole::DUDI->value) && ! Dudi::query()->where('user_id', $existingUser->id)->where('id', '!=', $existing->id)->exists()) {
-                    if ($existingUser->trashed()) {
-                        $existingUser->restore();
+
+                    return 'conflict';
+                }
+            }
+
+            if ($linkedUser !== null && ($linkedUser->hasRole(UserRole::SUPER_ADMIN->value) || ! $linkedUser->hasRole(UserRole::DUDI->value))) {
+                Log::warning('DUDI sync conflict: local DUDI points to protected or non-DUDI user', [
+                    'local_dudi_id' => $existing->id,
+                    'user_id' => $linkedUser->id,
+                ]);
+
+                return 'conflict';
+            }
+
+            // Link existing active DUDI-role user without auto-creating User when link-only policy is active
+            if ($existing->user_id === null && $email !== null && $email !== '') {
+                $existingUser = User::query()->withTrashed()->with('roles')->whereRaw('LOWER(email) = ?', [$email])->first();
+                if ($existingUser === null) {
+                    if ($allowCreate) {
+                        $randomPassword = Str::password(16);
+                        /** @var User $newUser */
+                        $newUser = $this->userRepository->create([
+                            'name' => $remote['nama_perusahaan'],
+                            'email' => $email,
+                            'password' => Hash::make($randomPassword),
+                            'must_change_password' => true,
+                            'email_verified_at' => null,
+                        ]);
+                        $newUser->assignRole(UserRole::DUDI->value);
+                        $existing->user_id = $newUser->id;
                     }
+                } elseif (
+                    ! $existingUser->trashed()
+                    && ! $existingUser->hasRole(UserRole::SUPER_ADMIN->value)
+                    && $existingUser->hasRole(UserRole::DUDI->value)
+                    && ! Dudi::query()->withTrashed()->where('user_id', $existingUser->id)->where('id', '!=', $existing->id)->exists()
+                ) {
                     $existing->user_id = $existingUser->id;
                 }
-            } elseif ($existing->user !== null && $existing->user->name !== $remote['nama_perusahaan']) {
-                $existing->user->update(['name' => $remote['nama_perusahaan']]);
+            } elseif ($linkedUser !== null && $linkedUser->name !== $remote['nama_perusahaan']) {
+                // Only update display name; NEVER overwrite password, email, or roles
+                $linkedUser->update(['name' => $remote['nama_perusahaan']]);
             }
 
             if ($this->dudiUnchanged($existing, $remote)) {
@@ -751,6 +1009,9 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 return 'unchanged';
             }
 
+            // Update ONLY allowed identity & SiPintu link fields — NEVER overwrite geofence coordinates,
+            // radius, working hours (jam_masuk/jam_pulang/toleransi_keterlambatan/hari_operasional),
+            // sso_enabled, password, or PKL placements.
             $updateData = [
                 'nama_perusahaan' => $remote['nama_perusahaan'],
                 'penanggung_jawab' => $remote['penanggung_jawab'] ?? $remote['pimpinan'] ?? $existing->penanggung_jawab,
@@ -768,19 +1029,26 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 $updateData['sipintu_user_id'] = $sipintuUserId;
             }
 
-            if (isset($remote['status_aktif'])) {
-                $updateData['status_aktif'] = (bool) $remote['status_aktif'];
+            $resolvedStatus = $this->resolveRemoteDudiStatus($remote);
+            if ($resolvedStatus !== null) {
+                $updateData['status_aktif'] = $resolvedStatus;
             }
 
-            if ($email !== null && $email !== '' && $email !== $existing->email_perusahaan) {
-                $collision = Dudi::query()
-                    ->where('email_perusahaan', $email)
-                    ->where('id', '!=', $existing->id)
-                    ->exists();
-
-                if (! $collision) {
-                    $updateData['email_perusahaan'] = $email;
+            if ($email !== null && $email !== '') {
+                if ($existing->sipintu_email === null) {
                     $updateData['sipintu_email'] = $email;
+                }
+                if ($email !== strtolower((string) ($existing->email_perusahaan ?? ''))) {
+                    $collision = Dudi::query()
+                        ->withTrashed()
+                        ->whereRaw('LOWER(email_perusahaan) = ?', [$email])
+                        ->where('id', '!=', $existing->id)
+                        ->exists();
+
+                    if (! $collision) {
+                        $updateData['email_perusahaan'] = $email;
+                        $updateData['sipintu_email'] = $email;
+                    }
                 }
             }
 
@@ -897,6 +1165,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $dryRun = $context['dry_run'];
         $stats = $context['stats'];
         $seenNip = [];
+        $seenEmailToNip = [];
         $remoteNipSet = [];
 
         foreach ($teachers as $index => $remote) {
@@ -929,6 +1198,20 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             $remote['nip'] = $nip;
             $remoteNipSet[$nip] = true;
 
+            $explicitEmail = $this->explicitTeacherEmail($remote);
+            $effectiveEmail = $explicitEmail ?? $this->fallbackTeacherEmail($nip);
+            if (isset($seenEmailToNip[$effectiveEmail]) && $seenEmailToNip[$effectiveEmail] !== $nip) {
+                Log::warning('Teacher skipped during SiPintu sync', [
+                    'reason' => 'duplicate_email_across_different_nip',
+                    'nip' => $nip,
+                    'record_index' => $index,
+                    'dry_run' => $dryRun,
+                ]);
+                $this->applyRecordOutcome($stats, $dryRun, 'conflict');
+
+                continue;
+            }
+
             try {
                 $evaluation = $this->evaluateTeacher($remote);
                 $outcome = $dryRun
@@ -942,6 +1225,10 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                     'dry_run' => $dryRun,
                 ]);
                 $outcome = 'error';
+            }
+
+            if (in_array($outcome, ['created', 'updated', 'unchanged'], true)) {
+                $seenEmailToNip[$effectiveEmail] = $nip;
             }
 
             $this->applyRecordOutcome(
@@ -968,20 +1255,93 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     private function dudiUnchanged(Dudi $existing, array $remote): bool
     {
+        if ($existing->trashed()) {
+            return false;
+        }
+
+        $sipintuId = (string) $remote['sipintu_id'];
+        if ($existing->sipintu_id === null && $sipintuId !== '') {
+            return false;
+        }
+
+        $sipintuUserId = ! empty($remote['sipintu_user_id']) ? (string) $remote['sipintu_user_id'] : null;
+        if ($sipintuUserId !== null && $existing->sipintu_user_id === null) {
+            return false;
+        }
+
         $namaMatches = trim($existing->nama_perusahaan) === trim((string) $remote['nama_perusahaan']);
         $pimpinanRemote = $remote['penanggung_jawab'] ?? $remote['pimpinan'] ?? null;
         $pimpinanMatches = $pimpinanRemote === null || trim((string) ($existing->penanggung_jawab ?? '')) === trim((string) $pimpinanRemote);
         $telpRemote = $remote['no_telepon'] ?? $remote['telepon'] ?? null;
         $telpMatches = $telpRemote === null || trim((string) ($existing->no_telepon ?? '')) === trim((string) $telpRemote);
+        $bidangRemote = $remote['bidang_usaha'] ?? null;
+        $bidangMatches = $bidangRemote === null || trim((string) ($existing->bidang_usaha ?? '')) === trim((string) $bidangRemote);
         $alamatRemote = $remote['alamat'] ?? null;
         $alamatMatches = $alamatRemote === null || trim((string) ($existing->alamat ?? '')) === trim((string) $alamatRemote);
 
+        $emailRemote = ! empty($remote['email_perusahaan']) ? strtolower(trim((string) $remote['email_perusahaan'])) : null;
+        $emailMatches = $emailRemote === null || strtolower(trim((string) ($existing->email_perusahaan ?? ''))) === $emailRemote;
+
         $statusMatches = true;
-        if (isset($remote['status_aktif'])) {
-            $statusMatches = (bool) $existing->status_aktif === (bool) $remote['status_aktif'];
+        $resolvedStatus = $this->resolveRemoteDudiStatus($remote);
+        if ($resolvedStatus !== null) {
+            $statusMatches = (bool) $existing->status_aktif === $resolvedStatus;
         }
 
-        return $namaMatches && $pimpinanMatches && $telpMatches && $alamatMatches && $statusMatches;
+        return $namaMatches && $pimpinanMatches && $telpMatches && $bidangMatches && $alamatMatches && $emailMatches && $statusMatches;
+    }
+
+    /**
+     * Resolve effective DUDI active flag from remote payload with explicit boolean/string parsing
+     * so strings like 'false', 'inactive', '0', 'nonaktif' are never cast to true.
+     *
+     * @param  array<string, mixed>  $remote
+     */
+    private function resolveRemoteDudiStatus(array $remote, ?bool $default = null): ?bool
+    {
+        foreach (['status_aktif', 'is_active', 'active', 'status'] as $key) {
+            if (! array_key_exists($key, $remote)) {
+                continue;
+            }
+
+            $parsed = $this->parseRemoteBoolean($remote[$key]);
+            if ($parsed !== null) {
+                return $parsed;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * Safely parse boolean values coming from JSON APIs (native bool, 0/1 ints, and common status strings).
+     */
+    private function parseRemoteBoolean(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return ((int) $value) !== 0;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if ($normalized === '') {
+                return null;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'no', 'n', 'off', 'inactive', 'nonaktif', 'non-aktif', 'tidak', 'disabled', 'suspended'], true)) {
+                return false;
+            }
+
+            if (in_array($normalized, ['1', 'true', 'yes', 'y', 'on', 'active', 'aktif', 'ya', 'enabled'], true)) {
+                return true;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -1358,12 +1718,12 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
             $siswa->forceFill([
                 'nis' => $nis,
-                'nisn' => $remote['nisn'] ?? $siswa->nisn,
+                'nisn' => $this->resolveOptionalField($remote, ['nisn'], $siswa->nisn),
                 'nama' => $nama,
                 'jenis_kelamin' => $this->mapJenisKelamin($remote) ?? $siswa->jenis_kelamin,
                 'tanggal_lahir' => $tanggalLahir ?? $siswa->tanggal_lahir,
-                'no_telepon' => $remote['no_telepon'] ?? $remote['hp'] ?? $siswa->no_telepon,
-                'alamat' => $remote['alamat'] ?? $siswa->alamat,
+                'no_telepon' => $this->resolveOptionalField($remote, ['no_telepon', 'hp'], $siswa->no_telepon),
+                'alamat' => $this->resolveOptionalField($remote, ['alamat'], $siswa->alamat),
                 'class_id' => $kelas?->id,
             ]);
             if ($siswa->isDirty()) {
@@ -1390,56 +1750,114 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     }
 
     /**
-     * Unified, read-only evaluation for one remote teacher (NIP based).
+     * Unified, read-only evaluation for one remote teacher (NIP priority, then email fallback).
      * Shared by BOTH Preview and Actual Synchronization so classifications never diverge.
      *
+     * Rules:
+     *  - Priority 1: match by NIP; fallback to email if NIP is absent locally.
+     *  - Soft-deleted Guru/User records are NEVER auto-restored without Admin action and never duplicated (`skipped`).
+     *  - Protected accounts (Super Admin, DUDI) or conflicting non-Guru accounts are flagged `conflict` without modification.
+     *  - Missing/empty remote email defaults to `{NIP}@<app.student_email_domain>` when creating a new account.
+     *
      * @param  array<string, mixed>  $remote
-     * @return array{outcome: string, guru: Guru|null}
+     * @return array{outcome: string, guru: Guru|null, user: User|null}
      */
     private function evaluateTeacher(array $remote): array
     {
         $nip = (string) $remote['nip'];
+        if ($this->personName($remote) === '') {
+            return ['outcome' => 'invalid', 'guru' => null, 'user' => null];
+        }
+
         $existing = $this->findGuruByNip($nip);
-        $email = $this->teacherEmail($remote, $nip);
+        $explicitEmail = $this->explicitTeacherEmail($remote);
+        $resolvedEmail = $explicitEmail ?? $this->fallbackTeacherEmail($nip);
 
-        if ($existing === null) {
-            if ($this->personName($remote) === '') {
-                return ['outcome' => 'invalid', 'guru' => null];
+        if ($existing !== null) {
+            $linkedUser = $this->usersById[$existing->user_id] ?? $existing->user()->withTrashed()->with('roles')->first();
+
+            if ($existing->trashed() || ($linkedUser !== null && $linkedUser->trashed())) {
+                return ['outcome' => 'skipped', 'guru' => $existing, 'user' => $linkedUser];
             }
 
-            $existingByEmail = $this->findUserByEmail($email);
-            if ($existingByEmail !== null) {
-                $existingGuru = Guru::query()->withTrashed()->where('user_id', $existingByEmail->id)->first();
-                if ($existingGuru === null) {
-                    return ['outcome' => 'conflict', 'guru' => null];
-                }
-
-                if ($this->hasProtectedUser($existingGuru->user_id) || trim((string) $existingGuru->nip) !== trim($nip)) {
-                    return ['outcome' => 'conflict', 'guru' => $existingGuru];
-                }
-
-                $existing = $existingGuru;
-            } else {
-                return ['outcome' => 'created', 'guru' => null];
+            if ($this->hasConflictingTeacherUser($linkedUser)) {
+                return ['outcome' => 'conflict', 'guru' => $existing, 'user' => $linkedUser];
             }
+
+            $targetEmail = $explicitEmail ?? ($linkedUser !== null ? strtolower(trim($linkedUser->email)) : $resolvedEmail);
+            if ($this->userEmailBelongsToAnotherAccount($targetEmail, $existing->user_id)) {
+                return ['outcome' => 'conflict', 'guru' => $existing, 'user' => $linkedUser];
+            }
+
+            return [
+                'outcome' => $this->teacherUnchanged($existing, $remote, $explicitEmail, $linkedUser) ? 'unchanged' : 'updated',
+                'guru' => $existing,
+                'user' => $linkedUser,
+            ];
         }
 
-        if ($this->hasProtectedUser($existing->user_id)
-            || $this->userEmailBelongsToAnotherAccount($email, $existing->user_id)) {
-            return ['outcome' => 'conflict', 'guru' => $existing];
+        // Priority 2: fallback match by email (explicit remote email or generated NIP domain email)
+        $existingByEmail = $this->findUserByEmail($resolvedEmail);
+        if ($existingByEmail !== null) {
+            if ($this->hasConflictingTeacherUser($existingByEmail)) {
+                return ['outcome' => 'conflict', 'guru' => null, 'user' => $existingByEmail];
+            }
+
+            /** @var Guru|null $existingGuru */
+            $existingGuru = Guru::query()->withTrashed()->where('user_id', $existingByEmail->id)->first();
+
+            if ($existingGuru === null) {
+                if (! $existingByEmail->hasRole(UserRole::GURU->value)) {
+                    return ['outcome' => 'conflict', 'guru' => null, 'user' => $existingByEmail];
+                }
+
+                if ($existingByEmail->trashed()) {
+                    return ['outcome' => 'skipped', 'guru' => null, 'user' => $existingByEmail];
+                }
+
+                return ['outcome' => 'updated', 'guru' => null, 'user' => $existingByEmail];
+            }
+
+            if ($existingGuru->trashed() || $existingByEmail->trashed()) {
+                return ['outcome' => 'skipped', 'guru' => $existingGuru, 'user' => $existingByEmail];
+            }
+
+            $existingNip = trim((string) $existingGuru->nip);
+            if ($existingNip !== '' && $existingNip !== trim($nip)) {
+                return ['outcome' => 'conflict', 'guru' => $existingGuru, 'user' => $existingByEmail];
+            }
+
+            return [
+                'outcome' => $this->teacherUnchanged($existingGuru, $remote, $explicitEmail, $existingByEmail) ? 'unchanged' : 'updated',
+                'guru' => $existingGuru,
+                'user' => $existingByEmail,
+            ];
         }
 
-        return [
-            'outcome' => $this->teacherUnchanged($existing, $remote) ? 'unchanged' : 'updated',
-            'guru' => $existing,
-        ];
+        return ['outcome' => 'created', 'guru' => null, 'user' => null];
+    }
+
+    /**
+     * Determine whether an existing User account conflicts with Guru role ownership.
+     */
+    private function hasConflictingTeacherUser(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user->hasRole(UserRole::SUPER_ADMIN->value) || $user->hasRole(UserRole::DUDI->value) || $user->hasRole(UserRole::SISWA->value)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Execute synchronization action based on unified teacher evaluation.
      *
      * @param  array<string, mixed>  $remote
-     * @param  array{outcome: string, guru: Guru|null}  $evaluation
+     * @param  array{outcome: string, guru: Guru|null, user: User|null}  $evaluation
      */
     private function executeTeacherSync(array $remote, array $evaluation): string
     {
@@ -1449,13 +1867,57 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             return $this->createTeacher($remote);
         }
 
-        if ($outcome === 'updated' && $evaluation['guru'] !== null) {
-            $this->updateTeacher($evaluation['guru'], $remote);
+        if ($outcome === 'updated') {
+            if ($evaluation['guru'] !== null) {
+                $this->updateTeacher($evaluation['guru'], $remote);
 
-            return 'updated';
+                return 'updated';
+            }
+
+            if ($evaluation['user'] !== null) {
+                return $this->attachTeacherProfileToExistingUser($evaluation['user'], $remote);
+            }
         }
 
         return $outcome;
+    }
+
+    /**
+     * Attach a missing Guru profile row to an already-existing active Guru user
+     * matched by email, preserving its existing password and roles.
+     *
+     * @param  array<string, mixed>  $remote
+     */
+    private function attachTeacherProfileToExistingUser(User $user, array $remote): string
+    {
+        $nama = $this->personName($remote, $user->name);
+        $nip = (string) $remote['nip'];
+
+        /** @var Guru $guru */
+        $guru = $this->transaction(function () use ($user, $remote, $nama, $nip): Guru {
+            $user->forceFill(['name' => $nama]);
+            if ($user->isDirty()) {
+                $user->save();
+            }
+
+            /** @var Guru $guru */
+            $guru = $this->guruRepository->create([
+                'user_id' => $user->id,
+                'nip' => $nip,
+                'nama' => $nama,
+                'jenis_kelamin' => $this->mapJenisKelamin($remote),
+                'no_hp' => $remote['no_hp'] ?? $remote['hp'] ?? null,
+                'alamat' => $remote['alamat'] ?? null,
+            ]);
+
+            $guru->setRelation('user', $user);
+
+            return $guru;
+        });
+
+        $this->rememberGuru($guru);
+
+        return 'updated';
     }
 
     /**
@@ -1469,17 +1931,32 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $nip = (string) $remote['nip'];
         $email = $this->teacherEmail($remote, $nip);
 
-        $existingByEmail = User::query()->withTrashed()->where('email', $email)->first();
+        $existingByEmail = User::query()->withTrashed()->with('roles')->where('email', $email)->first();
         if ($existingByEmail !== null) {
+            if ($this->hasConflictingTeacherUser($existingByEmail)) {
+                return 'conflict';
+            }
+
             $existingGuru = Guru::query()->withTrashed()->where('user_id', $existingByEmail->id)->first();
-            if ($existingGuru !== null && trim((string) $existingGuru->nip) === trim($nip)) {
-                if ($this->hasProtectedUser($existingGuru->user_id)) {
-                    return 'conflict';
+            if ($existingGuru !== null) {
+                if ($existingGuru->trashed() || $existingByEmail->trashed()) {
+                    return 'skipped';
                 }
 
-                $this->updateTeacher($existingGuru, $remote);
+                $existingNip = trim((string) $existingGuru->nip);
+                if ($existingNip === '' || $existingNip === trim($nip)) {
+                    $this->updateTeacher($existingGuru, $remote);
 
-                return 'updated';
+                    return 'updated';
+                }
+
+                return 'conflict';
+            }
+
+            if ($existingByEmail->hasRole(UserRole::GURU->value)) {
+                return $existingByEmail->trashed()
+                    ? 'skipped'
+                    : $this->attachTeacherProfileToExistingUser($existingByEmail, $remote);
             }
 
             return 'conflict';
@@ -1519,7 +1996,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     }
 
     /**
-     * Update an existing Guru + User from a SiPintu teacher record.
+     * Update an existing active Guru + User from a SiPintu teacher record.
+     * Never modifies password, Super Admin roles, or auto-restores trashed records.
      *
      * @param  array<string, mixed>  $remote
      */
@@ -1527,20 +2005,16 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     {
         $nama = $this->personName($remote, $guru->nama);
         $nip = (string) $remote['nip'];
-        $email = $this->teacherEmail($remote, $nip);
+        $explicitEmail = $this->explicitTeacherEmail($remote);
 
-        $this->transaction(function () use ($guru, $remote, $nama, $nip, $email): void {
-            if ($guru->trashed()) {
-                $guru->restore();
-            }
-
+        $this->transaction(function () use ($guru, $remote, $nama, $nip, $explicitEmail): void {
             $user = null;
             if ($this->usersById !== null) {
                 $user = $this->usersById[$guru->user_id] ?? null;
             }
 
             if ($user === null) {
-                $user = $guru->user()->withTrashed()->first();
+                $user = $guru->user()->withTrashed()->with('roles')->first();
                 if ($user !== null && $this->usersById !== null) {
                     $this->usersById[$user->id] = $user;
                     $this->usersByEmail[strtolower($user->email)] = $user;
@@ -1548,9 +2022,10 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             }
 
             if ($user === null) {
+                $fallbackEmail = $explicitEmail ?? $this->fallbackTeacherEmail($nip);
                 $user = $this->userRepository->create([
                     'name' => $nama,
-                    'email' => $email,
+                    'email' => $fallbackEmail,
                     'password' => $this->defaultPassword(),
                     'must_change_password' => false,
                     'email_verified_at' => now(),
@@ -1559,16 +2034,15 @@ class SiPintuService extends Service implements SiPintuServiceInterface
                 $user->assignRole(UserRole::GURU->value);
 
                 $guru->user_id = $user->id;
-            } elseif ($user->trashed()) {
-                $user->restore();
-            }
-
-            $user->forceFill([
-                'name' => $nama,
-                'email' => $email,
-            ]);
-            if ($user->isDirty()) {
-                $user->save();
+            } else {
+                $targetEmail = $explicitEmail ?? strtolower(trim($user->email));
+                $user->forceFill([
+                    'name' => $nama,
+                    'email' => $targetEmail !== '' ? $targetEmail : $this->fallbackTeacherEmail($nip),
+                ]);
+                if ($user->isDirty()) {
+                    $user->save();
+                }
             }
 
             $guru->forceFill([
@@ -1581,26 +2055,49 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             if ($guru->isDirty()) {
                 $guru->save();
             }
+
+            $guru->setRelation('user', $user);
         });
+
+        $this->rememberGuru($guru);
+    }
+
+    /**
+     * Extract a valid explicit email from a remote teacher payload, if provided.
+     *
+     * @param  array<string, mixed>  $remote
+     */
+    private function explicitTeacherEmail(array $remote): ?string
+    {
+        $raw = $remote['email'] ?? ($remote['user']['email'] ?? null);
+        if (! is_string($raw)) {
+            return null;
+        }
+
+        $email = strtolower(trim($raw));
+
+        return ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) ? $email : null;
+    }
+
+    /**
+     * Fallback teacher email format: {NIP}@<app.student_email_domain>.
+     */
+    private function fallbackTeacherEmail(string $nip): string
+    {
+        return strtolower(trim($nip)).'@'.Siswa::emailDomain();
     }
 
     /**
      * Determine the teacher login email.
      *
-     * Uses the API "email" (from user.email) if available, otherwise generates
-     * {NIP}@smk1bangsri.sch.id.
+     * Uses the API "email" (from email / user.email) if available, otherwise generates
+     * {NIP}@<app.student_email_domain>.
      *
      * @param  array<string, mixed>  $remote
      */
     private function teacherEmail(array $remote, string $nip): string
     {
-        $email = (string) ($remote['email'] ?? $remote['user']['email'] ?? '');
-
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return strtolower(trim($email));
-        }
-
-        return strtolower(trim($nip)).'@'.Siswa::emailDomain();
+        return $this->explicitTeacherEmail($remote) ?? $this->fallbackTeacherEmail($nip);
     }
 
     /**
@@ -1614,9 +2111,17 @@ class SiPintuService extends Service implements SiPintuServiceInterface
         $expectedNisn = (string) ($remote['nisn'] ?? $siswa->nisn ?? '');
         $expectedJk = $this->mapJenisKelamin($remote) ?? $siswa->jenis_kelamin ?? null;
         $expectedTgl = (string) ($this->parseTanggalLahir($remote) ?? ($siswa->tanggal_lahir ? $siswa->tanggal_lahir->format('Y-m-d') : ''));
-        $expectedPhone = (string) ($remote['no_telepon'] ?? $remote['hp'] ?? $siswa->no_telepon ?? '');
-        $expectedAlamat = (string) ($remote['alamat'] ?? $siswa->alamat ?? '');
         $expectedClass = $kelas?->id;
+
+        // For optional fields (no_telepon, alamat): if the remote does NOT send the key at all,
+        // treat the existing local value as expected (preserve-on-absent). If the remote sends
+        // the key (even as null or ''), treat the sent value as expected.
+        // This prevents phantom "updated" when SiPintu omits the field vs. having a local value.
+        $remotePhone = $this->resolveOptionalField($remote, ['no_telepon', 'hp'], $siswa->no_telepon);
+        $expectedPhone = (string) ($remotePhone ?? '');
+
+        $remoteAlamat = $this->resolveOptionalField($remote, ['alamat'], $siswa->alamat);
+        $expectedAlamat = (string) ($remoteAlamat ?? '');
 
         return (string) $siswa->nis === (string) $remote['nis']
             && (string) $siswa->nisn === $expectedNisn
@@ -1630,44 +2135,96 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     }
 
     /**
+     * Resolve an optional remote field: if any of the keys exist in the remote array,
+     * return the first non-null non-empty value found. If none exist, fall back to the
+     * local value (preserve-on-absent semantics).
+     *
+     * @param  array<string, mixed>  $remote
+     * @param  string[]              $keys   Ordered list of field-name aliases to check.
+     */
+    private function resolveOptionalField(array $remote, array $keys, mixed $localValue): mixed
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $remote)) {
+                // Field was explicitly sent; use it (even if null/empty string).
+                $v = $remote[$key];
+
+                return ($v !== null && $v !== '') ? $v : null;
+            }
+        }
+
+        // Field was not sent at all — preserve the local value.
+        return $localValue;
+    }
+
+    /**
      * Compare all updatable teacher fields to decide unchanged vs updated.
      *
      * @param  array<string, mixed>  $remote
      */
-    private function teacherUnchanged(Guru $guru, array $remote): bool
+    private function teacherUnchanged(Guru $guru, array $remote, ?string $explicitEmail = null, ?User $linkedUser = null): bool
     {
-        $expectedName = (string) ($remote['nama'] ?? $guru->nama ?? '');
+        $expectedName = (string) ($remote['nama'] ?? $remote['name'] ?? $guru->nama ?? '');
         $expectedJk = $this->mapJenisKelamin($remote) ?? $guru->jenis_kelamin ?? null;
         $expectedPhone = (string) ($remote['no_hp'] ?? $remote['hp'] ?? $guru->no_hp ?? '');
         $expectedAlamat = (string) ($remote['alamat'] ?? $guru->alamat ?? '');
+
+        $emailMatches = true;
+        if ($explicitEmail !== null && $linkedUser !== null) {
+            $emailMatches = strtolower(trim($linkedUser->email)) === $explicitEmail;
+        }
 
         return (string) $guru->nip === (string) $remote['nip']
             && (string) $guru->nama === $expectedName
             && (string) ($guru->jenis_kelamin ?? '') === (string) $expectedJk
             && (string) ($guru->no_hp ?? '') === $expectedPhone
-            && (string) ($guru->alamat ?? '') === $expectedAlamat;
+            && (string) ($guru->alamat ?? '') === $expectedAlamat
+            && $emailMatches;
     }
 
     /**
-     * Parse tanggal_lahir from a SiPintu record (supports Y-m-d and d/m/Y).
+     * Parse tanggal_lahir from a SiPintu record.
+     * Supports Y-m-d, d/m/Y, d-m-Y, Y/m/d, Ymd, and ISO 8601 timestamps.
      *
      * @param  array<string, mixed>  $remote
      */
     private function parseTanggalLahir(array $remote): ?string
     {
-        $value = (string) ($remote['tanggal_lahir'] ?? $remote['tgl_lahir'] ?? '');
+        $raw = $remote['tanggal_lahir'] ?? $remote['tgl_lahir'] ?? null;
+        $value = is_scalar($raw) ? trim((string) $raw) : '';
 
-        if ($value === '') {
+        if ($value === '' || $value === '0000-00-00') {
             return null;
         }
 
-        try {
-            if (str_contains($value, '/')) {
-                return Carbon::createFromFormat('d/m/Y', $value)?->format('Y-m-d');
-            }
+        $formats = [
+            'Y-m-d',
+            'd/m/Y',
+            'd-m-Y',
+            'Y/m/d',
+            'Ymd',
+        ];
 
+        foreach ($formats as $format) {
+            try {
+                $parsed = Carbon::createFromFormat($format, $value);
+                if ($parsed !== false && $parsed->format($format) === $value) {
+                    return $parsed->format('Y-m-d');
+                }
+            } catch (\Throwable) {
+                // Try next format
+            }
+        }
+
+        try {
             return Carbon::parse($value)->format('Y-m-d');
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::debug('SiPintu parseTanggalLahir failed', [
+                'raw' => $value,
+                'nis' => $remote['nis'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }
@@ -1813,7 +2370,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
      */
     private function personName(array $remote, string $fallback = ''): string
     {
-        $value = $remote['nama'] ?? $remote['nama_panggilan'] ?? $fallback;
+        $value = $remote['nama'] ?? $remote['name'] ?? $remote['nama_panggilan'] ?? $fallback;
 
         return is_string($value) ? trim($value) : $fallback;
     }
@@ -1952,7 +2509,8 @@ class SiPintuService extends Service implements SiPintuServiceInterface
 
         foreach ($locals as $guru) {
             /** @var Guru $guru */
-            if (! isset($remoteNipSet[$guru->nip])) {
+            $localNip = trim((string) ($guru->nip ?? ''));
+            if ($localNip === '' || ! isset($remoteNipSet[$localNip])) {
                 $missing++;
             }
         }
@@ -1970,6 +2528,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             'updated' => 'diperbarui',
             'unchanged' => 'tidak_berubah',
             'needs_mapping' => 'perlu_pemetaan',
+            'skipped' => 'dilewati',
             'duplicate' => 'duplikat',
             'conflict' => 'konflik',
             'invalid' => 'tidak_valid',
@@ -2032,6 +2591,7 @@ class SiPintuService extends Service implements SiPintuServiceInterface
             'diperbarui' => 0,
             'tidak_berubah' => 0,
             'perlu_pemetaan' => 0,
+            'dilewati' => 0,
             'duplikat' => 0,
             'konflik' => 0,
             'tidak_valid' => 0,
@@ -2082,44 +2642,83 @@ class SiPintuService extends Service implements SiPintuServiceInterface
     /**
      * {@inheritDoc}
      */
+    public function checkEndpointsStatus(array $endpoints): array
+    {
+        return $this->siPintuRepository->checkEndpointsStatus($endpoints);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getDiagnostics(): array
     {
         $conn = $this->testConnection();
-        $studentStatus = $this->checkEndpointStatus('/api/v1/sijuna/students');
-        $teacherStatus = $this->checkEndpointStatus('/api/v1/sijuna/teachers');
-        $dudiStatus = $this->checkEndpointStatus('/api/v1/sijuna/dudi');
+        $statuses = $this->checkEndpointsStatus([
+            SiPintuRepositoryInterface::ENDPOINT_STUDENTS,
+            SiPintuRepositoryInterface::ENDPOINT_TEACHERS,
+            SiPintuRepositoryInterface::ENDPOINT_DUDI,
+        ]);
+
+        $studentStatus = $statuses[SiPintuRepositoryInterface::ENDPOINT_STUDENTS] ?? $this->emptyEndpointStatus(SiPintuRepositoryInterface::ENDPOINT_STUDENTS);
+        $teacherStatus = $statuses[SiPintuRepositoryInterface::ENDPOINT_TEACHERS] ?? $this->emptyEndpointStatus(SiPintuRepositoryInterface::ENDPOINT_TEACHERS);
+        $dudiStatus = $statuses[SiPintuRepositoryInterface::ENDPOINT_DUDI] ?? $this->emptyEndpointStatus(SiPintuRepositoryInterface::ENDPOINT_DUDI);
 
         return [
             'gateway' => [
-                'name' => 'Gateway SiPintu (/api/v1/health)',
+                'name' => 'Gateway SiPintu ('.SiPintuRepositoryInterface::ENDPOINT_HEALTH.')',
                 'status' => $conn['status'],
                 'http_status' => $conn['http_status'],
+                'error_type' => $conn['error_type'],
                 'message' => $conn['message'],
+                'count' => null,
             ],
             'profile' => [
-                'name' => 'Endpoint Profil Pengguna (/api/v1/user)',
+                'name' => 'Endpoint Profil Pengguna ('.SiPintuRepositoryInterface::ENDPOINT_USER.')',
                 'status' => true,
                 'http_status' => null,
+                'error_type' => null,
                 'message' => 'Endpoint OAuth SSO aktif untuk autentikasi login pengguna.',
+                'count' => null,
             ],
             'students' => [
-                'name' => 'Endpoint Data Siswa (/api/v1/sijuna/students)',
+                'name' => 'Endpoint Data Siswa ('.SiPintuRepositoryInterface::ENDPOINT_STUDENTS.')',
                 'status' => $studentStatus['success'],
-                'http_status' => $studentStatus['status'],
+                'http_status' => $studentStatus['http_status'] ?? $studentStatus['status'],
+                'error_type' => $studentStatus['error_type'],
                 'message' => $studentStatus['message'],
+                'count' => $studentStatus['count'] ?? null,
             ],
             'teachers' => [
-                'name' => 'Endpoint Data Guru (/api/v1/sijuna/teachers)',
+                'name' => 'Endpoint Data Guru ('.SiPintuRepositoryInterface::ENDPOINT_TEACHERS.')',
                 'status' => $teacherStatus['success'],
-                'http_status' => $teacherStatus['status'],
+                'http_status' => $teacherStatus['http_status'] ?? $teacherStatus['status'],
+                'error_type' => $teacherStatus['error_type'],
                 'message' => $teacherStatus['message'],
+                'count' => $teacherStatus['count'] ?? null,
             ],
             'dudi' => [
-                'name' => 'Endpoint Data DUDI (/api/v1/dudi)',
+                'name' => 'Endpoint Data DUDI ('.SiPintuRepositoryInterface::ENDPOINT_DUDI.')',
                 'status' => $dudiStatus['success'],
-                'http_status' => $dudiStatus['status'],
+                'http_status' => $dudiStatus['http_status'] ?? $dudiStatus['status'],
+                'error_type' => $dudiStatus['error_type'],
                 'message' => $dudiStatus['message'],
+                'count' => $dudiStatus['count'] ?? null,
             ],
+        ];
+    }
+
+    /**
+     * @return array{status: null, http_status: null, success: false, error_type: string, message: string, count: null}
+     */
+    private function emptyEndpointStatus(string $endpoint): array
+    {
+        return [
+            'status' => null,
+            'http_status' => null,
+            'success' => false,
+            'error_type' => 'connection',
+            'message' => "Status endpoint {$endpoint} gagal diperiksa.",
+            'count' => null,
         ];
     }
 

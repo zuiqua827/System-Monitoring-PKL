@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -35,14 +36,33 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('dudi', function (Blueprint $table): void {
-            $table->dropUnique(['sipintu_id']);
-            $table->dropColumn(['sipintu_id']);
-            $table->unsignedBigInteger('user_id')->nullable(false)->change();
-        });
+        if (Schema::hasTable('dudi')) {
+            if (Schema::hasColumn('dudi', 'sipintu_id')) {
+                Schema::table('dudi', function (Blueprint $table): void {
+                    $table->dropUnique(['sipintu_id']);
+                });
 
-        Schema::table('sipintu_sync_logs', function (Blueprint $table): void {
-            $table->dropColumn(['dudi_added', 'dudi_updated', 'dudi_deleted', 'dudi_skipped']);
-        });
+                Schema::table('dudi', function (Blueprint $table): void {
+                    $table->dropColumn(['sipintu_id']);
+                });
+            }
+
+            if (Schema::hasColumn('dudi', 'user_id') && DB::table('dudi')->whereNull('user_id')->doesntExist()) {
+                Schema::table('dudi', function (Blueprint $table): void {
+                    $table->unsignedBigInteger('user_id')->nullable(false)->change();
+                });
+            }
+        }
+
+        $statsColumns = array_values(array_filter(
+            ['dudi_added', 'dudi_updated', 'dudi_deleted', 'dudi_skipped'],
+            fn (string $column): bool => Schema::hasColumn('sipintu_sync_logs', $column),
+        ));
+
+        if ($statsColumns !== []) {
+            Schema::table('sipintu_sync_logs', function (Blueprint $table) use ($statsColumns): void {
+                $table->dropColumn($statsColumns);
+            });
+        }
     }
 };

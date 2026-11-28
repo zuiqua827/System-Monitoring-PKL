@@ -33,8 +33,8 @@ php artisan sipintu:sso-health
 
 | Parameter | Deskripsi | Contoh (Development) |
 | :--- | :--- | :--- |
-| **Client ID** | ID Unik Aplikasi Anda | `app_mecmvhpduc8e` |
-| **Client Secret** | Kunci Rahasia Aplikasi | `sec_uEr8wGucp1jda8Ls6qOBsW03HrYVj6UK` |
+| **Client ID** | ID Unik Aplikasi Anda | `<CLIENT_ID_ANDA>` |
+| **Client Secret** | Kunci Rahasia Aplikasi | `<CLIENT_SECRET_ANDA>` |
 | **Redirect URI** | URL Callback SSO Aplikasi Anda | `http://localhost:8001/oauth/callback` |
 
 > 📌 **Dokumentasi Detail Kode:** Lihat file [SIPINTU_SSO_GUIDE.md](SIPINTU_SSO_GUIDE.md) untuk panduan lengkap controller & route copy-paste.
@@ -72,8 +72,8 @@ async function fetchStudents(nis = null) {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'X-Client-ID': 'app_sijuna_dev',
-        'X-Client-Secret': 'sec_xyz1234567890'
+        'X-Client-ID': '<CLIENT_ID_ANDA>',
+        'X-Client-Secret': '<CLIENT_SECRET_ANDA>'
       }
     });
 
@@ -95,8 +95,8 @@ async function fetchStudents(nis = null) {
 use Illuminate\Support\Facades\Http;
 
 $response = Http::withHeaders([
-    'X-Client-ID'     => 'app_sijuna_dev',
-    'X-Client-Secret' => 'sec_xyz1234567890',
+    'X-Client-ID'     => '<CLIENT_ID_ANDA>',
+    'X-Client-Secret' => '<CLIENT_SECRET_ANDA>',
     'Accept'          => 'application/json',
 ])->get('http://localhost:8000/api/v1/sijuna/students', [
     'nis' => '1234567890',
@@ -136,7 +136,7 @@ sequenceDiagram
 #### 1. Redirect User ke Authorization Endpoint
 Arahkan pengguna dari browser ke:
 ```text
-GET http://localhost:8000/oauth/authorize?client_id=app_sijuna_dev&redirect_uri=http://localhost:3000/callback&response_type=code&state=xyz123
+GET http://localhost:8000/oauth/authorize?client_id=<CLIENT_ID_ANDA>&redirect_uri=http://localhost:3000/callback&response_type=code&state=xyz123
 ```
 
 #### 2. Tangkap Authorization Code di Callback URL
@@ -153,9 +153,9 @@ Host: localhost:8000
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
-&client_id=app_sijuna_dev
-&client_secret=sec_xyz1234567890
-&code=AUTH_CODE_TEMPORARY
+&client_id=<CLIENT_ID_ANDA>
+&client_secret=<CLIENT_SECRET_ANDA>
+&code=<AUTH_CODE_TEMPORARY>
 &redirect_uri=http://localhost:3000/callback
 ```
 
@@ -191,8 +191,8 @@ const userProfile = await response.json();
 ```bash
 curl -X GET "http://localhost:8000/api/v1/sijuna/students?nis=1234567890" \
      -H "Accept: application/json" \
-     -H "X-Client-ID: app_sijuna_dev" \
-     -H "X-Client-Secret: sec_xyz1234567890"
+     -H "X-Client-ID: <CLIENT_ID_ANDA>" \
+     -H "X-Client-Secret: <CLIENT_SECRET_ANDA>"
 ```
 
 ### Setup di Postman

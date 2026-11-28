@@ -19,6 +19,12 @@
             </div>
             <div class="space-y-5 px-6 py-6">
                 <div>
+                    @if(isset($dudi) && $dudi && $dudi->user_id === null)
+                        <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700">
+                            <span class="inline-flex items-center rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-semibold text-slate-700 mr-1.5">DUDI tanpa akun lokal</span>
+                            Data ini belum memiliki akun user SIMONGAN; perubahan email akan disimpan ke profil perusahaan.
+                        </div>
+                    @endif
                     <label for="email" class="block text-sm font-semibold text-slate-700">
                         Email Login <span class="text-red-500">*</span>
                     </label>
@@ -68,7 +74,7 @@
                         <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                     @if(!isset($dudi) || !$dudi)
-                        <p class="mt-1.5 text-xs text-slate-500">Password default akun DUDI adalah <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">password</code> (dapat diubah setelah login).</p>
+                        <p class="mt-1.5 text-xs text-slate-500">Akun DUDI baru menggunakan password acak sekali pakai (wajib ganti saat login pertama atau masuk melalui SSO SiPintu).</p>
                     @endif
                 </div>
                 <div class="bg-white p-5">

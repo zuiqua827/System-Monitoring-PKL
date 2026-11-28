@@ -15,6 +15,16 @@ use App\Exceptions\SiPintuApiException;
  */
 interface SiPintuRepositoryInterface
 {
+    public const ENDPOINT_HEALTH = '/api/v1/health';
+
+    public const ENDPOINT_USER = '/api/v1/user';
+
+    public const ENDPOINT_STUDENTS = '/api/v1/sijuna/students';
+
+    public const ENDPOINT_TEACHERS = '/api/v1/sijuna/teachers';
+
+    public const ENDPOINT_DUDI = '/api/v1/sijuna/dudi';
+
     /**
      * Fetch the list of students from the SiPintu SIJUNA endpoint.
      *
@@ -55,9 +65,17 @@ interface SiPintuRepositoryInterface
     /**
      * Check HTTP status of an endpoint on SiPintu Gateway (lightweight probe).
      *
-     * @return array{status: int|null, success: bool, message: string, count: int|null}
+     * @return array{status: int|null, http_status: int|null, success: bool, error_type: string|null, message: string, count: int|null}
      */
     public function checkEndpointStatus(string $endpoint): array;
+
+    /**
+     * Check HTTP status of multiple SiPintu endpoints concurrently via HTTP pool.
+     *
+     * @param  list<string>  $endpoints
+     * @return array<string, array{status: int|null, http_status: int|null, success: bool, error_type: string|null, message: string, count: int|null}>
+     */
+    public function checkEndpointsStatus(array $endpoints): array;
 
     /**
      * Direct credential verification against SiPintu Gateway.

@@ -12,7 +12,6 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Supports:
  * - Camera capture (foto_base64) or file upload (foto_masuk)
- * - GPS coordinates (latitude, longitude, accuracy)
  */
 class CheckInRequest extends FormRequest
 {
@@ -24,15 +23,6 @@ class CheckInRequest extends FormRequest
         return true;
     }
 
-    // ============================================================
-    // VALIDASI FORM PRESENSI CHECK-IN SISWA
-    // ============================================================
-    // Mendukung dua input utama:
-    // 1. Foto Selfie Kamera: Dikirim dalam format string Base64 dari canvas browser.
-    // 2. Koordinat Geolocation: Latitude (-90 s.d 90) dan Longitude (-180 s.d 180)
-    //    yang diperoleh dari GPS perangkat siswa untuk dihitung jarak radiusnya.
-    // ============================================================
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -40,14 +30,9 @@ class CheckInRequest extends FormRequest
      */
     public function rules(): array
     {
-
         return [
             'foto_masuk' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
             'foto_base64' => ['nullable', 'string'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:10000'],
-            'lokasi_masuk' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -61,10 +46,6 @@ class CheckInRequest extends FormRequest
         return [
             'foto_masuk' => 'Foto Masuk',
             'foto_base64' => 'Foto Kamera',
-            'latitude' => 'Latitude',
-            'longitude' => 'Longitude',
-            'accuracy' => 'Akurasi GPS',
-            'lokasi_masuk' => 'Lokasi Masuk',
         ];
     }
 

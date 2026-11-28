@@ -14,6 +14,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Service layer for DUDI business logic.
@@ -64,14 +65,18 @@ class DudiService extends Service implements DudiServiceInterface
      *
      * Business Rules:
      * 1. Create User account with role "DUDI"
-     * 2. Use "password" as default initial password (hashed via Hash::make, force change on first login)
+     * 2. Use provided password or generate a random one-time password (hashed via Hash::make, must_change_password = true)
      * 3. Create Dudi record linked to the new User
      * 4. All within a single database transaction
      */
     public function store(array $data): Dudi
     {
+        $plainPassword = (isset($data['password']) && is_string($data['password']) && $data['password'] !== '')
+            ? $data['password']
+            : Str::password(16);
+
         /** @var Dudi $dudi */
-        $dudi = $this->transaction(function () use ($data): Model {
+        $dudi = $this->transaction(function () use ($data, $plainPassword): Model {
             $existingUser = User::withTrashed()->where('email', $data['email'])->first();
             if ($existingUser !== null) {
                 if ($existingUser->trashed()) {
@@ -79,7 +84,8 @@ class DudiService extends Service implements DudiServiceInterface
                 }
                 $existingUser->update([
                     'name' => $data['nama_perusahaan'],
-                    'password' => Hash::make($data['password'] ?? 'password'),
+                    'password' => Hash::make($plainPassword),
+                    'must_change_password' => true,
                 ]);
 
                 $existingDudi = Dudi::withTrashed()->where('user_id', $existingUser->id)->first();
@@ -105,12 +111,12 @@ class DudiService extends Service implements DudiServiceInterface
                 }
             }
 
-            // 1. Create User account with default password "password"
+            // 1. Create User account with explicit or random one-time password
             /** @var \App\Models\User $user */
             $user = $this->userRepository->create([
                 'name' => $data['nama_perusahaan'],
                 'email' => $data['email'],
-                'password' => Hash::make($data['password'] ?? 'password'),
+                'password' => Hash::make($plainPassword),
                 'must_change_password' => true,
                 'email_verified_at' => now(),
             ]);

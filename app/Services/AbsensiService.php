@@ -224,7 +224,7 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         }
 
         $this->validateActivePlacementForAttendance($penempatan, $waktuPresensi);
-        $locationResult = $this->evaluateLocationPolicy($penempatan, $data);
+        $modeKerja = $penempatan->getEffectiveModeKerja();
 
         $dudi = $penempatan->dudi;
 
@@ -247,7 +247,7 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                 $waktuPresensi,
                 $status,
                 $keterangan,
-                $locationResult,
+                $modeKerja,
                 $browser,
                 $userAgent,
                 &$fotoPath,
@@ -270,17 +270,17 @@ class AbsensiService extends Service implements AbsensiServiceInterface
                     'tanggal' => $waktuPresensi->toDateString(),
                     'jam_masuk' => $waktuPresensi->format('H:i:s'),
                     'status' => $status,
-                    'mode_kerja' => $locationResult['mode_kerja'],
+                    'mode_kerja' => $modeKerja,
                     'keterangan' => $keterangan,
-                    'lokasi_masuk' => $data['lokasi_masuk'] ?? null,
+                    'lokasi_masuk' => null,
                     'foto_masuk' => $fotoPath,
-                    'latitude_masuk' => $data['latitude'] ?? null,
-                    'longitude_masuk' => $data['longitude'] ?? null,
-                    'radius' => $locationResult['radius'],
-                    'jarak' => $locationResult['jarak'],
-                    'lokasi_valid' => $locationResult['lokasi_valid'],
-                    'validasi_lokasi_aktif' => $locationResult['validasi_lokasi_aktif'],
-                    'accuracy' => $data['accuracy'] ?? null,
+                    'latitude_masuk' => null,
+                    'longitude_masuk' => null,
+                    'radius' => null,
+                    'jarak' => null,
+                    'lokasi_valid' => true,
+                    'validasi_lokasi_aktif' => false,
+                    'accuracy' => null,
                     'ip_address' => $data['ip_address'] ?? request()->ip(),
                     'browser' => $browser,
                     'device' => $data['device'] ?? $userAgent,
@@ -307,7 +307,6 @@ class AbsensiService extends Service implements AbsensiServiceInterface
      * Business logic:
      * - Can only check out if already checked in and placement is active
      * - Cannot check out twice
-     * - Applies active WFO/WFH geofence policy consistently with Check In
      * - Handle base64 camera photo
      */
     public function checkOut(int $penempatanPklId, array $data): Absensi
@@ -321,13 +320,13 @@ class AbsensiService extends Service implements AbsensiServiceInterface
         }
 
         $this->validateActivePlacementForAttendance($penempatan, $waktuPresensi);
-        $locationResult = $this->evaluateLocationPolicy($penempatan, $data);
+        $modeKerja = $penempatan->getEffectiveModeKerja();
 
         $fotoPath = null;
 
         try {
             /** @var Absensi $updated */
-            $updated = $this->transaction(function () use ($penempatanPklId, $data, $waktuPresensi, $locationResult, &$fotoPath): Model {
+            $updated = $this->transaction(function () use ($penempatanPklId, $data, $waktuPresensi, $modeKerja, &$fotoPath): Model {
                 // Locking makes two concurrent Check Out attempts run one at a
                 // time, so the second attempt receives the correct message.
                 $todayAbsensi = $this->absensiRepository->lockTodayByPenempatan($penempatanPklId);
@@ -344,13 +343,12 @@ class AbsensiService extends Service implements AbsensiServiceInterface
 
                 return $this->absensiRepository->update($todayAbsensi, [
                     'jam_keluar' => $waktuPresensi->format('H:i:s'),
-                    'lokasi_pulang' => $data['lokasi_pulang'] ?? null,
+                    'lokasi_pulang' => null,
                     'foto_pulang' => $fotoPath,
-                    'latitude_keluar' => $data['latitude'] ?? null,
-                    'longitude_keluar' => $data['longitude'] ?? null,
-                    'accuracy' => $data['accuracy'] ?? $todayAbsensi->accuracy,
-                    'mode_kerja' => $todayAbsensi->mode_kerja ?? $locationResult['mode_kerja'],
-                    'lokasi_valid' => $todayAbsensi->lokasi_valid && $locationResult['lokasi_valid'],
+                    'latitude_keluar' => null,
+                    'longitude_keluar' => null,
+                    'mode_kerja' => $todayAbsensi->mode_kerja ?? $modeKerja,
+                    'lokasi_valid' => true,
                 ]);
             });
         } catch (\Throwable $e) {
@@ -460,139 +458,8 @@ class AbsensiService extends Service implements AbsensiServiceInterface
     }
 
     /**
-     * Evaluate WFO / WFH mode and geofence distance against approved coordinates.
-     *
-     * Matrix:
-     * - WFO + validasi_lokasi=true  : requires GPS within 100m of DUDI coordinates (when DUDI coords configured)
-     * - WFO + validasi_lokasi=false : allows check-in/out without geofence block; logs mode & coords
-     * - WFH + validasi_lokasi=true  : requires GPS within approved wfh_radius of wfh_latitude/longitude
-     * - WFH + validasi_lokasi=false : allows check-in/out without geofence block; logs mode & coords
-     *
-     * @param  array<string, mixed>  $data
-     * @return array{mode_kerja: string, validasi_lokasi_aktif: bool, radius: int|null, jarak: float|null, lokasi_valid: bool}
-     *
-     * @throws \RuntimeException If required coordinates are missing or distance exceeds radius
+     * Validate active placement window.
      */
-    private function evaluateLocationPolicy(PenempatanPKL $penempatan, array $data): array
-    {
-        $modeKerja = $penempatan->getEffectiveModeKerja();
-        $validasiAktif = (bool) ($penempatan->validasi_lokasi ?? true);
-
-        $hasUserCoords = $this->hasCoordinateInputs($data);
-        $userLat = $hasUserCoords ? (float) $data['latitude'] : null;
-        $userLng = $hasUserCoords ? (float) $data['longitude'] : null;
-
-        if ($modeKerja === 'WFH') {
-            $allowedRadius = $penempatan->getEffectiveWfhRadius();
-            $wfhLat = $penempatan->wfh_latitude !== null ? (float) $penempatan->wfh_latitude : null;
-            $wfhLng = $penempatan->wfh_longitude !== null ? (float) $penempatan->wfh_longitude : null;
-            $hasTargetCoords = $wfhLat !== null && $wfhLng !== null && ($wfhLat !== 0.0 || $wfhLng !== 0.0);
-
-            $distance = ($hasUserCoords && $hasTargetCoords && $userLat !== null && $userLng !== null)
-                ? $this->haversineDistance($userLat, $userLng, $wfhLat, $wfhLng)
-                : null;
-
-            if ($validasiAktif) {
-                if (! $hasTargetCoords) {
-                    throw new \RuntimeException('Koordinat lokasi WFH yang disetujui belum dikonfigurasi. Silakan hubungi Guru Pembimbing atau Admin.');
-                }
-
-                if (! $hasUserCoords) {
-                    throw new \RuntimeException('Koordinat GPS wajib dikirim saat validasi lokasi WFH aktif.');
-                }
-
-                if ($distance !== null && $distance > $allowedRadius) {
-                    throw new \RuntimeException(
-                        'Anda berada di luar radius lokasi WFH yang disetujui. Jarak Anda: '
-                        .number_format($distance, 0, ',', '.')
-                        .' meter dari titik WFH (maksimal '.$allowedRadius.' meter).'
-                    );
-                }
-            }
-
-            return [
-                'mode_kerja' => 'WFH',
-                'validasi_lokasi_aktif' => $validasiAktif,
-                'radius' => $allowedRadius,
-                'jarak' => $distance !== null ? round($distance, 2) : null,
-                'lokasi_valid' => true,
-            ];
-        }
-
-        $dudi = $penempatan->dudi;
-        $dudiLat = $dudi->latitude !== null ? (float) $dudi->latitude : 0.0;
-        $dudiLng = $dudi->longitude !== null ? (float) $dudi->longitude : 0.0;
-        $hasTargetCoords = ($dudiLat !== 0.0 || $dudiLng !== 0.0);
-        $allowedRadius = self::MAX_RADIUS_METERS;
-
-        $distance = ($hasUserCoords && $hasTargetCoords && $userLat !== null && $userLng !== null)
-            ? $this->haversineDistance($userLat, $userLng, $dudiLat, $dudiLng)
-            : null;
-
-        if ($validasiAktif && $hasTargetCoords) {
-            if (! $hasUserCoords) {
-                throw new \RuntimeException('Koordinat GPS wajib dikirim saat validasi lokasi WFO aktif.');
-            }
-
-            if ($distance !== null && $distance > $allowedRadius) {
-                throw new \RuntimeException(
-                    'Anda berada di luar area PKL. Jarak Anda: '
-                    .number_format($distance, 0, ',', '.')
-                    .' meter dari lokasi DUDI (maksimal '.$allowedRadius.' meter).'
-                );
-            }
-        }
-
-        return [
-            'mode_kerja' => 'WFO',
-            'validasi_lokasi_aktif' => $validasiAktif,
-            'radius' => $allowedRadius,
-            'jarak' => $distance !== null ? round($distance, 2) : null,
-            'lokasi_valid' => $validasiAktif ? $hasTargetCoords : true,
-        ];
-    }
-
-    /**
-     * Check whether latitude & longitude inputs are both populated.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    private function hasCoordinateInputs(array $data): bool
-    {
-        return array_key_exists('latitude', $data)
-            && array_key_exists('longitude', $data)
-            && $data['latitude'] !== null
-            && $data['longitude'] !== null
-            && $data['latitude'] !== ''
-            && $data['longitude'] !== '';
-    }
-
-    /**
-     * Calculate distance between two GPS coordinates using Haversine formula.
-     *
-     * @param float $lat1 User latitude
-     * @param float $lon1 User longitude
-     * @param float $lat2 DUDI latitude
-     * @param float $lon2 DUDI longitude
-     * @return float Distance in meters
-     */
-    private function haversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
-    {
-        $earthRadius = 6371000; // Earth's radius in meters
-
-        $latDelta = deg2rad($lat2 - $lat1);
-        $lonDelta = deg2rad($lon2 - $lon1);
-
-        $a = sin($latDelta / 2) * sin($latDelta / 2) +
-             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-             sin($lonDelta / 2) * sin($lonDelta / 2);
-
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return $earthRadius * $c;
-    }
-
-    /**
      * Determine check-in status (hadir/terlambat) and keterangan ('Sangat Terlambat' or null).
      *
      * Rules:

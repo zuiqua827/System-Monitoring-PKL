@@ -58,7 +58,9 @@
                     <div class="bg-white p-5">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Status Akun</p>
                         <p class="mt-1 text-sm font-semibold">
-                            @if($dudi->user?->email_verified_at)
+                            @if($dudi->user_id === null)
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">DUDI tanpa akun lokal</span>
+                            @elseif($dudi->user?->email_verified_at)
                                 <span class="text-emerald-600">Terverifikasi</span>
                             @else
                                 <span class="text-amber-600">Belum Verifikasi</span>

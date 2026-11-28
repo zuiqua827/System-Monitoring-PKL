@@ -49,7 +49,7 @@ return [
     */
 
     'sipintu' => [
-        'api_url' => env('SIPINTU_API_URL', env('SIPINTU_BASE_URL', 'http://localhost:8000')),
+        'api_url' => env('SIPINTU_API_URL') ?: env('SIPINTU_BASE_URL') ?: null,
         // A Bearer token takes priority when configured. Otherwise the client
         // credentials below are sent as X-Client-ID and X-Client-Secret.
         'api_token' => env('SIPINTU_API_TOKEN'),
@@ -68,6 +68,10 @@ return [
         'downstream_url' => env('SIPINTU_DOWNSTREAM_URL', env('APP_URL', 'https://simongan.smkn1bangsri.sch.id')),
         'sso_callback_url' => env('SIPINTU_SSO_CALLBACK_URL', env('SIPINTU_REDIRECT_URI')),
         'webhook_secret' => env('SIPINTU_WEBHOOK_SECRET'),
+
+        // SSO-specific timeout (shorter than data-sync timeout).
+        // Keep this at 15s or less to prevent slow SSO from blocking web requests.
+        'sso_timeout' => (int) env('SIPINTU_SSO_TIMEOUT', 15),
     ],
 
     /*

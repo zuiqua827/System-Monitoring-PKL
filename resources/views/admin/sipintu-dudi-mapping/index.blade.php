@@ -256,7 +256,13 @@
                                 {{-- Akun Login SIMONGAN --}}
                                 <td class="px-6 py-4">
                                     <div class="text-xs font-medium text-slate-800">{{ $dudi->user?->email ?: ($dudi->email_perusahaan ?: '—') }}</div>
-                                    <div class="text-[11px] text-slate-400 mt-0.5">User ID Lokal: {{ $dudi->user_id ?? 'Tanpa Akun (Master)' }}</div>
+                                    <div class="text-[11px] text-slate-400 mt-0.5">
+                                        @if ($dudi->user_id !== null)
+                                            User ID Lokal: {{ $dudi->user_id }}
+                                        @else
+                                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">DUDI tanpa akun lokal</span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 {{-- Identitas SiPintu --}}

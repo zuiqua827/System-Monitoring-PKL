@@ -32,7 +32,7 @@ class UpdatePeriodePKLRequest extends FormRequest
         $periodePklId = $periodePkl instanceof \App\Models\PeriodePKL ? $periodePkl->id : $periodePkl;
 
         return [
-            'nama' => ['required', 'string', 'max:255', Rule::unique('periode_pkl', 'nama')->ignore($periodePklId)],
+            'nama' => ['required', 'string', 'max:255', Rule::unique('periode_pkl', 'nama')->ignore($periodePklId)->withoutTrashed()],
             'tahun_ajaran' => ['required', 'string', 'max:9', 'regex:/^\d{4}\/\d{4}$/'],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],

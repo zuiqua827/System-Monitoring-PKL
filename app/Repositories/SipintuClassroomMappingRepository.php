@@ -34,12 +34,27 @@ class SipintuClassroomMappingRepository extends EloquentRepository implements Si
     /**
      * {@inheritDoc}
      */
+    public function findByKelasIdExcludingClassroom(int $kelasId, int $excludeClassroomId): ?SipintuClassroomMapping
+    {
+        /** @var SipintuClassroomMapping|null $mapping */
+        $mapping = $this->newQuery()
+            ->where('kelas_id', $kelasId)
+            ->where('classroom_id', '!=', $excludeClassroomId)
+            ->first();
+
+        return $mapping;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function mappedClassroomIds(): array
     {
         /** @var array<int, int> $result */
         $result = $this->newQuery()
             ->pluck('kelas_id', 'classroom_id')
-            ->toArray();
+            ->mapWithKeys(static fn (mixed $kelasId, mixed $classroomId): array => [(int) $classroomId => (int) $kelasId])
+            ->all();
 
         return $result;
     }
@@ -51,7 +66,7 @@ class SipintuClassroomMappingRepository extends EloquentRepository implements Si
     {
         /** @var Collection<int, SipintuClassroomMapping> $mappings */
         $mappings = $this->newQuery()
-            ->with('kelas')
+            ->with(['kelas' => static fn (mixed $query): mixed => $query->withTrashed()->with('jurusan')])
             ->orderBy('classroom_id')
             ->get();
 
@@ -72,16 +87,27 @@ class SipintuClassroomMappingRepository extends EloquentRepository implements Si
         $mapping = $this->findByClassroomId($classroomId);
 
         if ($mapping === null) {
-            $created = $this->create([
+            return $this->create([
                 'classroom_id' => $classroomId,
                 'kelas_id' => $kelasId,
                 'created_by' => $userId,
                 'updated_by' => $userId,
             ]);
-
-            return $created;
         }
 
         return $this->update($mapping, $attributes);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteMappingById(int $mappingId): bool
+    {
+        $mapping = $this->newQuery()->find($mappingId);
+        if ($mapping === null) {
+            return false;
+        }
+
+        return (bool) $mapping->delete();
     }
 }

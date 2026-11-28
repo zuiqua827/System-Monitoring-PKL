@@ -82,18 +82,19 @@ class AbsensiPolicy
         return false;
     }
 
-/**
-     * Determine whether the user can create absensi (admin CRUD).
+    /**
+     * Menentukan apakah pengguna diizinkan membuat record absensi baru secara manual (Admin CRUD).
      *
-     * Only Super Admin (handled by before()) may create/update/delete
-     * attendance records. Guru, DUDI, and Siswa are strictly view-only
-     * (except Siswa's own check-in/check-out workflow, which is managed
-     * through PenempatanPKLPolicy, not here).
+     * Catatan Otorisasi:
+     * - Super Admin dibypass langsung oleh metode before() di atas.
+     * - Guru, DUDI, dan Siswa bernilai false karena tidak boleh membuat record absensi manual sembarangan.
+     * - Alur Check-In mandiri Siswa diatur secara terpisah pada PenempatanPKLPolicy@checkIn.
      */
     public function create(User $user): bool
     {
         return false;
     }
+
 
     /**
      * Determine whether the user can update the absensi (admin CRUD).

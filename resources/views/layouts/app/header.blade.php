@@ -88,7 +88,11 @@
                     </svg>
                     Pengaturan Profil
                 </a>
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('logout') }}"
+                      data-confirm="Apakah Anda yakin ingin keluar dari akun ini?"
+                      data-confirm-title="Konfirmasi Logout"
+                      data-confirm-type="warning"
+                      data-confirm-btn="Ya, Logout">
                     @csrf
                     <button type="submit" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50">
                         <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">

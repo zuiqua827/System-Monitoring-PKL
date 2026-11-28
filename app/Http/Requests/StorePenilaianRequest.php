@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validation rules for creating a new Penilaian.
@@ -20,6 +21,15 @@ class StorePenilaianRequest extends FormRequest
         return true;
     }
 
+    // ============================================================
+    // ATURAN VALIDASI FORM PENILAIAN PKL
+    // ============================================================
+    // 1. penempatan_pkl_id: Wajib ada dan unik (1 penempatan hanya boleh memiliki 1 penilaian aktif).
+    // 2. Nilai 5 Aspek Kompetensi: Wajib diisi dalam rentang 0 s.d. 100.
+    // 3. nilai_kehadiran: Boleh kosong/nullable karena sistem akan menghitungnya otomatis
+    //    dari data absensi jika tidak diisi secara eksplisit.
+    // ============================================================
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -27,8 +37,14 @@ class StorePenilaianRequest extends FormRequest
      */
     public function rules(): array
     {
+
         return [
-            'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id', 'unique:penilaian,penempatan_pkl_id'],
+            'penempatan_pkl_id' => [
+                'required', 
+                'integer', 
+                'exists:penempatan_pkl,id', 
+                Rule::unique('penilaian', 'penempatan_pkl_id')->withoutTrashed(),
+            ],
             'nilai_kehadiran' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'nilai_kerjasama' => ['required', 'numeric', 'min:0', 'max:100'],
             'nilai_komunikasi' => ['required', 'numeric', 'min:0', 'max:100'],

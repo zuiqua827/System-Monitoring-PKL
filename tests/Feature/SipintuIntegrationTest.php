@@ -507,4 +507,39 @@ describe('SiPintu Realtime Webhook User Synchronization', function () {
         $response->assertStatus(200)
             ->assertJson(['action' => 'skipped']);
     });
+
+    it('ignores data.password completely without mutating user password or logging secret values', function () {
+        $originalHash = Hash::make('OriginalLocalSecret!2026');
+        $user = User::factory()->create([
+            'email' => 'webhook_pw_guard@smkn1bangsri.sch.id',
+            'name' => 'Initial Safe User',
+            'password' => $originalHash,
+        ]);
+
+        \Illuminate\Support\Facades\Log::spy();
+
+        $response = $this->withHeaders(['X-Webhook-Secret' => 'test_webhook_secret_key'])
+            ->postJson('/api/v1/sipintu/sync-user', [
+                'data' => [
+                    'email' => 'webhook_pw_guard@smkn1bangsri.sch.id',
+                    'name' => 'Updated Safe Name',
+                    'password' => 'SuperSecretRemotePassword123!',
+                ],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'action' => 'updated',
+            ]);
+
+        $user->refresh();
+        expect($user->name)->toBe('Updated Safe Name')
+            ->and(Hash::check('OriginalLocalSecret!2026', $user->password))->toBeTrue()
+            ->and(Hash::check('SuperSecretRemotePassword123!', $user->password))->toBeFalse();
+
+        \Illuminate\Support\Facades\Log::shouldNotHaveReceived('info', function ($message, $context = []) {
+            return str_contains(json_encode([$message, $context]) ?: '', 'SuperSecretRemotePassword123!');
+        });
+    });
 });

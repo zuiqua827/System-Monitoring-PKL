@@ -24,11 +24,23 @@ class MarkAlfaAbsensi extends Command
      */
     protected $description = 'Otomatis menandai siswa Alfa jika tidak check-in dan tidak ada izin/sakit pada hari PKL aktif.';
 
+    // ============================================================
+    // PENANDAAN OTOMATIS STATUS ALFA (MIDNIGHT SCHEDULER)
+    // ============================================================
+    // Dijalankan setiap pukul 00:10 WIB (tengah malam):
+    // 1. Memeriksa tanggal kemarin yang sudah selesai penuh (hari berjalan tidak boleh dialfakan).
+    // 2. Mengambil seluruh penempatan PKL berstatus 'aktif'.
+    // 3. Memeriksa riwayat kehadiran via AbsensiService (Single Source of Truth).
+    // 4. Jika terdeteksi 'bolos' (tidak ada check-in dan tidak ada izin/sakit yang disetujui),
+    //    maka sistem otomatis membuat record absensi dengan status 'alpha'.
+    // ============================================================
+
     /**
      * Execute the console command.
      */
     public function handle(AbsensiServiceInterface $absensiService): int
     {
+
         $dateStr = $this->option('date');
         $targetDate = $dateStr ? Carbon::parse($dateStr)->startOfDay() : now()->subDay()->startOfDay();
         $dateFormatted = $targetDate->format('Y-m-d');

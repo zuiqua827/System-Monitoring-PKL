@@ -54,7 +54,7 @@
                 <p class="mt-1 text-2xl font-bold text-orange-700">{{ number_format($stats['sakit'] ?? 0) }}</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-red-50 p-4 shadow-card-sm text-center">
-                <p class="text-xs font-semibold text-red-600 uppercase">Alpha</p>
+                <p class="text-xs font-semibold text-red-600 uppercase">Alfa</p>
                 <p class="mt-1 text-2xl font-bold text-red-700">{{ number_format($stats['alpha'] ?? 0) }}</p>
             </div>
         </div>
@@ -161,12 +161,12 @@
                                             'terlambat' => 'bg-amber-50 text-amber-700 ring-amber-200',
                                             'izin' => 'bg-blue-50 text-blue-700 ring-blue-200',
                                             'sakit' => 'bg-orange-50 text-orange-700 ring-orange-200',
-                                            'alpha' => 'bg-red-50 text-red-700 ring-red-200',
+                                            'alpha', 'alfa' => 'bg-red-50 text-red-700 ring-red-200',
                                             default => 'bg-slate-50 text-slate-700 ring-slate-200'
                                         };
                                     @endphp
                                     <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset {{ $statusClass }}">
-                                        {{ ucfirst($item->status) }}
+                                        {{ in_array(strtolower((string) $item->status), ['alpha', 'alfa'], true) ? 'Alfa' : ucfirst((string) $item->status) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-slate-600">

@@ -40,8 +40,8 @@ class UpdateKelasRequest extends FormRequest
                 \Illuminate\Validation\Rule::unique('kelas', 'nama')
                     ->where('jurusan_id', $this->jurusan_id)
                     ->where('tahun_ajaran', $this->tahun_ajaran)
-                    ->whereNull('deleted_at')
-                    ->ignore($kelasId),
+                    ->ignore($kelasId)
+                    ->withoutTrashed(),
             ],
             'tingkat' => ['required', 'integer', 'in:10,11,12'],
             'tahun_ajaran' => ['required', 'string', 'max:9'],

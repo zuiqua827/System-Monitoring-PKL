@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Exceptions\SiPintuApiException;
-use App\Models\Dudi;
 use App\Models\Guru;
 use App\Models\Kelas;
 use App\Models\SipintuClassroomMapping;
 use App\Models\SiPintuSyncLog;
 use App\Models\Siswa;
 use App\Models\User;
-use App\Repositories\Interfaces\DudiRepositoryInterface;
 use App\Repositories\Interfaces\GuruRepositoryInterface;
 use App\Repositories\Interfaces\SiPintuRepositoryInterface;
 use App\Repositories\Interfaces\SipintuSyncLogRepositoryInterface;
@@ -24,15 +22,10 @@ use Spatie\Permission\Models\Role;
 
 function sipintuServiceWithRepository(object $repository): SiPintuService
 {
-    if (method_exists($repository, 'shouldReceive')) {
-        $repository->shouldReceive('fetchDudis')->byDefault()->andReturn([]);
-    }
-
     return new SiPintuService(
         $repository,
         app(SiswaRepositoryInterface::class),
         app(GuruRepositoryInterface::class),
-        app(DudiRepositoryInterface::class),
         app(UserRepositoryInterface::class),
         app(SipintuClassroomMappingServiceInterface::class),
     );
@@ -46,7 +39,6 @@ function sipintuAdmin(): User
 beforeEach(function (): void {
     Role::findOrCreate(UserRole::SISWA->value);
     Role::findOrCreate(UserRole::GURU->value);
-    Role::findOrCreate(UserRole::DUDI->value);
 });
 
 it('keeps preview read-only and syncs each NIS and NIP only once', function (): void {
@@ -259,25 +251,43 @@ it('sanitizes client_id and client_secret from test connection results', functio
         ->not->toContain('SECRET_CLIENT_PASS_999');
 });
 
-it('renders GET /admin/sipintu-sync instantly without calling remote API', function (): void {
-    Illuminate\Support\Facades\Http::fake(function () {
-        throw new \Exception('Remote HTTP call should NEVER be executed on GET index page');
-    });
+it('caches live diagnostics for 5 minutes on GET /admin/sipintu-sync so warm loads issue zero remote HTTP calls', function (): void {
+    config([
+        'services.sipintu.api_url' => 'https://sipintu.test',
+        'services.sipintu.client_id' => 'client_123',
+        'services.sipintu.client_secret' => 'secret_123',
+    ]);
 
     Role::findOrCreate(UserRole::SUPER_ADMIN->value);
     $admin = sipintuAdmin();
     $admin->assignRole(UserRole::SUPER_ADMIN->value);
 
-    $response = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+    Illuminate\Support\Facades\Http::fake([
+        'https://sipintu.test/api/v1/health' => Illuminate\Support\Facades\Http::response(['status' => 'ok'], 200),
+        'https://sipintu.test/api/v1/sijuna/students*' => Illuminate\Support\Facades\Http::response(['data' => []], 200),
+        'https://sipintu.test/api/v1/sijuna/teachers*' => Illuminate\Support\Facades\Http::response(['message' => 'Not Found'], 404),
+        'https://sipintu.test/api/v1/sijuna/dudi*' => Illuminate\Support\Facades\Http::response(['message' => 'Not Found'], 404),
+    ]);
 
-    $response->assertStatus(200)
+    // 1st GET populates the 5-minute diagnostic cache
+    $first = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+    $first->assertStatus(200)
         ->assertViewIs('admin.sipintu-sync.index')
         ->assertSee('Sinkronisasi SiPintu');
+
+    // 2nd GET must NOT make outbound HTTP requests while cache is warm
+    Illuminate\Support\Facades\Http::fake(function () {
+        throw new \Exception('Warm-cache GET index should NEVER execute outbound HTTP requests');
+    });
+
+    $second = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
+    $second->assertStatus(200)
+        ->assertViewIs('admin.sipintu-sync.index');
 });
 
 it('runs test connection via POST route safely without fatal errors', function (): void {
     Illuminate\Support\Facades\Http::fake([
-        'https://sipintu.smkn1bangsri.sch.id/*' => Illuminate\Support\Facades\Http::response(['status' => true], 200),
+        'https://sipintu.smkn1bangsri.sch.id/*' => Illuminate\Support\Facades\Http::response(['status' => true, 'data' => []], 200),
     ]);
 
     Role::findOrCreate(UserRole::SUPER_ADMIN->value);
@@ -404,41 +414,27 @@ it('does not create automatic PKL penempatan when students are synchronized', fu
     expect(\App\Models\PenempatanPKL::query()->where('siswa_id', $siswa->id)->count())->toBe(0);
 });
 
-it('previews and synchronizes DUDI partners from SiPintu idempotently', function (): void {
-    $dudis = [[
-        'id' => '52886',
-        'dudi_code' => 'PT. Ayah Amanah Digital',
-        'nama_perusahaan' => 'PT. Ayah Amanah Digital',
-        'name' => 'PT. Ayah Amanah Digital',
-        'email' => 'AyahAmanahDigital@gmail.com',
-        'phone' => '081234567890',
-        'role' => 'dudi',
-        'status' => 'active',
-    ]];
+it('renders sipintu sync index page with custom dialogs and toast container', function (): void {
+    Role::findOrCreate(UserRole::SUPER_ADMIN->value);
+    $admin = User::factory()->create();
+    $admin->assignRole(UserRole::SUPER_ADMIN->value);
 
-    $repository = Mockery::mock(SiPintuRepositoryInterface::class);
-    $repository->shouldReceive('fetchStudents')->andReturn([]);
-    $repository->shouldReceive('fetchTeachers')->andReturn([]);
-    $repository->shouldReceive('fetchDudis')->andReturn($dudis);
+    Illuminate\Support\Facades\Cache::put('sipintu_live_diagnostics', [
+        'success' => true,
+        'status' => true,
+        'connection' => true,
+        'http_status' => 200,
+        'message' => 'Koneksi ke SiPintu berhasil.',
+        'error_type' => null,
+        'detail' => null,
+        'troubleshooting' => null,
+    ], now()->addMinutes(5));
 
-    $service = sipintuServiceWithRepository($repository);
-    $admin = sipintuAdmin();
+    $response = $this->actingAs($admin)->get(route('admin.sipintu-sync.index'));
 
-    $previewDudis = $service->previewDudis();
-    expect($previewDudis['baru'])->toBe(1)
-        ->and($previewDudis['total_remote'])->toBe(1)
-        ->and(Dudi::query()->count())->toBe(0);
-
-    $syncService = new SipintuSyncService($service, app(SipintuSyncLogRepositoryInterface::class));
-    $first = $syncService->runSync($admin);
-    $second = $syncService->runSync($admin);
-
-    expect($first['success'])->toBeTrue()
-        ->and($first['stats']['dudis']['created'])->toBe(1)
-        ->and($second['success'])->toBeTrue()
-        ->and($second['stats']['dudis']['created'])->toBe(0)
-        ->and($second['stats']['dudis']['unchanged'])->toBe(1)
-        ->and(Dudi::query()->where('nama_perusahaan', 'PT. Ayah Amanah Digital')->count())->toBe(1)
-        ->and(User::query()->where('email', 'ayahamanahdigital@gmail.com')->first()?->hasRole(UserRole::DUDI->value))->toBeTrue();
+    $response->assertOk();
+    $response->assertSee('custom-toast-container');
+    $response->assertSee('globalDialogManager');
 });
+
 

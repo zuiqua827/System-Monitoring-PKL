@@ -49,7 +49,7 @@ return [
     */
 
     'sipintu' => [
-        'api_url' => env('SIPINTU_API_URL', env('SIPINTU_BASE_URL', 'http://localhost:8000')),
+        'api_url' => env('SIPINTU_API_URL') ?: env('SIPINTU_BASE_URL') ?: null,
         // A Bearer token takes priority when configured. Otherwise the client
         // credentials below are sent as X-Client-ID and X-Client-Secret.
         'api_token' => env('SIPINTU_API_TOKEN'),
@@ -62,11 +62,33 @@ return [
         // the server uses a self-signed cert or PHP lacks the CA bundle.
         // Production should keep this true after its CA bundle is configured.
         'verify_ssl' => env('SIPINTU_VERIFY_SSL', true),
+        'per_page' => env('SIPINTU_PER_PAGE') ? (int) env('SIPINTU_PER_PAGE') : null,
 
         // Downstream & SSO configuration
         'downstream_url' => env('SIPINTU_DOWNSTREAM_URL', env('APP_URL', 'https://simongan.smkn1bangsri.sch.id')),
         'sso_callback_url' => env('SIPINTU_SSO_CALLBACK_URL', env('SIPINTU_REDIRECT_URI')),
         'webhook_secret' => env('SIPINTU_WEBHOOK_SECRET'),
+
+        // SSO-specific timeout (shorter than data-sync timeout).
+        // Keep this at 15s or less to prevent slow SSO from blocking web requests.
+        'sso_timeout' => (int) env('SIPINTU_SSO_TIMEOUT', 15),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | WhatsApp Gateway (Node.js Baileys Microservice)
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for connecting to the local or remote Baileys-based
+    | WhatsApp Gateway service.
+    |
+    */
+    'whatsapp' => [
+        'gateway_url' => env('WA_GATEWAY_URL', 'http://127.0.0.1:3000'),
+        'api_key' => env('WA_GATEWAY_API_KEY', null),
+        'timeout' => (int) env('WA_GATEWAY_TIMEOUT', 15),
+        'default_offset_minutes' => 5,
     ],
 
 ];
+

@@ -18,6 +18,11 @@ interface SipintuClassroomMappingRepositoryInterface extends BaseRepositoryInter
     public function findByClassroomId(int $classroomId): ?SipintuClassroomMapping;
 
     /**
+     * Find another classroom mapping already pointing to the same local kelas_id.
+     */
+    public function findByKelasIdExcludingClassroom(int $kelasId, int $excludeClassroomId): ?SipintuClassroomMapping;
+
+    /**
      * Get all classroom_ids that have a mapping.
      *
      * @return array<int, int>  [classroom_id => kelas_id]
@@ -25,7 +30,7 @@ interface SipintuClassroomMappingRepositoryInterface extends BaseRepositoryInter
     public function mappedClassroomIds(): array;
 
     /**
-     * Get all mappings with their kelas relationship eager-loaded.
+     * Get all mappings with their kelas (including trashed) and jurusan relationships eager-loaded.
      *
      * @return Collection<int, SipintuClassroomMapping>
      */
@@ -35,4 +40,9 @@ interface SipintuClassroomMappingRepositoryInterface extends BaseRepositoryInter
      * Upsert a mapping for the given classroom_id.
      */
     public function upsertMapping(int $classroomId, int $kelasId, ?int $userId): SipintuClassroomMapping;
+
+    /**
+     * Delete a saved classroom mapping by ID.
+     */
+    public function deleteMappingById(int $mappingId): bool;
 }

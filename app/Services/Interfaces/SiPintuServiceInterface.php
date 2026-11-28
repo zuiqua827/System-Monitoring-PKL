@@ -28,28 +28,37 @@ interface SiPintuServiceInterface
     public function fetchTeachers(?string $nip = null, ?string $search = null): array;
 
     /**
-     * Fetch DUDI partners from the SiPintu Gateway.
+     * Fetch DUDI companies from the SiPintu Gateway.
      *
      * @return array<int, array<string, mixed>>
      */
-    public function fetchDudis(?string $search = null): array;
+    public function fetchDudi(?string $search = null): array;
 
     /**
-     * Fetch and validate the complete remote dataset before a live database
-     * transaction is opened.
+     * Fetch and validate the remote dataset for the given entity scope
+     * (`all`, `siswa`, `guru`, `dudi`) before a live database transaction opens.
      *
-     * @return array{students: array<int, array<string, mixed>>, teachers: array<int, array<string, mixed>>, dudis: array<int, array<string, mixed>>}
+     * Never silently turns HTTP 404 into an empty list; unavailable endpoints are
+     * flagged explicitly via `endpoint_unavailable`.
+     *
+     * @return array{
+     *     students: array<int, array<string, mixed>>|null,
+     *     teachers: array<int, array<string, mixed>>|null,
+     *     dudis: array<int, array<string, mixed>>|null,
+     *     endpoint_unavailable: array{students: bool, teachers: bool, dudis: bool},
+     *     endpoint_errors: array<string, array{http_status: int|null, message: string}>
+     * }
      */
-    public function fetchSyncPayload(): array;
+    public function fetchSyncPayload(string $entityScope = 'all'): array;
 
     /**
      * Read-only preview of a student sync. Classifies remote students into
      * categories WITHOUT writing/inserting/updating/deleting anything.
      *
-     * Categories: baru, diperbarui, tidak_berubah, konflik, perlu_pemetaan,
-     * tidak_ditemukan, error, total_remote.
+     * Categories: baru, diperbarui, tidak_berubah, perlu_pemetaan, duplikat,
+     * konflik, tidak_valid, gagal, tidak_ditemukan, error, total_remote.
      *
-     * @return array<string, int>
+     * @return array<string, int|string>
      */
     public function previewStudents(): array;
 
@@ -57,17 +66,17 @@ interface SiPintuServiceInterface
      * Read-only preview of a teacher sync. Classifies remote teachers into
      * categories WITHOUT writing/inserting/updating/deleting anything.
      *
-     * @return array<string, int>
+     * @return array<string, int|string>
      */
     public function previewTeachers(): array;
 
     /**
-     * Read-only preview of a DUDI sync. Classifies remote DUDI accounts into
+     * Read-only preview of a DUDI sync. Classifies remote DUDI into
      * categories WITHOUT writing/inserting/updating/deleting anything.
      *
-     * @return array<string, int>
+     * @return array<string, int|string>
      */
-    public function previewDudis(): array;
+    public function previewDudi(bool $allowCreate = false): array;
 
     /**
      * Synchronize real students from SiPintu into the local database.
@@ -79,12 +88,10 @@ interface SiPintuServiceInterface
      * - Students without a valid kelas mapping are reported as "Perlu Pemetaan"
      *   and are NOT created with a guessed class_id.
      *
-     * @return array{
-     *     created: int, updated: int, deleted: int, skipped: int,
-     *     unchanged: int, conflicts: int, needs_mapping: int, errors: int
-     * }
+     * @param  array<int, array<string, mixed>>|null  $students
+     * @return array<string, int>
      */
-    public function syncStudents(?array $students = null): array;
+    public function syncStudents(?array $students = null, bool $endpointUnavailable = false): array;
 
     /**
      * Synchronize real teachers from SiPintu into the local Guru module.
@@ -95,32 +102,59 @@ interface SiPintuServiceInterface
      * - Never creates duplicates.
      * - Never overwrites passwords the user has already changed.
      *
-     * @return array{
-     *     created: int, updated: int, deleted: int, skipped: int,
-     *     unchanged: int, conflicts: int, needs_mapping: int, errors: int
-     * }
+     * @param  array<int, array<string, mixed>>|null  $teachers
+     * @return array<string, int>
      */
-    public function syncTeachers(?array $teachers = null): array;
+    public function syncTeachers(?array $teachers = null, bool $endpointUnavailable = false): array;
 
     /**
-     * Synchronize real DUDI partners from SiPintu into the local Dudi module.
+     * Synchronize master DUDI companies from SiPintu into the local DUDI module.
      *
-     * - Upserts by email or company name (nama_perusahaan).
-     * - Creates a new Dudi + User (role "DUDI") when no match exists locally.
-     * - Updates an existing Dudi + User when a match is found.
-     * - Never creates duplicates and never overwrites existing passwords.
+     * - Default policy is link-only/safe (`$allowCreate = false`): only links
+     *   (`sipintu_id`/`sipintu_user_id`/`email_perusahaan`) and updates identity
+     *   fields for DUDI companies already created locally by Admin.
+     * - New DUDI creation occurs ONLY when `$allowCreate = true` is explicitly confirmed.
+     * - Never overwrites local passwords, Super Admin roles, geofence coordinates,
+     *   working hours, or existing PKL placements.
      *
-     * @return array{
-     *     created: int, updated: int, deleted: int, skipped: int,
-     *     unchanged: int, conflicts: int, needs_mapping: int, errors: int
-     * }
+     * @param  array<int, array<string, mixed>>|null  $dudis
+     * @return array<string, int>
      */
-    public function syncDudis(?array $dudis = null): array;
+    public function syncDudi(?array $dudis = null, bool $allowCreate = false, bool $endpointUnavailable = false): array;
+
+    /**
+     * Get aggregate live endpoint diagnostics for SiPintu.
+     *
+     * @return array<string, mixed>
+     */
+    public function getDiagnostics(): array;
 
     /**
      * Test connection to the SiPintu API.
      *
-     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null, detail: string|null, troubleshooting: string|null}
      */
     public function testConnection(): array;
+
+    /**
+     * Check status of a specific endpoint on the SiPintu Gateway.
+     *
+     * @return array{status: int|null, http_status: int|null, success: bool, error_type: string|null, message: string, count: int|null}
+     */
+    public function checkEndpointStatus(string $endpoint): array;
+
+    /**
+     * Check status of multiple SiPintu endpoints concurrently via HTTP pool.
+     *
+     * @param  list<string>  $endpoints
+     * @return array<string, array{status: int|null, http_status: int|null, success: bool, error_type: string|null, message: string, count: int|null}>
+     */
+    public function checkEndpointsStatus(array $endpoints): array;
+
+    /**
+     * Direct credential verification against SiPintu Gateway.
+     *
+     * @return array{success: bool, status: int|null, data?: mixed, message?: string}
+     */
+    public function verifyCredentials(string $identity, string $password): array;
 }

@@ -13,13 +13,7 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
+
 
         {{-- Header --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -28,6 +22,9 @@
                 <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Absensi Siswa Bimbingan</h1>
                 <p class="mt-2 text-sm text-slate-500">Monitoring absensi siswa bimbingan PKL</p>
             </div>
+            <a href="{{ route('guru.penempatan-pkl.index') }}" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700">
+                Pengaturan Lokasi WFO/WFH
+            </a>
         </div>
 
         {{-- Search & Filter --}}

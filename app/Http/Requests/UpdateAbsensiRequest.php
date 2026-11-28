@@ -29,9 +29,19 @@ class UpdateAbsensiRequest extends FormRequest
      */
     public function rules(): array
     {
+        $absensi = $this->route('absensi');
+        $absensiId = $absensi instanceof \App\Models\Absensi ? $absensi->id : $absensi;
+
         return [
             'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id'],
-            'tanggal' => ['required', 'date'],
+            'tanggal' => [
+                'required',
+                'date',
+                Rule::unique('absensi', 'tanggal')
+                    ->where('penempatan_pkl_id', $this->input('penempatan_pkl_id'))
+                    ->ignore($absensiId)
+                    ->withoutTrashed(),
+            ],
             'jam_masuk' => ['nullable', 'date_format:H:i:s'],
             'jam_pulang' => ['nullable', 'date_format:H:i:s', 'after:jam_masuk'],
             'status' => ['required', 'string', Rule::in(AbsensiStatus::values())],

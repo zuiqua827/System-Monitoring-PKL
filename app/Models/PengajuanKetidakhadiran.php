@@ -34,10 +34,20 @@ class PengajuanKetidakhadiran extends Model
 
     protected $table = 'pengajuan_ketidakhadiran';
 
+    // ============================================================
+    // ALUR PENGAJUAN KETIDAKHADIRAN (IZIN / SAKIT)
+    // ============================================================
+    // 1. Siswa mengajukan izin/sakit dengan tanggal, jenis ('izin'/'sakit'), alasan, dan lampiran surat.
+    // 2. Pembimbing DUDI menerima pengajuan dan melakukan validasi:
+    //    - Status: 'menunggu' -> 'disetujui' / 'ditolak'
+    // 3. Pengajuan yang berstatus 'disetujui' otomatis dibaca oleh AbsensiService::calculateAttendance()
+    //    sehingga hari tersebut tidak dianggap sebagai 'alpha/bolos' pada rekap dan penilaian.
+
     /**
      * @var list<string>
      */
     protected $fillable = [
+
         'penempatan_pkl_id',
         'tanggal',
         'jenis',

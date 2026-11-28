@@ -29,7 +29,7 @@ class KelasRepository extends EloquentRepository implements KelasRepositoryInter
         string $sortDirection = 'asc',
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = $this->newQuery()->with('jurusan');
+        $query = $this->newQuery()->withTrashed()->with('jurusan');
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {

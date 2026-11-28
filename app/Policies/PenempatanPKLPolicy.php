@@ -84,15 +84,19 @@ class PenempatanPKLPolicy
     }
 
     /**
-     * Check In ability for Siswa on their active PenempatanPKL.
+     * Otorisasi Check In bagi Siswa pada data Penempatan PKL aktif miliknya.
      *
-     * This ability is defined here (not on AbsensiPolicy) because
-     * the authorize() call in Siswa\AbsensiController passes a
-     * PenempatanPKL model instance as the second argument, which
-     * causes Laravel to resolve PenempatanPKLPolicy, not AbsensiPolicy.
+     * Alasan Teknis Penempatan di Policy Ini:
+     * - Pada Siswa\AbsensiController::checkIn(), pemanggilan `$this->authorize('checkIn', $penempatanAktif)`
+     *   mengirimkan instance model PenempatanPKL sebagai argumen kedua.
+     * - Laravel secara otomatis mencari policy yang terdaftar untuk model tersebut, yaitu PenempatanPKLPolicy.
+     *
+     * Validasi Kepemilikan (Ownership Check):
+     * - Memastikan bahwa record penempatan PKL tersebut benar-benar milik siswa yang sedang login ($siswa->id === $penempatanPkl->siswa_id).
      */
     public function checkIn(User $user, PenempatanPKL $penempatanPkl): bool
     {
+
         if ($user->hasRole('Super Admin')) {
             return true;
         }
@@ -101,6 +105,32 @@ class PenempatanPKLPolicy
             $siswa = $user->siswa;
             if ($siswa !== null) {
                 return $penempatanPkl->siswa_id === $siswa->id;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the user can manage work mode (WFO/WFH) and geofence location settings.
+     *
+     * Allowed:
+     * - Super Admin (also via before())
+     * - Guru Pembimbing assigned directly to the placement
+     *
+     * Forbidden:
+     * - Siswa, DUDI, and unrelated Guru accounts
+     */
+    public function manageLocation(User $user, PenempatanPKL $penempatanPkl): bool
+    {
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('Guru')) {
+            $guru = $user->guru;
+            if ($guru !== null) {
+                return $penempatanPkl->guru_id === $guru->id;
             }
         }
 

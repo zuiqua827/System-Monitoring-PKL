@@ -15,7 +15,9 @@ use App\Http\Controllers\Guru\AbsensiController as GuruAbsensiController;
 use App\Http\Controllers\Guru\AktivitasController as GuruAktivitasController;
 use App\Http\Controllers\Guru\DashboardController as GuruDashboardController;
 use App\Http\Controllers\Guru\PenilaianController as GuruPenilaianController;
+use App\Http\Controllers\Guru\RekapBulananController as GuruRekapBulananController;
 use App\Http\Controllers\Dudi\DashboardController as DudiDashboardController;
+use App\Http\Controllers\Dudi\RekapBulananController as DudiRekapBulananController;
 use App\Http\Controllers\Siswa\AbsensiController as SiswaAbsensiController;
 use App\Http\Controllers\Siswa\AktivitasController as SiswaAktivitasController;
 use App\Http\Controllers\Siswa\DashboardController as SiswaDashboardController;
@@ -29,21 +31,34 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| ARSITEKTUR & RUTE UTAMA APLIKASI (WEB ROUTES)
 |--------------------------------------------------------------------------
 |
-| Route structure:
-| - Health Check: /health & /api/v1/health
-| - SiPintu SSO: /auth/callback & /auth/sipintu
-| - Webhook: /api/v1/sipintu/sync-user
-| - Guest: welcome page
-| - Authenticated: role-based dashboard redirect
-| - Super Admin: /admin/*
-| - Guru: /guru/*
-| - DUDI: /dudi/*
-| - Siswa: /siswa/*
+| Alur Permintaan Data (Request Lifecycle):
+| Browser (Klien)
+|    ↓
+| Route (routes/web.php & routes/auth.php)
+|    ↓
+| Middleware (auth, verified, role, permission, ForceChangePassword)
+|    ↓
+| Controller (app/Http/Controllers/*)
+|    ↓
+| Service (app/Services/* — Logika Bisnis & Perhitungan SSOT)
+|    ↓
+| Repository / Model (app/Repositories/* & app/Models/* — Eloquent ORM)
+|    ↓
+| Database (MySQL / SQLite)
+|
+| Pengelompokan Hak Akses Rute:
+| 1. Health Check & Webhook SiPintu : Pemantauan status sistem & sinkronisasi pengguna.
+| 2. SiPintu SSO                   : Integrasi login terpusat SMKN 1 Bangsri.
+| 3. Super Admin (/admin/*)         : Pengelolaan penuh master data, penempatan, dan log.
+| 4. Guru Pembimbing (/guru/*)     : Monitoring siswa bimbingan & cetak Rapor PKL (PDF).
+| 5. DUDI (/dudi/*)                : Pembimbing lapangan, operasional, & input nilai PKL.
+| 6. Siswa (/siswa/*)              : Check-in/out selfie GPS, jurnal harian, & izin/sakit.
 |
 */
+
 
 // Health Check Endpoints (SiPintu monitoring)
 Route::get('/health', [HealthController::class, 'check'])->name('health.check');
@@ -112,6 +127,8 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     // Master Penempatan PKL
     Route::get('penempatan-pkl/students', [PenempatanPKLController::class, 'searchStudents'])->name('penempatan-pkl.students');
     Route::resource('penempatan-pkl', PenempatanPKLController::class);
+    Route::get('penempatan-pkl/{penempatan_pkl}/lokasi', [PenempatanPKLController::class, 'editLocation'])->name('penempatan-pkl.location.edit');
+    Route::put('penempatan-pkl/{penempatan_pkl}/lokasi', [PenempatanPKLController::class, 'updateLocation'])->name('penempatan-pkl.location.update');
     Route::post('penempatan-pkl/{penempatan_pkl}/restore', [PenempatanPKLController::class, 'restore'])->name('penempatan-pkl.restore')->withTrashed();
     Route::delete('penempatan-pkl/{penempatan_pkl}/force-delete', [PenempatanPKLController::class, 'forceDelete'])->name('penempatan-pkl.force-delete')->withTrashed();
 
@@ -129,7 +146,27 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
     // Pemetaan Kelas SiPintu
     Route::get('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'index'])->name('sipintu-classroom-mapping.index');
     Route::post('/sipintu-classroom-mapping', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'store'])->name('sipintu-classroom-mapping.store');
+    Route::post('/sipintu-classroom-mapping/auto-map', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'autoMap'])->name('sipintu-classroom-mapping.auto-map');
     Route::post('/sipintu-classroom-mapping/apply', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'apply'])->name('sipintu-classroom-mapping.apply');
+    Route::delete('/sipintu-classroom-mapping/{mapping}', [\App\Http\Controllers\Admin\SipintuClassroomMappingController::class, 'destroy'])->name('sipintu-classroom-mapping.destroy');
+
+    // Pemetaan Akun DUDI SiPintu (Tahap A)
+    Route::prefix('sipintu-dudi-mapping')->name('sipintu-dudi-mapping.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'index'])->name('index');
+        Route::post('/{dudi}', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'store'])->name('store');
+        Route::delete('/{dudi}', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'destroy'])->name('destroy');
+        Route::post('/{dudi}/toggle-sso', [\App\Http\Controllers\Admin\SipintuDudiMappingController::class, 'toggleSso'])->name('toggle-sso');
+    });
+
+    // WhatsApp Gateway & Notifikasi
+    Route::get('/whatsapp', [\App\Http\Controllers\Admin\WhatsAppController::class, 'index'])->name('whatsapp.index');
+    Route::get('/whatsapp/status-ajax', [\App\Http\Controllers\Admin\WhatsAppController::class, 'statusAjax'])->name('whatsapp.status-ajax');
+    Route::post('/whatsapp/settings', [\App\Http\Controllers\Admin\WhatsAppController::class, 'updateSettings'])->name('whatsapp.settings.update');
+    Route::post('/whatsapp/test-send', [\App\Http\Controllers\Admin\WhatsAppController::class, 'sendTest'])->name('whatsapp.test-send');
+    Route::post('/whatsapp/disconnect', [\App\Http\Controllers\Admin\WhatsAppController::class, 'disconnect'])->name('whatsapp.disconnect');
+    Route::post('/whatsapp/scan-now', [\App\Http\Controllers\Admin\WhatsAppController::class, 'scanNow'])->name('whatsapp.scan-now');
+    Route::get('/whatsapp/logs', [\App\Http\Controllers\Admin\WhatsAppController::class, 'logs'])->name('whatsapp.logs');
+
 
     // Master Absensi
     Route::resource('absensi', AdminAbsensiController::class);
@@ -168,10 +205,19 @@ Route::middleware(['auth', 'verified', 'role:Super Admin'])->prefix('admin')->na
 Route::middleware(['auth', 'verified', 'role:Guru'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/dashboard', [GuruDashboardController::class, 'index'])->name('dashboard');
 
+    // Rekap Bulanan Siswa
+    Route::get('/rekap-bulanan', [GuruRekapBulananController::class, 'index'])->name('rekap-bulanan.index');
+    Route::get('/siswa/{siswa}/rekap-bulanan', [GuruRekapBulananController::class, 'show'])->name('siswa.rekap-bulanan');
+
     // Absensi Siswa Bimbingan
     Route::get('/absensi', [GuruAbsensiController::class, 'index'])->name('absensi.index');
     Route::get('/absensi/{id}', [GuruAbsensiController::class, 'show'])->name('absensi.show');
     Route::post('/absensi/{id}/verify', [GuruAbsensiController::class, 'verify'])->name('absensi.verify');
+
+    // Pengaturan Lokasi WFO / WFH Siswa Bimbingan
+    Route::get('/penempatan-pkl', [\App\Http\Controllers\Guru\PenempatanLocationController::class, 'index'])->name('penempatan-pkl.index');
+    Route::get('/penempatan-pkl/{penempatan_pkl}/lokasi', [\App\Http\Controllers\Guru\PenempatanLocationController::class, 'edit'])->name('penempatan-pkl.location.edit');
+    Route::put('/penempatan-pkl/{penempatan_pkl}/lokasi', [\App\Http\Controllers\Guru\PenempatanLocationController::class, 'update'])->name('penempatan-pkl.location.update');
 
     // Aktivitas Siswa Bimbingan
     Route::get('/aktivitas', [GuruAktivitasController::class, 'index'])->name('aktivitas.index');
@@ -216,6 +262,10 @@ Route::middleware(['auth', 'verified', 'role:DUDI'])->prefix('dudi')->name('dudi
     Route::get('/dashboard', [DudiDashboardController::class, 'index'])->name('dashboard');
     Route::get('/siswa', [\App\Http\Controllers\Dudi\SiswaController::class, 'index'])->name('siswa.index');
     Route::get('/siswa/{id}', [\App\Http\Controllers\Dudi\SiswaController::class, 'show'])->name('siswa.show');
+    
+    // Rekap Bulanan Siswa
+    Route::get('/rekap-bulanan', [DudiRekapBulananController::class, 'index'])->name('rekap-bulanan.index');
+    Route::get('/siswa/{siswa}/rekap-bulanan', [DudiRekapBulananController::class, 'show'])->name('siswa.rekap-bulanan');
     Route::get('/absensi', [\App\Http\Controllers\Dudi\AbsensiController::class, 'index'])->name('absensi.index');
     Route::get('/absensi/{id}', [\App\Http\Controllers\Dudi\AbsensiController::class, 'show'])->name('absensi.show');
     Route::get('/aktivitas', [\App\Http\Controllers\Dudi\AktivitasController::class, 'index'])->name('aktivitas.index');

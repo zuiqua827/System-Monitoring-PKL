@@ -13,14 +13,6 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
-
         {{-- Header & Tombol Tambah --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -152,7 +144,11 @@
                                             @endcan
 
                                             @can('delete', $absensi)
-                                                <form method="POST" action="{{ route('admin.absensi.destroy', $absensi->id) }}" class="inline" onsubmit="return confirm('Hapus absensi ini?')">
+                                                <form method="POST" action="{{ route('admin.absensi.destroy', $absensi->id) }}" class="inline"
+                                                      data-confirm="Hapus data absensi ini? Data akan dipindahkan ke tempat sampah."
+                                                      data-confirm-title="Hapus Absensi"
+                                                      data-confirm-type="danger"
+                                                      data-confirm-btn="Ya, Hapus">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="inline-flex items-center rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus</button>
@@ -160,14 +156,22 @@
                                             @endcan
                                         @else
                                             @can('restore', $absensi)
-                                                <form method="POST" action="{{ route('admin.absensi.restore', $absensi->id) }}" class="inline" onsubmit="return confirm('Pulihkan absensi ini?')">
+                                                <form method="POST" action="{{ route('admin.absensi.restore', $absensi->id) }}" class="inline"
+                                                      data-confirm="Pulihkan data absensi ini?"
+                                                      data-confirm-title="Pulihkan Absensi"
+                                                      data-confirm-type="success"
+                                                      data-confirm-btn="Pulihkan">
                                                     @csrf
                                                     <button type="submit" class="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Restore</button>
                                                 </form>
                                             @endcan
 
                                             @can('forceDelete', $absensi)
-                                                <form method="POST" action="{{ route('admin.absensi.force-delete', $absensi->id) }}" class="inline" onsubmit="return confirm('Hapus permanen absensi ini?')">
+                                                <form method="POST" action="{{ route('admin.absensi.force-delete', $absensi->id) }}" class="inline"
+                                                      data-confirm="Hapus permanen data absensi ini? Tindakan ini tidak dapat dibatalkan!"
+                                                      data-confirm-title="Hapus Permanen Absensi"
+                                                      data-confirm-type="danger"
+                                                      data-confirm-btn="Ya, Hapus Permanen">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="inline-flex items-center rounded-lg bg-red-800 px-2.5 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-900">Force Delete</button>

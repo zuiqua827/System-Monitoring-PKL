@@ -16,6 +16,10 @@ class TwoFactorChallengeTest extends TestCase
         parent::setUp();
 
         $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+
+        if (! \Illuminate\Support\Facades\Route::has('two-factor.login')) {
+            $this->markTestSkipped('Fortify routes are disabled because custom authentication routes are used.');
+        }
     }
 
     public function test_two_factor_challenge_redirects_to_login_when_not_authenticated(): void

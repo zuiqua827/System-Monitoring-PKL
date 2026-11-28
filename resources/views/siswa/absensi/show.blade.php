@@ -75,14 +75,6 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Jam Pulang</p>
                     <p class="mt-1 text-sm font-medium text-slate-900">{{ $absensi->jam_keluar ?? '-' }}</p>
                 </div>
-                <div class="bg-white px-6 py-4">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Lokasi Masuk</p>
-                    <p class="mt-1 text-sm font-medium text-slate-900">{{ $absensi->lokasi_masuk ?? '-' }}</p>
-                </div>
-                <div class="bg-white px-6 py-4">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Lokasi Pulang</p>
-                    <p class="mt-1 text-sm font-medium text-slate-900">{{ $absensi->lokasi_pulang ?? '-' }}</p>
-                </div>
                 @if($absensi->foto_masuk)
                 <div class="bg-white px-6 py-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Foto Masuk</p>

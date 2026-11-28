@@ -10,14 +10,19 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Middleware that forces users to change their password before accessing any other page.
+ * Middleware untuk mewajibkan pengguna mengganti password default pada saat pertama kali login.
  *
- * Users with `must_change_password = true` (e.g., Siswa on first login)
- * are redirected to the force-change-password page.
+ * Tujuan Keamanan:
+ * - Siswa yang baru dibuat akunnya memiliki password bawaan berupa tanggal lahir (YYYY-MM-DD).
+ * - Sistem menandai kolom `must_change_password = true` di tabel users.
+ * - Middleware ini menghadang seluruh akses halaman dan mengarahkannya ke 'force-change-password'.
  *
- * Excluded routes: logout, force-change-password (to prevent redirect loop).
+ * Pengecualian (Bypass):
+ * 1. Rute 'force-change-password' dan 'logout' (mencegah redirect loop tak berujung).
+ * 2. Pengguna yang login via SSO SiPintu (kredensial dikelola di server SiPintu).
  */
 class ForceChangePassword
+
 {
     /**
      * Routes that should be accessible even when password change is required.

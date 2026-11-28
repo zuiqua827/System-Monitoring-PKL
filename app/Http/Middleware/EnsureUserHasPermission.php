@@ -9,16 +9,20 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Middleware to verify the authenticated user has the required permission.
+ * Middleware untuk memverifikasi bahwa pengguna memiliki izin (permission) spesifik.
  *
- * Usage in routes:
- *   ->middleware('permission:user.view')
- *   ->middleware('permission:user.view|user.create')
+ * Menggunakan paket Spatie Permission (metode hasAnyPermission()).
+ * Berfungsi untuk kontrol akses yang lebih granular (misalnya: absensi.view, penilaian.update)
+ * di luar batasan role umum.
  *
- * Uses Spatie Permission's `hasAnyPermission()` method internally.
- * Returns 403 if the user does not have any of the specified permissions.
+ * Contoh penggunaan pada route:
+ *   ->middleware('permission:absensi.view')
+ *   ->middleware('permission:penilaian.create|penilaian.update')
+ *
+ * Mengembalikan HTTP 403 Forbidden jika pengguna tidak memiliki izin yang diminta.
  */
 class EnsureUserHasPermission
+
 {
     /**
      * Handle an incoming request.

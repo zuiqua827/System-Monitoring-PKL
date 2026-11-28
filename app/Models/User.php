@@ -51,9 +51,14 @@ class User extends Authenticatable implements PasskeyUser
     use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
+     * @var string
+     */
+    protected string $guard_name = 'web';
+
+    /**
      * @var list<string>
      */
-protected $fillable = [
+    protected $fillable = [
         'role_id',
         'name',
         'email',
@@ -117,23 +122,39 @@ protected $fillable = [
         return $this->belongsTo(Role::class);
     }
 
-    /** @return HasOne<Guru, $this> */
+    // ============================================================
+    // RELASI PROFIL PERAN (ROLE-SPECIFIC PROFILE RELATIONSHIPS)
+    // ============================================================
+    // Tabel users menyimpan data autentikasi bersama (email, password, role).
+    // Detail entitas spesifik dihubungkan melalui relasi 1:1 (HasOne):
+
+    /**
+     * Relasi ke profil Guru jika akun ini berperan sebagai Guru Pembimbing.
+     * @return HasOne<Guru, $this>
+     */
     public function guru(): HasOne
     {
         return $this->hasOne(Guru::class);
     }
 
-    /** @return HasOne<Dudi, $this> */
+    /**
+     * Relasi ke profil DUDI jika akun ini mewakili Perusahaan/Instansi tempat magang.
+     * @return HasOne<Dudi, $this>
+     */
     public function dudi(): HasOne
     {
         return $this->hasOne(Dudi::class);
     }
 
-    /** @return HasOne<Siswa, $this> */
+    /**
+     * Relasi ke profil Siswa jika akun ini milik siswa peserta PKL.
+     * @return HasOne<Siswa, $this>
+     */
     public function siswa(): HasOne
     {
         return $this->hasOne(Siswa::class);
     }
+
 
     /** @return HasMany<Notifikasi, $this> */
     public function notifikasi(): HasMany

@@ -12,7 +12,6 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Supports:
  * - Camera capture (foto_base64) or file upload (foto_masuk)
- * - GPS coordinates (latitude, longitude, accuracy)
  */
 class CheckInRequest extends FormRequest
 {
@@ -34,10 +33,6 @@ class CheckInRequest extends FormRequest
         return [
             'foto_masuk' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
             'foto_base64' => ['nullable', 'string'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:10000'],
-            'lokasi_masuk' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -51,10 +46,6 @@ class CheckInRequest extends FormRequest
         return [
             'foto_masuk' => 'Foto Masuk',
             'foto_base64' => 'Foto Kamera',
-            'latitude' => 'Latitude',
-            'longitude' => 'Longitude',
-            'accuracy' => 'Akurasi GPS',
-            'lokasi_masuk' => 'Lokasi Masuk',
         ];
     }
 

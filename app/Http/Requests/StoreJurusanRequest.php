@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validation rules for creating a new Jurusan.
@@ -28,8 +29,8 @@ class StoreJurusanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'kode' => ['required', 'string', 'max:20', 'unique:jurusan,kode'],
-            'nama' => ['required', 'string', 'max:100', 'unique:jurusan,nama'],
+            'kode' => ['required', 'string', 'max:20', Rule::unique('jurusan', 'kode')->withoutTrashed()],
+            'nama' => ['required', 'string', 'max:100', Rule::unique('jurusan', 'nama')->withoutTrashed()],
             'deskripsi' => ['nullable', 'string'],
         ];
     }

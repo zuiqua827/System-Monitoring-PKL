@@ -16,6 +16,18 @@ use App\Models\User;
 class SiswaPolicy
 {
     /**
+     * Super Admin bypass — grant all abilities.
+     */
+    public function before(User $user, string $ability): bool|null
+    {
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        return null;
+    }
+
+    /**
      * Determine whether the user can view any siswa.
      */
     public function viewAny(User $user): bool
@@ -28,7 +40,51 @@ class SiswaPolicy
      */
     public function view(User $user, Siswa $siswa): bool
     {
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('Guru')) {
+            $guru = $user->guru;
+            return $guru !== null && $siswa->penempatan()->where('guru_id', $guru->id)->exists();
+        }
+
+        if ($user->hasRole('DUDI')) {
+            $dudi = $user->dudi;
+            return $dudi !== null && $siswa->penempatan()->where('dudi_id', $dudi->id)->exists();
+        }
+
         return $user->hasPermissionTo('siswa.view');
+    }
+
+    /**
+     * Determine whether the user can view rekap bulanan for the siswa.
+     */
+    public function viewRekapBulanan(User $user, Siswa $siswa): bool
+    {
+        if ($user->hasRole('Super Admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('Guru')) {
+            $guru = $user->guru;
+            if ($guru === null) {
+                return false;
+            }
+
+            return $siswa->penempatan()->where('guru_id', $guru->id)->exists();
+        }
+
+        if ($user->hasRole('DUDI')) {
+            $dudi = $user->dudi;
+            if ($dudi === null) {
+                return false;
+            }
+
+            return $siswa->penempatan()->where('dudi_id', $dudi->id)->exists();
+        }
+
+        return false;
     }
 
     /**

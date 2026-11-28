@@ -28,7 +28,7 @@ class JurusanRepository extends EloquentRepository implements JurusanRepositoryI
         string $sortDirection = 'asc',
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = $this->newQuery();
+        $query = $this->newQuery()->withTrashed();
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {

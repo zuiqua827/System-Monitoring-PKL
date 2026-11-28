@@ -112,7 +112,7 @@ test('siswa can authenticate using siswa tab', function () {
     $response->assertRedirect('/siswa/dashboard');
 });
 
-test('new dudi created via dudi service can authenticate using default password', function () {
+test('new dudi created via dudi service uses a random one-time password with must_change_password enabled', function () {
     /** @var DudiServiceInterface $service */
     $service = app(DudiServiceInterface::class);
 
@@ -128,15 +128,37 @@ test('new dudi created via dudi service can authenticate using default password'
 
     $this->assertNotNull($dudi->user);
     $this->assertTrue($dudi->user->hasRole(UserRole::DUDI->value));
-    $this->assertTrue(Hash::check('password', $dudi->user->password));
+    $this->assertTrue((bool) $dudi->user->must_change_password);
+    $this->assertFalse(Hash::check('password', $dudi->user->password));
 
-    $response = $this->post('/login', [
+    $rejected = $this->post('/login', [
         'role' => 'dudi',
         'email' => $email,
         'password' => 'password',
     ]);
 
-    $this->assertAuthenticatedAs($dudi->user);
+    $this->assertGuest();
+    $rejected->assertSessionHasErrors('email');
+
+    // When explicit temporary password is provided, DUDI can authenticate with it
+    $emailExplicit = 'mitra_explicit_' . uniqid() . '@example.com';
+    $dudiExplicit = $service->store([
+        'email' => $emailExplicit,
+        'nama_perusahaan' => 'PT Mitra Explicit',
+        'penanggung_jawab' => 'Ibu Mitra',
+        'no_telepon' => '081234567891',
+        'alamat' => 'Jl. Industri No. 11',
+        'status_aktif' => true,
+        'password' => 'OneTimePass!2026',
+    ]);
+
+    $response = $this->post('/login', [
+        'role' => 'dudi',
+        'email' => $emailExplicit,
+        'password' => 'OneTimePass!2026',
+    ]);
+
+    $this->assertAuthenticatedAs($dudiExplicit->user);
     $response->assertRedirect('/dudi/dashboard');
 });
 

@@ -12,6 +12,9 @@
     {{-- Session Status & Global Errors --}}
     <x-auth-session-status class="mb-4" :status="session('status')" />
     <x-input-error :messages="$errors->get('login')" class="mb-4 text-center font-semibold" />
+    @if (session('error') && ! $errors->has('login'))
+        <p class="mb-4 text-center text-sm font-semibold text-red-600">{{ session('error') }}</p>
+    @endif
 
     {{-- Role Tabs & Interactive Login Form --}}
     <div x-data="{
@@ -168,5 +171,29 @@
                 </button>
             </div>
         </form>
+
+        {{-- Single Sign-On Portal SiPintu (Siswa, Guru, & DUDI Terverifikasi) --}}
+        <div class="mt-5 pt-4 border-t border-slate-200/80">
+            <div class="relative flex items-center justify-center mb-3.5">
+                <span class="px-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Atau Masuk Dengan SSO
+                </span>
+            </div>
+
+            <a
+                href="{{ route('auth.sipintu.redirect') }}"
+                class="w-full inline-flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 shadow-xs transition hover:border-blue-300 hover:bg-blue-50/70 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            >
+                <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                </svg>
+                <span>Login via SiPintu</span>
+            </a>
+
+            <p class="mt-2 text-center text-[11px] leading-relaxed text-slate-500">
+                <span x-show="tab !== 'dudi'">Gunakan akun portal SiPintu SMKN 1 Bangsri untuk masuk otomatis sesuai peran Anda.</span>
+                <span x-show="tab === 'dudi'" x-cloak>Khusus akun mitra DUDI terdaftar yang SSO SiPintu-nya telah diaktifkan oleh pihak sekolah.</span>
+            </p>
+        </div>
     </div>
 </x-guest-layout>

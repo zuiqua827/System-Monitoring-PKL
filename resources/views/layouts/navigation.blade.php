@@ -38,7 +38,8 @@
             [
                 'label' => 'Integrasi',
                 'items' => [
-                    ['label' => 'Sinkronisasi SiPintu', 'route' => 'admin.sipintu-sync.index', 'active' => ['admin.sipintu-sync.*'], 'icon' => 'sync'],
+                    ['label' => 'Sinkronisasi SiPintu', 'route' => 'admin.sipintu-sync.index', 'active' => ['admin.sipintu-sync.*', 'admin.sipintu-dudi-mapping.*', 'admin.sipintu-classroom-mapping.*'], 'icon' => 'sync'],
+                    ['label' => 'WhatsApp Gateway', 'route' => 'admin.whatsapp.index', 'active' => ['admin.whatsapp.*'], 'icon' => 'whatsapp'],
                 ],
             ],
         ];
@@ -49,7 +50,9 @@
                 'items' => [
                     ['label' => 'Dashboard', 'route' => 'guru.dashboard', 'active' => ['guru.dashboard'], 'icon' => 'dashboard'],
                     ['label' => 'Absensi Siswa', 'route' => 'guru.absensi.index', 'active' => ['guru.absensi.*'], 'icon' => 'attendance'],
+                    ['label' => 'Lokasi WFO/WFH', 'route' => 'guru.penempatan-pkl.index', 'active' => ['guru.penempatan-pkl.*'], 'icon' => 'placement'],
                     ['label' => 'Aktivitas Siswa', 'route' => 'guru.aktivitas.index', 'active' => ['guru.aktivitas.*'], 'icon' => 'activity'],
+                    ['label' => 'Rekap Bulanan', 'route' => 'guru.rekap-bulanan.index', 'active' => ['guru.rekap-bulanan.*', 'guru.siswa.rekap-bulanan'], 'icon' => 'calendar'],
                     ['label' => 'Penilaian', 'route' => 'guru.penilaian.index', 'active' => ['guru.penilaian.*'], 'icon' => 'grade'],
                     ['label' => 'Laporan PKL', 'route' => 'guru.laporan.index', 'active' => ['guru.laporan.*'], 'icon' => 'report'],
                     ['label' => 'Pengaturan Akun', 'route' => 'account.index', 'active' => ['account.*'], 'icon' => 'profile'],
@@ -77,6 +80,7 @@
                 'items' => [
                     ['label' => 'Dashboard', 'route' => 'dudi.dashboard', 'active' => ['dudi.dashboard'], 'icon' => 'dashboard'],
                     ['label' => 'Data Siswa PKL', 'route' => 'dudi.siswa.index', 'active' => ['dudi.siswa.*'], 'icon' => 'students'],
+                    ['label' => 'Rekap Bulanan', 'route' => 'dudi.rekap-bulanan.index', 'active' => ['dudi.rekap-bulanan.*', 'dudi.siswa.rekap-bulanan'], 'icon' => 'calendar'],
                     ['label' => 'Absensi', 'route' => 'dudi.absensi.index', 'active' => ['dudi.absensi.*'], 'icon' => 'attendance'],
                     ['label' => 'Ketidakhadiran', 'route' => 'dudi.ketidakhadiran.index', 'active' => ['dudi.ketidakhadiran.*'], 'icon' => 'calendar'],
                     ['label' => 'Aktivitas', 'route' => 'dudi.aktivitas.index', 'active' => ['dudi.aktivitas.*'], 'icon' => 'activity'],
@@ -200,6 +204,9 @@
                                             @case('sync')
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                                                 @break
+                                            @case('whatsapp')
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a.75.75 0 0 1-.974-.94 6.002 6.002 0 0 1 1.092-2.122C4.16 16.488 3 14.364 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                                                @break
                                             @default
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5 12 5l7.5 6.5M6.5 10.5V20h11v-9.5M10 20v-5h4v5" />
                                         @endswitch
@@ -225,7 +232,11 @@
                         <p class="truncate text-xs text-slate-500">{{ $roleName }}</p>
                     </div>
                 </div>
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('logout') }}"
+                      data-confirm="Apakah Anda yakin ingin keluar dari akun ini?"
+                      data-confirm-title="Konfirmasi Logout"
+                      data-confirm-type="warning"
+                      data-confirm-btn="Ya, Logout">
                     @csrf
                     <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -287,7 +298,11 @@
                                 </svg>
                                 Pengaturan Akun
                             </a>
-                            <form method="POST" action="{{ route('logout') }}">
+                            <form method="POST" action="{{ route('logout') }}"
+                                  data-confirm="Apakah Anda yakin ingin keluar dari akun ini?"
+                                  data-confirm-title="Konfirmasi Logout"
+                                  data-confirm-type="warning"
+                                  data-confirm-btn="Ya, Logout">
                                 @csrf
                                 <button type="submit" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">

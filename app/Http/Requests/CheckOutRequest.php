@@ -21,10 +21,6 @@ class CheckOutRequest extends FormRequest
         return [
             'foto_pulang' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
             'foto_base64' => ['nullable', 'string'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:10000'],
-            'lokasi_pulang' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -33,10 +29,6 @@ class CheckOutRequest extends FormRequest
         return [
             'foto_pulang' => 'Foto Pulang',
             'foto_base64' => 'Foto Kamera',
-            'latitude' => 'Latitude',
-            'longitude' => 'Longitude',
-            'accuracy' => 'Akurasi GPS',
-            'lokasi_pulang' => 'Lokasi Pulang',
         ];
     }
 

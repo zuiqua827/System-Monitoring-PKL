@@ -32,6 +32,7 @@ class PenilaianRepository extends EloquentRepository implements PenilaianReposit
         int $perPage = 15,
     ): LengthAwarePaginator {
         $query = $this->newQuery()
+            ->withTrashed()
             ->with([
                 'penempatanPKL',
                 'penempatanPKL.siswa',

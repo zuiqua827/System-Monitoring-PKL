@@ -1,11 +1,9 @@
 /**
- * Absensi Camera & GPS Module
+ * Absensi Camera Module
  *
  * Features:
  * - Real-time camera capture using getUserMedia()
- * - GPS auto-detection using getCurrentPosition()
  * - HTML5 Canvas watermark with student info
- * - Haversine radius validation
  * - Fallback to file upload if camera not supported
  */
 
@@ -19,15 +17,6 @@ class AbsensiCamera {
         );
         this.photoInput = document.getElementById(
             options.photoInputId || "foto_base64",
-        );
-        this.latInput = document.getElementById(
-            options.latInputId || "latitude",
-        );
-        this.lngInput = document.getElementById(
-            options.lngInputId || "longitude",
-        );
-        this.accuracyInput = document.getElementById(
-            options.accuracyInputId || "accuracy",
         );
         this.statusElement = document.getElementById(
             options.statusId || "camera-status",
@@ -53,7 +42,6 @@ class AbsensiCamera {
 
         this.stream = null;
         this.capturedImage = null;
-        this.currentPosition = null;
         this.watermarkData = options.watermarkData || {};
         this.onComplete = options.onComplete || null;
         this.mode = options.mode || "checkin"; // 'checkin' or 'checkout'
@@ -76,12 +64,6 @@ class AbsensiCamera {
 
     async init() {
         try {
-            await this.getGPSPosition();
-        } catch (error) {
-            this.showStatus("Lokasi tidak tersedia. Pastikan izin lokasi aktif.", "warning");
-        }
-
-        try {
             await this.startCamera();
         } catch (error) {
             this.showStatus(
@@ -95,51 +77,6 @@ class AbsensiCamera {
                 this.fileUploadContainer.style.display = "block";
             }
         }
-    }
-
-    async getGPSPosition() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                this.showStatus("GPS tidak didukung browser ini", "error");
-                reject(new Error("Geolocation not supported"));
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    this.currentPosition = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        accuracy: position.coords.accuracy,
-                    };
-
-                    if (this.latInput)
-                        this.latInput.value = position.coords.latitude;
-                    if (this.lngInput)
-                        this.lngInput.value = position.coords.longitude;
-                    if (this.accuracyInput)
-                        this.accuracyInput.value = position.coords.accuracy;
-
-                    resolve(position);
-                },
-                (error) => {
-                    let message = "Gagal mendapatkan lokasi";
-                    if (error.code === 1)
-                        message = "Izin lokasi ditolak. Silakan aktifkan GPS.";
-                    else if (error.code === 2) message = "GPS tidak tersedia.";
-                    else if (error.code === 3)
-                        message = "Waktu permintaan lokasi habis.";
-
-                    this.showStatus(message, "error");
-                    reject(error);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0,
-                },
-            );
-        });
     }
 
     async startCamera() {
@@ -169,7 +106,6 @@ class AbsensiCamera {
             if (this.canvasElement) this.canvasElement.style.display = "none";
             if (this.fileUpload) this.fileUpload.style.display = "none";
             if (this.fileUploadContainer) this.fileUploadContainer.style.display = "none";
-
         } catch (error) {
             if (error.name === "NotAllowedError") {
                 throw new Error(
@@ -226,7 +162,6 @@ class AbsensiCamera {
         if (this.captureBtn) this.captureBtn.style.display = "none";
         if (this.retakeBtn) this.retakeBtn.style.display = "inline-flex";
         if (this.confirmBtn) this.confirmBtn.style.display = "inline-flex";
-
     }
 
     addWatermark(context, width, height) {
@@ -234,7 +169,7 @@ class AbsensiCamera {
 
         // Semi-transparent overlay at bottom
         context.fillStyle = "rgba(0, 0, 0, 0.6)";
-        context.fillRect(0, height - 130, width, 130);
+        context.fillRect(0, height - 110, width, 110);
 
         // Watermark text
         context.fillStyle = "white";
@@ -257,7 +192,7 @@ class AbsensiCamera {
             timeZone: "Asia/Jakarta",
         });
 
-        let y = height - 100;
+        let y = height - 80;
         const lineHeight = Math.max(18, width * 0.028);
 
         // Line 1: Student name
@@ -274,19 +209,6 @@ class AbsensiCamera {
 
         // Line 3: Date & Time
         context.fillText(`Tanggal: ${dateStr} | Jam: ${timeStr}`, 15, y);
-        y += lineHeight;
-
-        // Line 4: GPS coordinates
-        if (this.currentPosition) {
-            const lat = this.currentPosition.latitude.toFixed(6);
-            const lng = this.currentPosition.longitude.toFixed(6);
-            context.fillText(
-                `Lokasi: ${lat}, ${lng} (Akurasi: ${this.currentPosition.accuracy.toFixed(0)}m)`,
-                15,
-                y,
-            );
-            y += lineHeight;
-        }
 
         // Type indicator (Check In/Out)
         context.fillStyle = this.mode === "checkin" ? "#4CAF50" : "#FF9800";
@@ -295,7 +217,7 @@ class AbsensiCamera {
         context.fillText(
             this.mode === "checkin" ? "CHECK IN" : "CHECK OUT",
             width - 15,
-            height - 100,
+            height - 80,
         );
     }
 
@@ -311,9 +233,6 @@ class AbsensiCamera {
         if (typeof this.onComplete === "function") {
             this.onComplete({
                 foto_base64: this.capturedImage,
-                latitude: this.currentPosition?.latitude || null,
-                longitude: this.currentPosition?.longitude || null,
-                accuracy: this.currentPosition?.accuracy || null,
             });
         }
     }

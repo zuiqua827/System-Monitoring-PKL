@@ -81,5 +81,6 @@
             <p class="text-white/70">Sistem Monitoring Praktik Kerja Lapangan (SIMONGAN)</p>
         </footer>
     </div>
+    <x-custom-dialogs />
 </body>
 </html>

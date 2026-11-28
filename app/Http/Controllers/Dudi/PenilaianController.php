@@ -15,11 +15,23 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
+/**
+ * Controller untuk mengelola Penilaian PKL oleh Pembimbing Industri (DUDI).
+ *
+ * Alur Proses Penilaian oleh DUDI:
+ * 1. DUDI hanya dapat menilai siswa yang memiliki penempatan aktif di perusahaannya.
+ * 2. Nilai Kehadiran dihitung otomatis oleh sistem dari data absensi riil (Single Source of Truth).
+ * 3. DUDI menginputkan nilai 5 aspek kompetensi (Kerja Sama, Komunikasi, Problem Solving, Teknis, Inisiatif).
+ * 4. Nilai disimpan mula-mula berstatus 'draft' (masih bisa diedit).
+ * 5. Ketika masa PKL selesai, DUDI menekan tombol 'Finalisasi' (status menjadi 'final').
+ *    Setelah status final, nilai terkunci permanen dan tidak dapat diubah lagi oleh DUDI.
+ */
 class PenilaianController extends Controller
 {
     public function __construct(
-        private readonly PenilaianServiceInterface $penilaianService
+        private readonly PenilaianServiceInterface $penilaianService,
     ) {}
+
 
     public function index(Request $request): View
     {

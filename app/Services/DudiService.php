@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\UserRole;
 use App\Models\Dudi;
+use App\Models\User;
 use App\Repositories\Interfaces\DudiRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Services\Interfaces\DudiServiceInterface;
@@ -13,6 +14,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Service layer for DUDI business logic.
@@ -63,20 +65,58 @@ class DudiService extends Service implements DudiServiceInterface
      *
      * Business Rules:
      * 1. Create User account with role "DUDI"
-     * 2. Use "password" as default initial password (hashed via Hash::make, force change on first login)
+     * 2. Use provided password or generate a random one-time password (hashed via Hash::make, must_change_password = true)
      * 3. Create Dudi record linked to the new User
      * 4. All within a single database transaction
      */
     public function store(array $data): Dudi
     {
+        $plainPassword = (isset($data['password']) && is_string($data['password']) && $data['password'] !== '')
+            ? $data['password']
+            : Str::password(16);
+
         /** @var Dudi $dudi */
-        $dudi = $this->transaction(function () use ($data): Model {
-            // 1. Create User account with default password "password"
+        $dudi = $this->transaction(function () use ($data, $plainPassword): Model {
+            $existingUser = User::withTrashed()->where('email', $data['email'])->first();
+            if ($existingUser !== null) {
+                if ($existingUser->trashed()) {
+                    $existingUser->restore();
+                }
+                $existingUser->update([
+                    'name' => $data['nama_perusahaan'],
+                    'password' => Hash::make($plainPassword),
+                    'must_change_password' => true,
+                ]);
+
+                $existingDudi = Dudi::withTrashed()->where('user_id', $existingUser->id)->first();
+                if ($existingDudi !== null) {
+                    if ($existingDudi->trashed()) {
+                        $existingDudi->restore();
+                    }
+                    $existingDudi->update([
+                        'nama_perusahaan' => $data['nama_perusahaan'],
+                        'penanggung_jawab' => $data['penanggung_jawab'],
+                        'email_perusahaan' => $data['email_perusahaan'] ?? $data['email'] ?? null,
+                        'no_telepon' => $data['no_telepon'],
+                        'alamat' => $data['alamat'],
+                        'kecamatan' => $data['kecamatan'] ?? null,
+                        'kabupaten' => $data['kabupaten'] ?? null,
+                        'provinsi' => $data['provinsi'] ?? null,
+                        'latitude' => $data['latitude'] ?? null,
+                        'longitude' => $data['longitude'] ?? null,
+                        'status_aktif' => $data['status_aktif'] ?? true,
+                    ]);
+
+                    return $existingDudi;
+                }
+            }
+
+            // 1. Create User account with explicit or random one-time password
             /** @var \App\Models\User $user */
             $user = $this->userRepository->create([
                 'name' => $data['nama_perusahaan'],
                 'email' => $data['email'],
-                'password' => Hash::make($data['password'] ?? 'password'),
+                'password' => Hash::make($plainPassword),
                 'must_change_password' => true,
                 'email_verified_at' => now(),
             ]);
@@ -116,14 +156,16 @@ class DudiService extends Service implements DudiServiceInterface
     {
         /** @var Dudi $updated */
         $updated = $this->transaction(function () use ($dudi, $data): Model {
-            // 1. Update the associated User account
-            $userUpdateData = ['name' => $data['nama_perusahaan']];
+            // 1. Update the associated User account if one exists
+            if ($dudi->user !== null) {
+                $userUpdateData = ['name' => $data['nama_perusahaan']];
 
-            if (isset($data['email'])) {
-                $userUpdateData['email'] = $data['email'];
+                if (isset($data['email'])) {
+                    $userUpdateData['email'] = $data['email'];
+                }
+
+                $this->userRepository->update($dudi->user, $userUpdateData);
             }
-
-            $this->userRepository->update($dudi->user, $userUpdateData);
 
             // 2. Update Dudi record
             $dudiUpdateData = [
@@ -157,7 +199,7 @@ class DudiService extends Service implements DudiServiceInterface
     public function destroy(Dudi $dudi): bool
     {
         return $this->transaction(function () use ($dudi): bool {
-            $dudi->user->delete();
+            $dudi->user?->delete();
 
             return $this->dudiRepository->delete($dudi);
         });
@@ -185,6 +227,18 @@ class DudiService extends Service implements DudiServiceInterface
     public function forceDelete(Dudi $dudi): bool
     {
         return $this->transaction(function () use ($dudi): bool {
+            $activePenempatanCount = $dudi->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("DUDI \"{$dudi->nama_perusahaan}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $dudi->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
+            }
+
             $result = $this->dudiRepository->forceDelete($dudi);
 
             // User cascade delete is handled by foreign key (cascadeOnDelete)

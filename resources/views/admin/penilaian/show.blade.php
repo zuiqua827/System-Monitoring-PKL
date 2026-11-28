@@ -177,7 +177,11 @@
                     </a>
                 @endcan
                 @can('delete', $penilaian)
-                    <form method="POST" action="{{ route('admin.penilaian.destroy', $penilaian->id) }}" onsubmit="return confirm('Hapus penilaian ini?')">
+                    <form method="POST" action="{{ route('admin.penilaian.destroy', $penilaian->id) }}"
+                          data-confirm="Hapus penilaian PKL ini? Data akan dipindahkan ke tempat sampah."
+                          data-confirm-title="Hapus Penilaian"
+                          data-confirm-type="danger"
+                          data-confirm-btn="Ya, Hapus">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-700">
@@ -190,7 +194,11 @@
                 @endcan
             @else
                 @can('restore', $penilaian)
-                    <form method="POST" action="{{ route('admin.penilaian.restore', $penilaian->id) }}" onsubmit="return confirm('Pulihkan penilaian ini?')">
+                    <form method="POST" action="{{ route('admin.penilaian.restore', $penilaian->id) }}"
+                          data-confirm="Pulihkan penilaian PKL ini?"
+                          data-confirm-title="Pulihkan Penilaian"
+                          data-confirm-type="success"
+                          data-confirm-btn="Pulihkan">
                         @csrf
                         <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-emerald-700">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -201,7 +209,11 @@
                     </form>
                 @endcan
                 @can('forceDelete', $penilaian)
-                    <form method="POST" action="{{ route('admin.penilaian.force-delete', $penilaian->id) }}" onsubmit="return confirm('Hapus permanen penilaian ini? Tindakan ini tidak dapat dibatalkan!')">
+                    <form method="POST" action="{{ route('admin.penilaian.force-delete', $penilaian->id) }}"
+                          data-confirm="Hapus permanen penilaian PKL ini? Tindakan ini tidak dapat dibatalkan!"
+                          data-confirm-title="Hapus Permanen Penilaian"
+                          data-confirm-type="danger"
+                          data-confirm-btn="Ya, Hapus Permanen">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-800 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-red-900">

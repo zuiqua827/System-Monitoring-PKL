@@ -15,7 +15,10 @@ use Carbon\CarbonInterface;
 
 /**
  * @property int $id
- * @property int $user_id
+ * @property string|null $sipintu_id
+ * @property int|null $user_id
+ * @property string|null $sipintu_user_id
+ * @property string|null $sipintu_email
  * @property string $nama_perusahaan
  * @property string|null $penanggung_jawab
  * @property string|null $email_perusahaan
@@ -30,16 +33,18 @@ use Carbon\CarbonInterface;
  * @property float|null $latitude
  * @property float|null $longitude
  * @property bool $status_aktif
- * @property string $jam_masuk
- * @property string $jam_pulang
+ * @property bool $sso_enabled
+ * @property Carbon|null $sipintu_synced_at
+ * @property Carbon|string|null $jam_masuk
+ * @property Carbon|string|null $jam_pulang
  * @property int $toleransi_keterlambatan
- * @property string|null $batas_terlambat
- * @property string|null $batas_sangat_terlambat
- * @property array|null $hari_operasional
+ * @property Carbon|string|null $batas_terlambat
+ * @property Carbon|string|null $batas_sangat_terlambat
+ * @property list<string>|null $hari_operasional
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
- * @property-read User $user
+ * @property-read User|null $user
  * @property-read \Illuminate\Database\Eloquent\Collection<int, PenempatanPKL> $penempatan
  */
 class Dudi extends Model
@@ -74,6 +79,9 @@ class Dudi extends Model
      */
     protected $fillable = [
         'user_id',
+        'sipintu_id',
+        'sipintu_user_id',
+        'sipintu_email',
         'nama_perusahaan',
         'penanggung_jawab',
         'email_perusahaan',
@@ -88,6 +96,8 @@ class Dudi extends Model
         'latitude',
         'longitude',
         'status_aktif',
+        'sso_enabled',
+        'sipintu_synced_at',
         'jam_masuk',
         'jam_pulang',
         'toleransi_keterlambatan',
@@ -111,6 +121,8 @@ class Dudi extends Model
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
             'status_aktif' => 'boolean',
+            'sso_enabled' => 'boolean',
+            'sipintu_synced_at' => 'datetime',
             'jam_masuk' => 'datetime:H:i:s',
             'jam_pulang' => 'datetime:H:i:s',
             'toleransi_keterlambatan' => 'integer',
@@ -130,7 +142,7 @@ class Dudi extends Model
     {
         $hari = $this->hari_operasional;
 
-        if (empty($hari) || !is_array($hari)) {
+        if (empty($hari)) {
             return self::DEFAULT_HARI_OPERASIONAL;
         }
 
@@ -175,8 +187,24 @@ class Dudi extends Model
         if ($val instanceof \DateTimeInterface) {
             return $val->format('H:i:s');
         }
-        return $val ? (string) $val : '09:00:00';
+        if ($val) {
+            return (string) $val;
+        }
+
+        if ($this->jam_masuk) {
+            $jamMasukStr = $this->jam_masuk instanceof \DateTimeInterface
+                ? $this->jam_masuk->format('H:i:s')
+                : (string) $this->jam_masuk;
+            try {
+                return Carbon::parse($jamMasukStr)->addMinutes(60)->format('H:i:s');
+            } catch (\Throwable) {
+                // Fallback below
+            }
+        }
+
+        return '09:00:00';
     }
+
 
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo

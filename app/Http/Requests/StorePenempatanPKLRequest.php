@@ -33,7 +33,7 @@ class StorePenempatanPKLRequest extends FormRequest
                 'exists:siswa,id',
                 Rule::unique('penempatan_pkl', 'siswa_id')
                     ->where('periode_pkl_id', $this->periode_pkl_id)
-                    ->whereNull('deleted_at')
+                    ->withoutTrashed(),
             ],
             'tanggal_mulai' => ['nullable', 'date'],
             'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],

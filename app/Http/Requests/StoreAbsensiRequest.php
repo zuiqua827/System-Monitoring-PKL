@@ -31,7 +31,13 @@ class StoreAbsensiRequest extends FormRequest
     {
         return [
             'penempatan_pkl_id' => ['required', 'integer', 'exists:penempatan_pkl,id'],
-            'tanggal' => ['required', 'date'],
+            'tanggal' => [
+                'required',
+                'date',
+                Rule::unique('absensi', 'tanggal')
+                    ->where('penempatan_pkl_id', $this->input('penempatan_pkl_id'))
+                    ->withoutTrashed(),
+            ],
             'jam_masuk' => ['nullable', 'date_format:H:i:s'],
             'jam_pulang' => ['nullable', 'date_format:H:i:s', 'after:jam_masuk'],
             'status' => ['required', 'string', Rule::in(AbsensiStatus::values())],

@@ -12,17 +12,7 @@
             <p class="mt-2 max-w-2xl text-sm text-slate-500 sm:text-base">Kelola informasi profil, foto, dan keamanan akun Anda.</p>
         </div>
 
-        @if (session('success'))
-            <div class="alert-success mb-6">
-                <span class="font-semibold">{{ session('success') }}</span>
-            </div>
-        @endif
 
-        @if (session('error'))
-            <div class="alert-error mb-6">
-                <span class="font-semibold">{{ session('error') }}</span>
-            </div>
-        @endif
 
         <div class="grid gap-6 lg:grid-cols-12">
             {{-- Left column: avatar + identity --}}

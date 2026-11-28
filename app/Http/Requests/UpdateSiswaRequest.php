@@ -39,8 +39,8 @@ class UpdateSiswaRequest extends FormRequest
 
         return [
             'class_id' => ['required', 'integer', 'exists:kelas,id'],
-            'nis' => ['required', 'string', 'max:30', Rule::unique('siswa', 'nis')->ignore($siswaId)],
-            'nisn' => ['nullable', 'string', 'max:30', Rule::unique('siswa', 'nisn')->ignore($siswaId)],
+            'nis' => ['required', 'string', 'max:30', Rule::unique('siswa', 'nis')->ignore($siswaId)->withoutTrashed()],
+            'nisn' => ['nullable', 'string', 'max:30', Rule::unique('siswa', 'nisn')->ignore($siswaId)->withoutTrashed()],
             'nama' => ['required', 'string', 'max:255'],
             'jenis_kelamin' => ['nullable', 'string', 'in:L,P'],
             'tanggal_lahir' => ['nullable', 'date'],

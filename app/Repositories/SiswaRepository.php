@@ -31,7 +31,7 @@ class SiswaRepository extends EloquentRepository implements SiswaRepositoryInter
         ?int $kelasId = null,
         ?string $status = null,
     ): LengthAwarePaginator {
-        $query = $this->newQuery()->with('kelas');
+        $query = $this->newQuery()->withTrashed()->with('kelas');
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {

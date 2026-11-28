@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Kelas;
+use App\Models\SipintuClassroomMapping;
 use App\Repositories\Interfaces\KelasRepositoryInterface;
 use App\Services\Interfaces\KelasServiceInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -109,9 +110,34 @@ class KelasService extends Service implements KelasServiceInterface
 
     /**
      * {@inheritDoc}
+     *
+     * Safely force-deletes a Kelas within a transaction.
+     * Blocks deletion if siswa records still reference this kelas.
+     * Cleans up sipintu_classroom_mappings before deleting.
+     *
+     * @throws \RuntimeException if siswa records block deletion
      */
     public function forceDelete(Kelas $kelas): bool
     {
-        return $this->kelasRepository->forceDelete($kelas);
+        return $this->transaction(function () use ($kelas): bool {
+            $activeSiswaCount = $kelas->siswa()->whereNull('deleted_at')->count();
+            if ($activeSiswaCount > 0) {
+                throw new \RuntimeException(
+                    "Kelas \"{$kelas->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activeSiswaCount} siswa aktif."
+                );
+            }
+
+            // All remaining siswa are soft-deleted, safe to cascade
+            $trashedSiswa = $kelas->siswa()->onlyTrashed()->get();
+            $siswaService = app(\App\Services\Interfaces\SiswaServiceInterface::class);
+            foreach ($trashedSiswa as $siswa) {
+                $siswaService->forceDelete($siswa);
+            }
+
+            // Remove sipintu_classroom_mappings that reference this kelas
+            SipintuClassroomMapping::where('kelas_id', $kelas->id)->delete();
+
+            return $this->kelasRepository->forceDelete($kelas);
+        });
     }
 }

@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 /**
- * Controller for Siswa Penilaian features.
+ * Controller untuk melihat hasil Penilaian PKL oleh Siswa.
  *
- * Siswa can:
- * - View their own penilaian results
- * - Download their own final penilaian as PDF
- * - Cannot create, edit, or delete
+ * Hak Akses Siswa:
+ * - Siswa hanya dapat MELIHAT nilai miliknya sendiri (read-only).
+ * - Siswa TIDAK DAPAT membuat, mengubah, menghapus, ataupun mengunduh PDF Rapor PKL secara mandiri.
+ * - Dokumen PDF Rapor resmi hanya dapat diunduh dan dicetak oleh Guru Pembimbing & Super Admin.
  */
 class PenilaianController extends Controller
 {
@@ -26,7 +26,7 @@ class PenilaianController extends Controller
     ) {}
 
     /**
-     * Display a listing of penilaian for the authenticated siswa.
+     * Menampilkan daftar penilaian untuk siswa yang sedang login.
      */
     public function index(Request $request): View
     {
@@ -46,13 +46,13 @@ class PenilaianController extends Controller
             'per_page' => (int) $request->query('per_page', '15'),
         ]);
 
-$penempatanAktif = $siswa->penempatan()->where('status', 'aktif')->first();
+        $penempatanAktif = $siswa->penempatan()->where('status', 'aktif')->first();
 
         return view('siswa.penilaian.index', compact('penilaianList', 'penempatanAktif'));
     }
 
     /**
-     * Display the specified penilaian.
+     * Menampilkan rincian nilai tiap aspek untuk siswa yang sedang login.
      */
     public function show(int $id): View
     {
@@ -68,11 +68,11 @@ $penempatanAktif = $siswa->penempatan()->where('status', 'aktif')->first();
             'dinilaiOleh',
         ]);
 
-return view('siswa.penilaian.show', compact('penilaian'));
+        return view('siswa.penilaian.show', compact('penilaian'));
     }
 
     /**
-     * PDF Download is denied for Siswa. Only Guru Pembimbing & Super Admin can download PDF Rapor PKL.
+     * Pengunduhan PDF diblokir untuk Siswa demi legalitas dokumen rapor resmi sekolah.
      */
     public function downloadPdf(Penilaian $penilaian)
     {

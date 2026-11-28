@@ -10,19 +10,20 @@ use App\Models\Siswa;
 use App\Repositories\Interfaces\SipintuClassroomMappingRepositoryInterface;
 use App\Repositories\Interfaces\SiPintuRepositoryInterface;
 use App\Services\Interfaces\SipintuClassroomMappingServiceInterface;
+use App\Services\Support\SipintuClassroomMatcher;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Service layer for the SiPintu classroom mapping feature.
  *
  * Responsibilities:
- *  - Retrieve the unique SiPintu classroom_ids (with student counts) so the
- *    Super Admin can map each one to a local kelas exactly once.
- *  - Persist the classroom_id → kelas mapping in sipintu_classroom_mappings.
- *  - Apply all saved mappings to local students (only updating kelas_id).
- *  - Provide a resolver used by future SiPintu synchronizations so the
- *    mapping is reused automatically.
+ *  - Retrieve unique SiPintu classroom_ids used by students (with student counts and class metadata).
+ *  - Enforce 1-to-1 conflict-free classroom_id → kelas persistence.
+ *  - Detect broken/invalid mappings (trashed/missing kelas or duplicate target conflicts).
+ *  - Provide strict auto-match only when name, tingkat, and jurusan match unambiguously.
+ *  - Apply saved valid mappings to existing local students.
  */
 class SipintuClassroomMappingService extends Service implements SipintuClassroomMappingServiceInterface
 {
@@ -36,29 +37,31 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
      */
     public function getDashboardData(): array
     {
-        $classrooms = [];
+        $remoteSamples = [];
+        $counts = [];
         $connected = true;
 
         try {
             $students = $this->siPintuRepository->fetchStudents();
 
-            $counts = [];
             foreach ($students as $student) {
-                $classroomId = (int) ($student['classroom_id'] ?? 0);
+                if (! is_array($student)) {
+                    continue;
+                }
+
+                $classroomId = SipintuClassroomMatcher::extractClassroomId($student);
                 if ($classroomId <= 0) {
                     continue;
                 }
+
                 $counts[$classroomId] = ($counts[$classroomId] ?? 0) + 1;
+
+                if (! isset($remoteSamples[$classroomId])) {
+                    $remoteSamples[$classroomId] = $student;
+                }
             }
 
             ksort($counts);
-
-            foreach ($counts as $classroomId => $count) {
-                $classrooms[] = [
-                    'classroom_id' => $classroomId,
-                    'student_count' => $count,
-                ];
-            }
         } catch (\Throwable) {
             $connected = false;
         }
@@ -71,10 +74,111 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
             ->orderBy('nama')
             ->get();
 
+        // Build kelas_id => count & map for conflict/validity checks.
+        $kelasUsage = [];
+        $kelasIdToClassroomId = [];
+        foreach ($mappings as $mapping) {
+            $kelasUsage[$mapping->kelas_id][] = $mapping->classroom_id;
+            if (! isset($kelasIdToClassroomId[$mapping->kelas_id])) {
+                $kelasIdToClassroomId[$mapping->kelas_id] = $mapping->classroom_id;
+            }
+        }
+
+        $mappingByClassroomId = [];
+        $mappingHealth = [];
+        $invalidCount = 0;
+
+        foreach ($mappings as $mapping) {
+            $mappingByClassroomId[$mapping->classroom_id] = $mapping;
+            $inRemote = isset($counts[$mapping->classroom_id]);
+
+            $isValid = true;
+            $reason = null;
+
+            if ($mapping->kelas === null) {
+                $isValid = false;
+                $reason = 'Kelas lokal tidak ditemukan (sudah dihapus permanen).';
+            } elseif ($mapping->kelas->trashed()) {
+                $isValid = false;
+                $reason = "Kelas lokal '{$mapping->kelas->nama}' berstatus nonaktif (soft-deleted).";
+            } elseif (count($kelasUsage[$mapping->kelas_id] ?? []) > 1) {
+                $isValid = false;
+                $others = array_values(array_filter(
+                    $kelasUsage[$mapping->kelas_id],
+                    static fn (int $id): bool => $id !== $mapping->classroom_id
+                ));
+                $reason = 'Konflik 1-ke-banyak: kelas lokal juga dipetakan ke Classroom ID '.implode(', ', $others).'.';
+            }
+
+            if (! $isValid) {
+                $invalidCount++;
+            }
+
+            $mappingHealth[$mapping->id] = [
+                'is_valid' => $isValid,
+                'reason' => $reason,
+                'in_remote' => $inRemote,
+            ];
+        }
+
+        $classrooms = [];
+        $mappedCount = 0;
+        $unmappedCount = 0;
+        $autoMatchableCount = 0;
+        $totalStudents = 0;
+
+        foreach ($counts as $classroomId => $count) {
+            $totalStudents += $count;
+            $sample = $remoteSamples[$classroomId];
+            $classroomName = SipintuClassroomMatcher::extractClassroomName($sample);
+            $tingkat = SipintuClassroomMatcher::extractRemoteTingkat($sample, $classroomName);
+            $jurusan = SipintuClassroomMatcher::extractRemoteJurusan($sample, $classroomName);
+
+            $existing = $mappingByClassroomId[$classroomId] ?? null;
+            $existingHealthy = $existing !== null && ($mappingHealth[$existing->id]['is_valid'] ?? false);
+
+            $suggestedKelasId = null;
+            $suggestedKelasNama = null;
+            $autoMatchReason = $existingHealthy ? 'already_mapped' : 'unmapped';
+
+            if ($existingHealthy) {
+                $mappedCount++;
+            } else {
+                $unmappedCount++;
+                $match = SipintuClassroomMatcher::findUniqueStrictMatch($sample, $kelasOptions, $kelasIdToClassroomId);
+                $autoMatchReason = $match['reason'];
+                if ($match['kelas'] !== null) {
+                    $suggestedKelasId = $match['kelas']->id;
+                    $suggestedKelasNama = $match['kelas']->nama;
+                    $autoMatchableCount++;
+                }
+            }
+
+            $classrooms[] = [
+                'classroom_id' => $classroomId,
+                'classroom_name' => $classroomName,
+                'tingkat' => $tingkat,
+                'jurusan' => $jurusan,
+                'student_count' => $count,
+                'suggested_kelas_id' => $suggestedKelasId,
+                'suggested_kelas_nama' => $suggestedKelasNama,
+                'auto_match_reason' => $autoMatchReason,
+            ];
+        }
+
         return [
             'classrooms' => $classrooms,
             'mappings' => $mappings,
+            'mappingHealth' => $mappingHealth,
             'kelasOptions' => $kelasOptions,
+            'summary' => [
+                'total_remote' => count($classrooms),
+                'mapped' => $mappedCount,
+                'unmapped' => $unmappedCount,
+                'invalid' => $invalidCount,
+                'auto_matchable' => $autoMatchableCount,
+                'total_students' => $totalStudents,
+            ],
             'connected' => $connected,
         ];
     }
@@ -88,12 +192,105 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
             throw new \InvalidArgumentException('Classroom ID tidak valid.');
         }
 
-        $kelas = Kelas::query()->find($kelasId);
+        /** @var Kelas|null $kelas */
+        $kelas = Kelas::query()->withoutTrashed()->find($kelasId);
         if ($kelas === null) {
-            throw new \InvalidArgumentException('Kelas tidak ditemukan.');
+            throw new \InvalidArgumentException('Kelas lokal tidak ditemukan atau sudah dinonaktifkan.');
         }
 
-        return $this->mappingRepository->upsertMapping($classroomId, $kelasId, $userId);
+        $conflict = $this->mappingRepository->findByKelasIdExcludingClassroom($kelasId, $classroomId);
+        if ($conflict !== null) {
+            throw new \InvalidArgumentException(
+                "Konflik pemetaan: kelas {$kelas->nama} sudah dipetakan ke Classroom ID {$conflict->classroom_id}. Satu kelas lokal hanya dapat dipetakan ke satu Classroom ID SiPintu."
+            );
+        }
+
+        $mapping = $this->mappingRepository->upsertMapping($classroomId, $kelasId, $userId);
+        Cache::forget('sipintu_dashboard_remote_counts');
+
+        return $mapping;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deleteMapping(int $mappingId): bool
+    {
+        $deleted = $this->mappingRepository->deleteMappingById($mappingId);
+        if ($deleted) {
+            Cache::forget('sipintu_dashboard_remote_counts');
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function autoMapExactMatches(?int $userId): array
+    {
+        $students = $this->siPintuRepository->fetchStudents();
+
+        $remoteSamples = [];
+        foreach ($students as $student) {
+            if (! is_array($student)) {
+                continue;
+            }
+            $classroomId = SipintuClassroomMatcher::extractClassroomId($student);
+            if ($classroomId > 0 && ! isset($remoteSamples[$classroomId])) {
+                $remoteSamples[$classroomId] = $student;
+            }
+        }
+
+        ksort($remoteSamples);
+
+        $existingByClassroom = $this->mappingRepository->mappedClassroomIds();
+        $kelasOptions = Kelas::query()->with('jurusan')->orderBy('nama')->get();
+        $activeKelasIds = $kelasOptions->pluck('id')->all();
+
+        $kelasIdToClassroomId = [];
+        foreach ($existingByClassroom as $cId => $kId) {
+            if (in_array($kId, $activeKelasIds, true)) {
+                $kelasIdToClassroomId[$kId] = $cId;
+            }
+        }
+
+        $stats = [
+            'mapped' => 0,
+            'skipped_unmatched' => 0,
+            'skipped_conflict' => 0,
+            'already_mapped' => 0,
+        ];
+
+        DB::transaction(function () use ($remoteSamples, $existingByClassroom, $activeKelasIds, $kelasOptions, &$kelasIdToClassroomId, $userId, &$stats): void {
+            foreach ($remoteSamples as $classroomId => $sample) {
+                $existingKelasId = $existingByClassroom[$classroomId] ?? null;
+                if ($existingKelasId !== null && in_array($existingKelasId, $activeKelasIds, true)) {
+                    $stats['already_mapped']++;
+
+                    continue;
+                }
+
+                $match = SipintuClassroomMatcher::findUniqueStrictMatch($sample, $kelasOptions, $kelasIdToClassroomId);
+                if ($match['kelas'] === null) {
+                    if ($match['reason'] === 'kelas_already_mapped_to_another_classroom' || $match['reason'] === 'ambiguous_multiple_matches') {
+                        $stats['skipped_conflict']++;
+                    } else {
+                        $stats['skipped_unmatched']++;
+                    }
+
+                    continue;
+                }
+
+                $this->mappingRepository->upsertMapping($classroomId, $match['kelas']->id, $userId);
+                $kelasIdToClassroomId[$match['kelas']->id] = $classroomId;
+                $stats['mapped']++;
+            }
+        });
+
+        Cache::forget('sipintu_dashboard_remote_counts');
+
+        return $stats;
     }
 
     /**
@@ -101,28 +298,47 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
      */
     public function applyMappings(): array
     {
-        $mapped = $this->mappingRepository->mappedClassroomIds();
+        $rawMapped = $this->mappingRepository->mappedClassroomIds();
 
-        if ($mapped === []) {
+        if ($rawMapped === []) {
             return ['updated' => 0, 'skipped' => 0, 'failed' => 0];
         }
 
-        $stats = ['updated' => 0, 'skipped' => 0, 'failed' => 0];
+        // Only apply mappings pointing to existing active (non-trashed) local Kelas.
+        $activeKelasIds = array_flip(Kelas::query()->withoutTrashed()->pluck('id')->all());
+        $mapped = [];
+        $invalidMappingCount = 0;
+
+        foreach ($rawMapped as $classroomId => $kelasId) {
+            if (isset($activeKelasIds[$kelasId])) {
+                $mapped[$classroomId] = $kelasId;
+            } else {
+                $invalidMappingCount++;
+            }
+        }
+
+        if ($mapped === []) {
+            return ['updated' => 0, 'skipped' => 0, 'failed' => $invalidMappingCount];
+        }
+
+        $stats = ['updated' => 0, 'skipped' => 0, 'failed' => $invalidMappingCount];
 
         DB::transaction(function () use ($mapped, &$stats): void {
-            // Fetch SiPintu students to know which classroom each NIS belongs to.
             try {
                 $students = $this->siPintuRepository->fetchStudents();
             } catch (\Throwable $e) {
-                $stats['failed'] = 1;
+                $stats['failed']++;
                 throw $e;
             }
 
-            // Build nis → classroom_id map (only for mapped classroom ids).
             $nisClassroom = [];
             foreach ($students as $student) {
-                $nis = (string) ($student['nis'] ?? '');
-                $classroomId = (int) ($student['classroom_id'] ?? 0);
+                if (! is_array($student)) {
+                    continue;
+                }
+
+                $nis = trim((string) ($student['nis'] ?? ''));
+                $classroomId = SipintuClassroomMatcher::extractClassroomId($student);
                 if ($nis === '' || $classroomId <= 0 || ! isset($mapped[$classroomId])) {
                     continue;
                 }
@@ -133,7 +349,6 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
                 return;
             }
 
-            // Only update students that are present in SiPintu with a mapped classroom.
             $localStudents = Siswa::query()
                 ->withoutTrashed()
                 ->whereIn('nis', array_keys($nisClassroom))
@@ -145,6 +360,7 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
 
                 if ((int) $siswa->class_id === $kelasId) {
                     $stats['skipped']++;
+
                     continue;
                 }
 
@@ -170,8 +386,13 @@ class SipintuClassroomMappingService extends Service implements SipintuClassroom
         }
 
         $mapping = $this->mappingRepository->findByClassroomId($classroomId);
+        if ($mapping === null) {
+            return null;
+        }
 
-        return $mapping?->kelas_id;
+        $kelasActive = Kelas::query()->withoutTrashed()->whereKey($mapping->kelas_id)->exists();
+
+        return $kelasActive ? $mapping->kelas_id : null;
     }
 
     /**

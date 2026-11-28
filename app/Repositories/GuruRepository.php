@@ -36,7 +36,7 @@ class GuruRepository extends EloquentRepository implements GuruRepositoryInterfa
         string $sortDirection = 'asc',
         int $perPage = 15,
     ): LengthAwarePaginator {
-        $query = $this->newQuery();
+        $query = $this->newQuery()->withTrashed()->with('user');
 
         if ($keyword !== null && $keyword !== '') {
             $query->where(function ($q) use ($keyword): void {

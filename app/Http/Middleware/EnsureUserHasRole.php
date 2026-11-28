@@ -9,16 +9,23 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Middleware to verify the authenticated user has one of the required roles.
+ * Middleware untuk memverifikasi bahwa pengguna yang login memiliki salah satu role yang diizinkan.
  *
- * Usage in routes:
+ * Menggunakan paket Spatie Permission (metode hasAnyRole()).
+ * 4 Role Utama SIMONGAN:
+ * 1. Super Admin : Akses penuh ke seluruh fitur dan master data.
+ * 2. Guru        : Akses monitoring siswa bimbingan dan cetak Rapor PKL.
+ * 3. DUDI        : Akses pembimbing industri, persetujuan izin, dan penilaian.
+ * 4. Siswa       : Akses absensi selfie GPS, jurnal harian, dan melihat nilai.
+ *
+ * Contoh penggunaan pada route:
  *   ->middleware('role:Super Admin')
- *   ->middleware('role:Super Admin|Guru')
+ *   ->middleware('role:Guru|DUDI')
  *
- * Uses Spatie Permission's `hasRole()` method internally.
- * Returns 403 if the user does not have any of the specified roles.
+ * Mengembalikan HTTP 403 Forbidden jika pengguna tidak memiliki role yang sesuai.
  */
 class EnsureUserHasRole
+
 {
     /**
      * Handle an incoming request.

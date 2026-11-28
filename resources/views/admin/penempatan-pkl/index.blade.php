@@ -5,14 +5,6 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
-
         {{-- Header & Tombol Tambah --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -156,6 +148,14 @@
                                     @if($penempatanPkl->trashed())
                                         <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800 ml-1">Dihapus</span>
                                     @endif
+                                    <div class="mt-1 flex flex-wrap gap-1">
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold {{ $penempatanPkl->getEffectiveModeKerja() === 'WFH' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800' }}">
+                                            {{ $penempatanPkl->getEffectiveModeKerja() }}
+                                        </span>
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold {{ ($penempatanPkl->validasi_lokasi ?? true) ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">
+                                            {{ ($penempatanPkl->validasi_lokasi ?? true) ? 'Geofence ON' : 'Geofence OFF' }}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3.5">
                                     <div class="flex items-center justify-center gap-1">
@@ -164,12 +164,19 @@
                                         @endcan
 
                                         @unless($penempatanPkl->trashed())
+                                            @can('manageLocation', $penempatanPkl)
+                                                <a href="{{ route('admin.penempatan-pkl.location.edit', $penempatanPkl->id) }}" class="inline-flex items-center rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100">Lokasi</a>
+                                            @endcan
                                             @can('update', $penempatanPkl)
                                                 <a href="{{ route('admin.penempatan-pkl.edit', $penempatanPkl->id) }}" class="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100">Edit</a>
                                             @endcan
 
                                             @can('delete', $penempatanPkl)
-                                                <form method="POST" action="{{ route('admin.penempatan-pkl.destroy', $penempatanPkl->id) }}" class="inline" onsubmit="return confirm('Hapus penempatan PKL ini?')">
+                                                <form method="POST" action="{{ route('admin.penempatan-pkl.destroy', $penempatanPkl->id) }}" class="inline"
+                                                      data-confirm="Hapus penempatan PKL ini? Data akan dipindahkan ke tempat sampah."
+                                                      data-confirm-title="Hapus Penempatan PKL"
+                                                      data-confirm-type="danger"
+                                                      data-confirm-btn="Ya, Hapus">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="inline-flex items-center rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus</button>
@@ -177,14 +184,22 @@
                                             @endcan
                                         @else
                                             @can('restore', $penempatanPkl)
-                                                <form method="POST" action="{{ route('admin.penempatan-pkl.restore', $penempatanPkl->id) }}" class="inline" onsubmit="return confirm('Pulihkan penempatan PKL ini?')">
+                                                <form method="POST" action="{{ route('admin.penempatan-pkl.restore', $penempatanPkl->id) }}" class="inline"
+                                                      data-confirm="Pulihkan penempatan PKL ini?"
+                                                      data-confirm-title="Pulihkan Penempatan PKL"
+                                                      data-confirm-type="success"
+                                                      data-confirm-btn="Pulihkan">
                                                     @csrf
                                                     <button type="submit" class="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Restore</button>
                                                 </form>
                                             @endcan
 
                                             @can('forceDelete', $penempatanPkl)
-                                                <form method="POST" action="{{ route('admin.penempatan-pkl.force-delete', $penempatanPkl->id) }}" class="inline" onsubmit="return confirm('Hapus permanen penempatan PKL ini?')">
+                                                <form method="POST" action="{{ route('admin.penempatan-pkl.force-delete', $penempatanPkl->id) }}" class="inline"
+                                                      data-confirm="Hapus permanen penempatan PKL ini? Tindakan ini tidak dapat dibatalkan!"
+                                                      data-confirm-title="Hapus Permanen Penempatan PKL"
+                                                      data-confirm-type="danger"
+                                                      data-confirm-btn="Ya, Hapus Permanen">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="inline-flex items-center rounded-lg bg-red-800 px-2.5 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-900">Force Delete</button>

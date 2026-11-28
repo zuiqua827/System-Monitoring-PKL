@@ -70,6 +70,36 @@ class GuruService extends Service implements GuruServiceInterface
     {
         /** @var Guru $guru */
         $guru = $this->transaction(function () use ($data): Model {
+            /** @var Guru|null $existing */
+            $existing = Guru::withTrashed()
+                ->where('nip', $data['nip'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existingUser = $existing->user()->withTrashed()->first();
+                if ($existingUser) {
+                    if ($existingUser->trashed()) {
+                        $existingUser->restore();
+                    }
+                    $existingUser->update([
+                        'name' => $data['nama'],
+                        'email' => $data['email'],
+                        'password' => bcrypt($data['nip']),
+                    ]);
+                }
+                $existing->update([
+                    'nama' => $data['nama'],
+                    'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
+                    'no_hp' => $data['no_hp'] ?? null,
+                    'alamat' => $data['alamat'] ?? null,
+                ]);
+
+                return $existing;
+            }
+
             // 1. Create User account with NIP as initial password
             /** @var \App\Models\User $user */
             $user = $this->userRepository->create([
@@ -167,6 +197,18 @@ class GuruService extends Service implements GuruServiceInterface
     public function forceDelete(Guru $guru): bool
     {
         return $this->transaction(function () use ($guru): bool {
+            $activePenempatanCount = $guru->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("Guru \"{$guru->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $guru->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
+            }
+
             $result = $this->guruRepository->forceDelete($guru);
 
             // User cascade delete is handled by foreign key (cascadeOnDelete)

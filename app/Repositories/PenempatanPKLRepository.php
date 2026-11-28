@@ -34,6 +34,7 @@ class PenempatanPKLRepository extends EloquentRepository implements PenempatanPK
         ?string $status = null,
     ): LengthAwarePaginator {
         $query = $this->newQuery()
+            ->withTrashed()
             ->with(['siswa.kelas.jurusan', 'guru', 'dudi', 'periodePKL']);
 
         if ($keyword !== null && $keyword !== '') {

@@ -27,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
- * @property-read User $user
+ * @property-read User|null $user
  * @property-read Kelas $kelas
  * @property-read Collection<int, PenempatanPKL> $penempatan
  */

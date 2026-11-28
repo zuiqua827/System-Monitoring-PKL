@@ -32,8 +32,8 @@ class UpdateJurusanRequest extends FormRequest
         $jurusanId = $jurusan instanceof \App\Models\Jurusan ? $jurusan->id : $jurusan;
 
         return [
-            'kode' => ['required', 'string', 'max:20', Rule::unique('jurusan', 'kode')->ignore($jurusanId)],
-            'nama' => ['required', 'string', 'max:100', Rule::unique('jurusan', 'nama')->ignore($jurusanId)],
+            'kode' => ['required', 'string', 'max:20', Rule::unique('jurusan', 'kode')->ignore($jurusanId)->withoutTrashed()],
+            'nama' => ['required', 'string', 'max:100', Rule::unique('jurusan', 'nama')->ignore($jurusanId)->withoutTrashed()],
             'deskripsi' => ['nullable', 'string'],
         ];
     }

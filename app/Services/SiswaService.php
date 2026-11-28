@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Hash;
  * Service layer for Siswa business logic.
  *
  * Handles all business operations for Siswa module.
- * Controller should NOT contain business logic — it delegates to this service.
+ * Controller should NOT contain business logic â€” it delegates to this service.
  *
  * Key difference from simple modules (Jurusan, Kelas, PeriodePKL):
  * Siswa has a belongsTo relationship with User.
@@ -92,10 +92,42 @@ class SiswaService extends Service implements SiswaServiceInterface
     {
         /** @var Siswa $siswa */
         $siswa = $this->transaction(function () use ($data): Model {
+            /** @var Siswa|null $existing */
+            $existing = Siswa::withTrashed()
+                ->where('nis', $data['nis'])
+                ->first();
+
+            if ($existing !== null) {
+                if ($existing->trashed()) {
+                    $existing->restore();
+                }
+                $existingUser = $existing->user()->withTrashed()->first();
+                if ($existingUser) {
+                    if ($existingUser->trashed()) {
+                        $existingUser->restore();
+                    }
+                    $existingUser->update([
+                        'name' => $data['nama'],
+                        'password' => bcrypt($data['tanggal_lahir']),
+                    ]);
+                }
+                $existing->update([
+                    'class_id' => $data['class_id'],
+                    'nisn' => $data['nisn'] ?? null,
+                    'nama' => $data['nama'],
+                    'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
+                    'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
+                    'no_telepon' => $data['no_telepon'] ?? null,
+                    'alamat' => $data['alamat'] ?? null,
+                ]);
+
+                return $existing;
+            }
+
             // 1. Create User account
             // Initial password = tanggal_lahir (hashed). Student is forced
             // to change it on first login (must_change_password = true).
-            // Email is auto-generated from NIS — the admin never inputs it.
+            // Email is auto-generated from NIS â€” the admin never inputs it.
             $email = Siswa::generateEmail((string) $data['nis']);
 
             /** @var User $user */
@@ -192,6 +224,18 @@ class SiswaService extends Service implements SiswaServiceInterface
     public function forceDelete(Siswa $siswa): bool
     {
         return $this->transaction(function () use ($siswa): bool {
+            $activePenempatanCount = $siswa->penempatan()->whereNull('deleted_at')->count();
+            if ($activePenempatanCount > 0) {
+                throw new \RuntimeException("Siswa \"{$siswa->nama}\" tidak dapat dihapus permanen karena masih memiliki {$activePenempatanCount} data Penempatan PKL aktif.");
+            }
+
+            // All remaining penempatan are soft-deleted, safe to cascade
+            $trashedPenempatan = $siswa->penempatan()->onlyTrashed()->get();
+            $penempatanService = app(\App\Services\Interfaces\PenempatanPKLServiceInterface::class);
+            foreach ($trashedPenempatan as $penempatan) {
+                $penempatanService->forceDelete($penempatan);
+            }
+
             $result = $this->siswaRepository->forceDelete($siswa);
 
             // User cascade delete is handled by foreign key (cascadeOnDelete)
@@ -206,7 +250,7 @@ class SiswaService extends Service implements SiswaServiceInterface
      *
      * @return array{total: int, updated: int, skipped: int, failed: int}
      */
-    public function migrateStudentPasswords(): array
+    public function migrateStudentPasswords(bool $isDryRun = false): array
     {
         $total = 0;
         $updated = 0;
@@ -239,6 +283,12 @@ class SiswaService extends Service implements SiswaServiceInterface
                 continue;
             }
 
+            // In dry-run mode, only count — never write to the database.
+            if ($isDryRun) {
+                $updated++;
+                continue;
+            }
+
             try {
                 $this->userRepository->update($user, [
                     'password' => Hash::make('password'),
@@ -261,3 +311,4 @@ class SiswaService extends Service implements SiswaServiceInterface
         ];
     }
 }
+

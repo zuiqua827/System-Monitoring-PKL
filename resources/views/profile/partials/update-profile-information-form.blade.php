@@ -4,9 +4,11 @@
         <p class="mt-1 text-sm text-slate-500">Perbarui informasi profil dan alamat email akun Anda</p>
     </header>
 
-    <form id="send-verification" method="post" action="{{ route('verification.send') }}">
-        @csrf
-    </form>
+    @if (\Illuminate\Support\Facades\Route::has('verification.send'))
+        <form id="send-verification" method="post" action="{{ route('verification.send') }}">
+            @csrf
+        </form>
+    @endif
 
     <form method="post" action="{{ route('profile.update') }}" class="mt-6 space-y-5">
         @csrf
@@ -27,9 +29,11 @@
                 <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                     <p class="text-sm text-amber-800">
                         Email Anda belum terverifikasi.
-                        <button form="send-verification" class="font-semibold text-amber-900 underline hover:text-amber-700">
-                            Klik untuk kirim ulang email verifikasi
-                        </button>
+                        @if (\Illuminate\Support\Facades\Route::has('verification.send'))
+                            <button form="send-verification" class="font-semibold text-amber-900 underline hover:text-amber-700">
+                                Klik untuk kirim ulang email verifikasi
+                            </button>
+                        @endif
                     </p>
 
                     @if (session('status') === 'verification-link-sent')

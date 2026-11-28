@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validation rules for creating a new DUDI.
@@ -30,7 +31,7 @@ class StoreDudiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->withoutTrashed()],
             'nama_perusahaan' => ['required', 'string', 'max:255'],
             'penanggung_jawab' => ['required', 'string', 'max:255'],
             'no_telepon' => ['required', 'string', 'max:20'],

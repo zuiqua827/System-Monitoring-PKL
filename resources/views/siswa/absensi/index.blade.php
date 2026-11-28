@@ -18,13 +18,7 @@
 @section('content')
 <div class="px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
     <div class="mx-auto max-w-7xl space-y-6">
-        {{-- Flash Messages --}}
-        @if (session('success'))
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-800 shadow-sm">{{ session('success') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800 shadow-sm">{{ session('error') }}</div>
-        @endif
+
 
         {{-- Header --}}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -35,8 +29,22 @@
             </div>
         </div>
 
-        {{-- Card Check In / Check Out with Camera --}}
+        {{--
+        ==================================================================
+        FITUR INTERAKTIF PRESENSI SISWA (KAMERA SELFIE + GPS GEOFENCING)
+        ==================================================================
+        Alur Pengoperasian Siswa:
+        1. Akses modul kamera real-time dengan tombol buka kamera.
+        2. Sistem mengambil koordinat Latitude & Longitude perangkat siswa.
+        3. Siswa membidik selfie; sistem menempelkan watermark identitas:
+           - Nama Siswa & NIS
+           - Nama Perusahaan DUDI
+           - Waktu pengambilan presensi
+        4. Sistem memverifikasi radius maksimal 100 meter ke titik DUDI.
+        ==================================================================
+        --}}
         @if($penempatanAktif)
+
             <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-sm">
                 <div class="p-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -46,50 +54,46 @@
                                 Penempatan: <span class="font-semibold text-slate-700">{{ $penempatanAktif->dudi?->nama_perusahaan ?? '-' }}</span>
                             </p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
                             @if($todayAbsensi === null)
-                                <span class="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-bold text-amber-800">
+                                <div class="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-semibold text-amber-800">
                                     <span class="h-2 w-2 rounded-full bg-amber-500"></span>
-                                    Belum Check In
-                                </span>
-                            @elseif($todayAbsensi->jam_keluar === null)
-                                <div class="text-sm text-slate-500">
-                                    <span class="font-bold text-emerald-600">✓ Check In</span>
-                                    <span class="ml-1 font-medium">{{ $todayAbsensi->jam_masuk }}</span>
+                                    Belum Presensi Hari Ini
                                 </div>
-                                <span class="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-bold text-blue-800">
-                                    <span class="h-2 w-2 rounded-full bg-blue-500"></span>
-                                    Belum Check Out
-                                </span>
                             @else
-                                <div class="text-sm">
-                                    <span class="font-bold text-emerald-600">✓ Check In</span>
-                                    <span class="ml-1 text-slate-600">{{ $todayAbsensi->jam_masuk }}</span>
-                                    <span class="mx-2 text-slate-400">|</span>
-                                    <span class="font-bold text-orange-600">✓ Check Out</span>
-                                    <span class="ml-1 text-slate-600">{{ $todayAbsensi->jam_keluar }}</span>
-                                </div>
-                                @php
-                                    $sEnum = AbsensiStatus::tryFrom($todayAbsensi->status);
-                                    $sColors = [
-                                        'hadir' => 'bg-emerald-100 text-emerald-800',
-                                        'terlambat' => 'bg-amber-100 text-amber-800',
-                                        'izin' => 'bg-blue-100 text-blue-800',
-                                        'sakit' => 'bg-orange-100 text-orange-800',
-                                        'alpha' => 'bg-red-100 text-red-800',
-                                    ];
-                                    $statusLabel = $todayAbsensi->status === 'terlambat' && $todayAbsensi->keterangan === 'Sangat Terlambat'
-                                        ? 'Sangat Terlambat'
-                                        : $sEnum?->label();
-                                    $statusColor = $statusLabel === 'Sangat Terlambat'
-                                        ? 'bg-red-100 text-red-800'
-                                        : ($sColors[$todayAbsensi->status] ?? 'bg-slate-100 text-slate-800');
-                                @endphp
-                                @if($sEnum)
-                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold {{ $statusColor }}">
-                                        {{ $statusLabel }}
+                                {{-- Check In Section --}}
+                                <div class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200/80 shadow-sm">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-emerald-600">✓ Check In</span>
+                                        <span class="text-xs font-semibold text-slate-700 font-mono">
+                                            {{ $statusDetails['check_in']['time'] ?? ($todayAbsensi->jam_masuk ? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_masuk)->format('H:i') : '-') }}
+                                        </span>
+                                    </div>
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold {{ $statusDetails['check_in']['badge_color'] }}">
+                                        {{ $statusDetails['check_in']['status'] }}
                                     </span>
-                                @endif
+                                </div>
+
+                                {{-- Separator --}}
+                                <div class="text-slate-300 font-light select-none text-base">|</div>
+
+                                {{-- Check Out Section --}}
+                                <div class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200/80 shadow-sm">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-orange-600">✓ Check Out</span>
+                                        @if($todayAbsensi->jam_keluar)
+                                            <span class="text-xs font-semibold text-slate-700 font-mono">
+                                                {{ $statusDetails['check_out']['time'] ?? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_keluar)->format('H:i') }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold {{ $statusDetails['check_out']['badge_color'] }}">
+                                        @if(!$todayAbsensi->jam_keluar)
+                                            <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                                        @endif
+                                        {{ $statusDetails['check_out']['status'] }}
+                                    </span>
+                                </div>
                             @endif
                         </div>
                     </div>
@@ -149,56 +153,12 @@
                                     </div>
                                 </div>
 
-                                {{-- Right: GPS Status & Info --}}
+                                {{-- Right: Fallback File Upload when Camera unavailable --}}
                                 <div id="camera-fallback-container" style="display: none;">
                                     <div class="space-y-3 rounded-2xl bg-slate-50 p-5">
-                                        <h4 class="text-sm font-bold text-slate-700" style="display: none;">Informasi Lokasi</h4>
-
-                                        <div class="flex items-center gap-2 text-sm" style="display: none;">
-                                            <span class="font-medium text-slate-500">GPS:</span>
-                                            <span id="gps-status" class="text-slate-400">Mendeteksi lokasi...</span>
-                                        </div>
-
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs" style="display: none;">
-                                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                                <span class="text-slate-500">Latitude</span>
-                                                <p id="gps-lat" class="mt-1 font-mono font-semibold text-slate-700">-</p>
-                                            </div>
-                                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                                <span class="text-slate-500">Longitude</span>
-                                                <p id="gps-lng" class="mt-1 font-mono font-semibold text-slate-700">-</p>
-                                            </div>
-                                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                                <span class="text-slate-500">Akurasi</span>
-                                                <p id="gps-accuracy" class="mt-1 font-mono font-semibold text-slate-700">-</p>
-                                            </div>
-                                            <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                                <span class="text-slate-500">Radius</span>
-                                                <p id="radius-status" class="mt-1 font-mono font-semibold text-slate-700">100m</p>
-                                            </div>
-                                        </div>
-
-                                        <div class="border-t border-slate-200 pt-3" style="display: none;">
-                                            <p class="text-xs font-medium text-slate-500">Lokasi DUDI:</p>
-                                            <p class="mt-1 text-sm font-semibold text-slate-700">
-                                                {{ $penempatanAktif->dudi->latitude ?? '-' }}, {{ $penempatanAktif->dudi->longitude ?? '-' }}
-                                            </p>
-                                            <p class="mt-1 text-xs text-slate-500">{{ $penempatanAktif->dudi->alamat ?? '-' }}</p>
-                                        </div>
-
-                                        <div class="border-t border-slate-200 pt-3" style="display: none;">
-                                            <p class="text-xs font-medium text-slate-500">Foto akan diberi watermark:</p>
-                                            <ul class="mt-1 space-y-0.5 text-xs text-slate-600">
-                                                <li>• Nama: {{ $siswa->nama }}</li>
-                                                <li>• DUDI: {{ $penempatanAktif->dudi?->nama_perusahaan ?? '-' }}</li>
-                                                <li>• Tanggal & Jam otomatis</li>
-                                                <li>• GPS Coordinates</li>
-                                            </ul>
-                                        </div>
-
-                                        <div id="file-upload-fallback" class="border-t border-slate-200 pt-3" style="display: none;">
-                                            <p class="mb-1 text-xs font-medium text-red-500">Kamera tidak tersedia. Upload foto manual:</p>
-                                            <form method="POST" action="{{ $todayAbsensi === null ? route('siswa.absensi.check-in') : route('siswa.absensi.check-out') }}" enctype="multipart/form-data" class="flex flex-wrap items-center flex-wrap gap-2">
+                                        <div id="file-upload-fallback" style="display: none;">
+                                            <p class="mb-2 text-xs font-medium text-red-500">Kamera tidak tersedia. Upload foto manual:</p>
+                                            <form method="POST" action="{{ $todayAbsensi === null ? route('siswa.absensi.check-in') : route('siswa.absensi.check-out') }}" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
                                                 @csrf
                                                 <input type="file" name="{{ $todayAbsensi === null ? 'foto_masuk' : 'foto_pulang' }}" accept="image/*" class="text-sm text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
                                                 <button type="submit" class="inline-flex items-center rounded-lg bg-{{ $todayAbsensi === null ? 'emerald' : 'orange' }}-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-{{ $todayAbsensi === null ? 'emerald' : 'orange' }}-700">
@@ -214,11 +174,6 @@
                             <form id="camera-form" method="POST" action="{{ $todayAbsensi === null ? route('siswa.absensi.check-in') : route('siswa.absensi.check-out') }}" enctype="multipart/form-data" class="hidden">
                                 @csrf
                                 <input type="hidden" name="foto_base64" id="foto_base64" value="">
-                                <input type="hidden" name="latitude" id="latitude" value="">
-                                <input type="hidden" name="longitude" id="longitude" value="">
-                                <input type="hidden" name="accuracy" id="accuracy" value="">
-                                <input type="hidden" name="lokasi_masuk" id="lokasi_masuk" value="">
-                                <input type="hidden" name="lokasi_pulang" id="lokasi_pulang" value="">
                             </form>
                             </div>
                         </div>
@@ -231,9 +186,17 @@
                                     </svg>
                                 </div>
                                 <p class="mt-3 text-sm font-bold text-emerald-800">Presensi Hari Ini Sudah Lengkap</p>
-                                <p class="mt-1 text-xs text-emerald-600">
-                                    Check In: {{ $todayAbsensi->jam_masuk }} | Check Out: {{ $todayAbsensi->jam_keluar }}
-                                </p>
+                                <div class="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs">
+                                    <span class="inline-flex items-center gap-1.5 text-slate-700">
+                                        <strong class="text-emerald-700">✓ Check In:</strong> {{ $statusDetails['check_in']['time'] ?? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_masuk)->format('H:i') }}
+                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $statusDetails['check_in']['badge_color'] }}">{{ $statusDetails['check_in']['status'] }}</span>
+                                    </span>
+                                    <span class="text-slate-300">|</span>
+                                    <span class="inline-flex items-center gap-1.5 text-slate-700">
+                                        <strong class="text-orange-700">✓ Check Out:</strong> {{ $statusDetails['check_out']['time'] ?? \Illuminate\Support\Carbon::parse($todayAbsensi->jam_keluar)->format('H:i') }}
+                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-bold {{ $statusDetails['check_out']['badge_color'] }}">{{ $statusDetails['check_out']['status'] }}</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     @endif
@@ -342,7 +305,6 @@
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Jam Masuk</th>
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Jam Pulang</th>
                             <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Status</th>
-                            <th class="px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-slate-500">Lokasi</th>
                             <th class="px-4 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-slate-500">Aksi</th>
                         </tr>
                     </thead>
@@ -378,22 +340,13 @@
                                         <span class="text-slate-400">{{ $absensi->status }}</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3.5 text-xs text-slate-500">
-                                    @if($absensi->latitude_masuk && $absensi->longitude_masuk)
-                                        <span title="Lat: {{ $absensi->latitude_masuk }}, Lng: {{ $absensi->longitude_masuk }}">
-                                            📍 {{ number_format((float)$absensi->latitude_masuk, 4) }}, {{ number_format((float)$absensi->longitude_masuk, 4) }}
-                                        </span>
-                                    @else
-                                        <span class="text-slate-400">-</span>
-                                    @endif
-                                </td>
                                 <td class="px-4 py-3.5 text-center">
                                     <a href="{{ route('siswa.absensi.show', $absensi->id) }}" class="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">Detail</a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7">
+                                <td colspan="6">
                                     <div class="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
                                         <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                             <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -433,58 +386,24 @@
             typeSelection.style.display = 'none';
             cameraWorkspace.style.display = 'block';
             camera = new AbsensiCamera({
-            videoId: 'camera-preview',
-            canvasId: 'camera-canvas',
-            photoInputId: 'foto_base64',
-            latInputId: 'latitude',
-            lngInputId: 'longitude',
-            accuracyInputId: 'accuracy',
-            statusId: 'camera-status',
-            captureBtnId: 'btn-capture',
-            retakeBtnId: 'btn-retake',
-            confirmBtnId: 'btn-confirm',
-            photoPreviewId: 'photo-preview',
-            fileUploadId: 'file-upload-fallback',
-            fileUploadContainerId: 'camera-fallback-container',
-            mode: mode,
-            watermarkData: @json($watermarkData ?? []),
-            onComplete: function(data) {
-                document.getElementById('foto_base64').value = data.foto_base64;
-                document.getElementById('latitude').value = data.latitude || '';
-                document.getElementById('longitude').value = data.longitude || '';
-                document.getElementById('accuracy').value = data.accuracy || '';
-
-                const lokasiField = mode === 'checkin' ? 'lokasi_masuk' : 'lokasi_pulang';
-                const lokasiValue = data.latitude && data.longitude
-                    ? `${data.latitude}, ${data.longitude}`
-                    : '';
-                document.getElementById(lokasiField).value = lokasiValue;
-
-                document.getElementById('camera-form').submit();
-            }
+                videoId: 'camera-preview',
+                canvasId: 'camera-canvas',
+                photoInputId: 'foto_base64',
+                statusId: 'camera-status',
+                captureBtnId: 'btn-capture',
+                retakeBtnId: 'btn-retake',
+                confirmBtnId: 'btn-confirm',
+                photoPreviewId: 'photo-preview',
+                fileUploadId: 'file-upload-fallback',
+                fileUploadContainerId: 'camera-fallback-container',
+                mode: mode,
+                watermarkData: @json($watermarkData ?? []),
+                onComplete: function(data) {
+                    document.getElementById('foto_base64').value = data.foto_base64;
+                    document.getElementById('camera-form').submit();
+                }
             });
         };
-
-        const gpsStatus = document.getElementById('gps-status');
-        const gpsLat = document.getElementById('gps-lat');
-        const gpsLng = document.getElementById('gps-lng');
-        const gpsAccuracy = document.getElementById('gps-accuracy');
-
-        setInterval(function() {
-            if (!camera) return;
-
-            const lat = document.getElementById('latitude').value;
-            const lng = document.getElementById('longitude').value;
-            const acc = document.getElementById('accuracy').value;
-
-            if (lat) {
-                gpsLat.textContent = parseFloat(lat).toFixed(6);
-                gpsLng.textContent = parseFloat(lng).toFixed(6);
-                gpsAccuracy.textContent = acc ? parseFloat(acc).toFixed(0) + 'm' : '-';
-                gpsStatus.textContent = '✅ Lokasi terdeteksi';
-                gpsStatus.className = 'font-medium text-emerald-600';
-            }
-        }, 2000);
 
         function closeCamera() {
             if (camera) {
@@ -492,9 +411,7 @@
                 camera = null;
             }
 
-            ['foto_base64', 'latitude', 'longitude', 'accuracy', 'lokasi_masuk', 'lokasi_pulang'].forEach(function(id) {
-                document.getElementById(id).value = '';
-            });
+            document.getElementById('foto_base64').value = '';
 
             document.getElementById('photo-preview').style.display = 'none';
             document.getElementById('camera-preview').style.display = 'none';

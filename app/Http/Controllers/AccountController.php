@@ -9,8 +9,10 @@ use App\Http\Requests\Account\UpdateAccountInfoRequest;
 use App\Http\Requests\Account\UpdatePasswordRequest;
 use App\Models\User;
 use App\Services\Interfaces\AccountSettingsServiceInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -57,7 +59,7 @@ class AccountController extends Controller
     /**
      * Upload / replace the user's avatar.
      */
-    public function uploadAvatar(Request $request): RedirectResponse
+    public function uploadAvatar(Request $request): RedirectResponse|JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -68,6 +70,16 @@ class AccountController extends Controller
 
         $this->accountSettings->uploadAvatar($user, $request->file('avatar'));
 
+        if ($request->expectsJson()) {
+            $user->refresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto profil berhasil diperbarui.',
+                'avatar_url' => $user->avatar ? Storage::disk('public')->url($user->avatar) : null,
+            ]);
+        }
+
         return redirect()
             ->route('account.index')
             ->with('success', 'Foto profil berhasil diperbarui.');
@@ -76,12 +88,19 @@ class AccountController extends Controller
     /**
      * Delete the user's avatar.
      */
-    public function deleteAvatar(Request $request): RedirectResponse
+    public function deleteAvatar(Request $request): RedirectResponse|JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
 
         $this->accountSettings->deleteAvatar($user);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto profil berhasil dihapus.',
+            ]);
+        }
 
         return redirect()
             ->route('account.index')

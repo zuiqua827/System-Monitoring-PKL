@@ -102,7 +102,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        return $this->fetchFromEndpoint('/api/v1/sijuna/students', $query, 'students', 'data siswa');
+        return $this->fetchFromEndpoint('/api/v1/sijuna/students', $query, 'students');
     }
 
     /**
@@ -120,7 +120,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        return $this->fetchFromEndpoint('/api/v1/sijuna/teachers', $query, 'teachers', 'data guru');
+        return $this->fetchFromEndpoint('/api/v1/sijuna/teachers', $query, 'teachers');
     }
 
     /**
@@ -134,23 +134,54 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             $query['search'] = $search;
         }
 
-        return $this->fetchFromEndpoint('/api/v1/dudi', $query, 'dudi', 'data DUDI');
+        return $this->fetchFromEndpoint('/api/v1/dudi', $query, 'dudi');
     }
 
     /**
-     * Execute a GET request against a SiPintu Gateway endpoint with unified
-     * error handling, timeout reporting, and response parsing.
+     * Fetch all records from an endpoint, handling multi-page pagination if present.
      *
-     * @param  array<string, string>  $query
+     * @param  array<string, mixed>  $query
      * @return array<int, array<string, mixed>>
-     *
-     * @throws SiPintuApiException
      */
-    private function fetchFromEndpoint(string $endpoint, array $query, string $entityKey, string $timeoutLabel): array
+    private function fetchFromEndpoint(string $endpoint, array $query, string $logLabel): array
     {
         $baseUrl = rtrim((string) config('services.sipintu.api_url', ''), '/');
         $url = $baseUrl.$endpoint;
 
+        $response = $this->executeGetRequest($url, $query, $logLabel);
+        $firstPageData = $this->parseResponse($response);
+
+        // Check if the response indicates pagination (e.g. last_page > 1 or links.next)
+        $body = $response->json();
+        $lastPage = 1;
+        if (is_array($body)) {
+            $lastPage = (int) ($body['meta']['last_page'] ?? $body['last_page'] ?? 1);
+        }
+
+        if ($lastPage <= 1) {
+            return $firstPageData;
+        }
+
+        $allData = $firstPageData;
+        for ($page = 2; $page <= $lastPage; $page++) {
+            $pageQuery = array_merge($query, ['page' => $page]);
+            $pageResponse = $this->executeGetRequest($url, $pageQuery, "{$logLabel} (halaman {$page})");
+            $pageData = $this->parseResponse($pageResponse);
+            foreach ($pageData as $record) {
+                $allData[] = $record;
+            }
+        }
+
+        return $allData;
+    }
+
+    /**
+     * Execute a GET request to the SiPintu API with standardized error handling.
+     *
+     * @param  array<string, mixed>  $query
+     */
+    private function executeGetRequest(string $url, array $query, string $logLabel): Response
+    {
         try {
             $client = $this->httpClient();
             $response = $client->get($url, $query);
@@ -166,7 +197,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
                 $bytesInfo = ' ('.number_format((int) $matches[1]).' bytes telah diterima sebelum timeout)';
             }
 
-            Log::error("SiPintu API connection error ({$entityKey})", [
+            Log::error("SiPintu API connection error ({$logLabel})", [
                 'url' => $url,
                 'exception' => get_class($e),
                 'message' => $sanitizedMsg,
@@ -175,7 +206,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             if ($isTimeout) {
                 $timeoutDetail = ($matches[1] ?? null) === '0' || ! isset($matches[1])
                     ? 'Request ke server SiPintu melebihi batas waktu dan belum menerima response (0 bytes diterima).'
-                    : "Pengambilan {$timeoutLabel} dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
+                    : "Pengambilan data {$logLabel} dari SiPintu melebihi batas waktu (Timeout){$bytesInfo}.";
 
                 throw SiPintuApiException::apiError(
                     "{$timeoutDetail} Data lokal tetap aman."
@@ -184,7 +215,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
 
             throw SiPintuApiException::connectionError();
         } catch (\Throwable $e) {
-            Log::error("SiPintu API unexpected exception ({$entityKey})", [
+            Log::error("SiPintu API unexpected exception ({$logLabel})", [
                 'url' => $url,
                 'exception' => get_class($e),
                 'message' => $this->sanitizeMessage($e->getMessage()),
@@ -192,7 +223,7 @@ class SiPintuRepository implements SiPintuRepositoryInterface
             throw SiPintuApiException::timeout();
         }
 
-        return $this->parseResponse($response);
+        return $response;
     }
 
     /**

@@ -1,0 +1,200 @@
+@php
+    /**
+     * @var \App\Models\Penilaian|null $penilaian
+     * @var string $route
+     * @var string $method
+     */
+@endphp
+
+<div class="mx-auto max-w-3xl">
+    <form method="POST" action="{{ $route }}" class="space-y-6">
+        @csrf
+        @method($method)
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-card-sm">
+            <div class="border-b border-slate-100 px-6 py-5">
+                <h3 class="text-base font-bold text-slate-900">Nilai Aspek PKL</h3>
+                <p class="mt-1 text-sm text-slate-500">Berikan nilai 0-100 untuk setiap aspek penilaian</p>
+            </div>
+            <div class="grid gap-px overflow-hidden rounded-b-2xl bg-slate-100 sm:grid-cols-1 sm:grid-cols-2">
+                {{-- Penempatan PKL --}}
+                @if(!isset($penilaian) || !$penilaian)
+                <div class="bg-white p-5 sm:col-span-2">
+                    <label for="penempatan_pkl_id" class="block text-sm font-semibold text-slate-700">
+                        Penempatan PKL <span class="text-red-500">*</span>
+                    </label>
+                    <select id="penempatan_pkl_id" name="penempatan_pkl_id" required
+                            class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        <option value="">-- Pilih Siswa --</option>
+                        @foreach(\App\Models\PenempatanPKL::with(['siswa', 'guru', 'dudi', 'periodePKL'])->whereDoesntHave('penilaian')->get() as $p)
+                            <option value="{{ $p->id }}" {{ old('penempatan_pkl_id', $penilaian->penempatan_pkl_id ?? '') == $p->id ? 'selected' : '' }}>
+                                {{ $p->siswa?->nama ?? '-' }} ({{ $p->guru?->nama ?? '-' }} - {{ $p->dudi?->nama_perusahaan ?? '-' }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('penempatan_pkl_id')
+                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                @else
+                    <div class="bg-white p-5 sm:col-span-2">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Penempatan PKL</p>
+                        <p class="mt-1 text-sm font-medium text-slate-900">
+                            {{ $penilaian->penempatanPKL?->siswa?->nama ?? '-' }} —
+                            {{ $penilaian->penempatanPKL?->guru?->nama ?? '-' }} —
+                            {{ $penilaian->penempatanPKL?->dudi?->nama_perusahaan ?? '-' }}
+                        </p>
+                    </div>
+                @endif
+
+                {{-- Nilai inputs --}}
+                @php
+                    $fields = [
+                        'nilai_kehadiran' => 'Kehadiran (Bobot: 4)',
+                        'nilai_kerjasama' => 'Kerja Sama (Bobot: 2)',
+                        'nilai_komunikasi' => 'Komunikasi (Bobot: 2)',
+                        'nilai_problem_solving' => 'Problem Solving (Bobot: 2)',
+                        'nilai_teknis' => 'Teknis (Bobot: 2)',
+                        'nilai_inisiatif' => 'Inisiatif (Bobot: 2)',
+                    ];
+                @endphp
+
+                @foreach($fields as $field => $label)
+                <div class="bg-white p-5">
+                    <label for="{{ $field }}" class="block text-sm font-semibold text-slate-700">
+                        {{ $label }} @if($field !== 'nilai_kehadiran')<span class="text-red-500">*</span>@endif
+                    </label>
+                    <input type="number" id="{{ $field }}" name="{{ $field }}" min="0" max="100" {{ $field !== 'nilai_kehadiran' ? 'required' : '' }}
+                           value="{{ old($field, $penilaian->$field ?? '') }}"
+                           class="nilai-input mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                           {{ $field === 'nilai_kehadiran' ? 'readonly' : '' }}>
+                    @if($field === 'nilai_kehadiran')
+                        <p class="mt-1.5 text-xs text-slate-500">Nilai kehadiran dihitung otomatis dari data absensi siswa.</p>
+                    @endif
+                    @error($field)
+                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                @endforeach
+
+                {{-- Nilai Akhir & Predikat Preview --}}
+                <div class="bg-white p-5">
+                    <label class="block text-sm font-semibold text-slate-700">Nilai Akhir</label>
+                    <p id="nilai_akhir_preview" class="mt-1.5 text-2xl font-bold text-blue-600">-</p>
+                </div>
+                <div class="bg-white p-5">
+                    <label class="block text-sm font-semibold text-slate-700">Predikat</label>
+                    <p id="predikat_preview" class="mt-1.5 text-2xl font-bold text-blue-600">-</p>
+                </div>
+
+                {{-- Catatan DUDI --}}
+                <div class="bg-white p-5 sm:col-span-2">
+                    <label for="catatan" class="block text-sm font-semibold text-slate-700">Catatan DUDI</label>
+                    <textarea id="catatan" name="catatan" rows="3"
+                              class="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder-slate-400 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">{{ old('catatan', $penilaian->catatan ?? '') }}</textarea>
+                    @error('catatan')
+                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        {{-- Tombol --}}
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <a href="{{ route('admin.penilaian.index') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-card-sm transition hover:bg-slate-50">
+                Batal
+            </a>
+            <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-card-sm transition hover:bg-blue-700">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                {{ isset($penilaian) && $penilaian ? 'Simpan Perubahan' : 'Simpan' }}
+            </button>
+        </div>
+    </form>
+</div>
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('.nilai-input');
+    const selectPenempatan = document.getElementById('penempatan_pkl_id');
+    const inputKehadiran = document.getElementById('nilai_kehadiran');
+
+    function fetchKehadiranScore(penempatanId) {
+        if (!penempatanId || !inputKehadiran) return;
+
+        fetch(`/penilaian/ajax/attendance-score/${penempatanId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && typeof data.nilai_kehadiran !== 'undefined') {
+                inputKehadiran.value = data.nilai_kehadiran;
+                calculateNilaiAkhir();
+            }
+        })
+        .catch(err => console.error('Error fetching attendance score:', err));
+    }
+
+    if (selectPenempatan) {
+        selectPenempatan.addEventListener('change', function() {
+            fetchKehadiranScore(this.value);
+        });
+
+        if (selectPenempatan.value && (!inputKehadiran.value || inputKehadiran.value === '')) {
+            fetchKehadiranScore(selectPenempatan.value);
+        }
+    }
+
+    function calculateNilaiAkhir() {
+        let kehadiran = parseFloat(document.getElementById('nilai_kehadiran')?.value) || 0;
+        let kerjasama = parseFloat(document.getElementById('nilai_kerjasama')?.value) || 0;
+        let komunikasi = parseFloat(document.getElementById('nilai_komunikasi')?.value) || 0;
+        let problem_solving = parseFloat(document.getElementById('nilai_problem_solving')?.value) || 0;
+        let teknis = parseFloat(document.getElementById('nilai_teknis')?.value) || 0;
+        let inisiatif = parseFloat(document.getElementById('nilai_inisiatif')?.value) || 0;
+
+        let totalScore = 
+            (kehadiran * 4) +
+            (kerjasama * 2) +
+            (komunikasi * 2) +
+            (problem_solving * 2) +
+            (teknis * 2) +
+            (inisiatif * 2);
+
+        let validCount = 0;
+        inputs.forEach(function(input) {
+            if (input.value !== '' || input.id === 'nilai_kehadiran') validCount++;
+        });
+
+        const previewNilai = document.getElementById('nilai_akhir_preview');
+        const previewPredikat = document.getElementById('predikat_preview');
+
+        if (validCount === 6) {
+            const avg = (totalScore / 14).toFixed(2);
+            previewNilai.textContent = avg;
+
+            const avgNum = parseFloat(avg);
+            if (avgNum >= 95) previewPredikat.textContent = 'A+ (Sangat Memuaskan)';
+            else if (avgNum >= 90) previewPredikat.textContent = 'A (Sangat Baik)';
+            else if (avgNum >= 80) previewPredikat.textContent = 'B (Baik)';
+            else if (avgNum >= 70) previewPredikat.textContent = 'C (Cukup)';
+            else previewPredikat.textContent = 'D (Kurang)';
+        } else {
+            previewNilai.textContent = '-';
+            previewPredikat.textContent = '-';
+        }
+    }
+
+    inputs.forEach(function(input) {
+        input.addEventListener('input', calculateNilaiAkhir);
+    });
+
+    calculateNilaiAkhir();
+});
+</script>
+@endpush

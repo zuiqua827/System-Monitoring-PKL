@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1E40AF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Graduation cap -->
+    <path d="M256 128 96 200 256 272 416 200 256 128Z"/>
+    <path d="M160 232v56c0 16 43 28 96 28s96-12 96-28v-56"/>
+    <path d="M416 200v72"/>
+  </g>
+  <circle cx="256" cy="330" r="22" fill="#93C5FD"/>
+</svg>

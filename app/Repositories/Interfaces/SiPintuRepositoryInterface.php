@@ -1,0 +1,54 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories\Interfaces;
+
+use App\Exceptions\SiPintuApiException;
+
+/**
+ * Repository for communicating with the SiPintu Identity & API Gateway.
+ *
+ * This repository encapsulates all HTTP calls to the SiPintu Gateway
+ * (Server-to-Server method). It reads the client credentials from config
+ * (backed by .env) and never hardcodes them.
+ */
+interface SiPintuRepositoryInterface
+{
+    /**
+     * Fetch the list of students from the SiPintu SIJUNA endpoint.
+     *
+     * @return array<int, mixed> The decoded JSON "data" array of students.
+     *
+     * @throws SiPintuApiException On connection error, invalid credentials, timeout,
+     *                             or any non-2xx API response.
+     */
+    public function fetchStudents(?string $nis = null, ?string $search = null): array;
+
+    /**
+     * Fetch the list of teachers from the SiPintu SIJUNA endpoint.
+     *
+     * @return array<int, mixed> The decoded JSON "data" array of teachers.
+     *
+     * @throws SiPintuApiException On connection error, invalid credentials, timeout,
+     *                             or any non-2xx API response.
+     */
+    public function fetchTeachers(?string $nip = null, ?string $search = null): array;
+
+    /**
+     * Fetch the list of DUDI partners from the SiPintu Gateway endpoint.
+     *
+     * @return array<int, mixed> The decoded JSON "data" array of DUDI accounts.
+     *
+     * @throws SiPintuApiException On connection error, invalid credentials, timeout,
+     *                             or any non-2xx API response.
+     */
+    public function fetchDudis(?string $search = null): array;
+
+    /**
+     * Test connection to the SiPintu API.
+     *
+     * @return array{success: bool, status: bool, connection: bool, http_status: int|null, message: string, error_type: string|null}
+     */
+    public function testConnection(): array;
+}
